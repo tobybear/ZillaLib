@@ -1,0 +1,4 @@
+ZillaAppLocalConfig.mk
+build/
+build-debug/
+cache/

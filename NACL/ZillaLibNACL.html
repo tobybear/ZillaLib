@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en-us">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>{{ZILLAAPP}}</title>
+	<script type="text/javascript">
+	window.addEventListener('DOMContentLoaded',function()
+	{
+		var url_pexe = document.location.href.split('/').slice(0,-1).join('/') + '/' + {{ZLPEXE}};
+		var url_assets = {{ZLASSETS}};
+		var L = function(id)
+		{
+			if (id == 'LOAD_ERROR') return 'Data could not be loaded.';
+			if (id ==  'NO_CHROME') return 'Native client is not available on this browser.<br>Use Chromium or Google Chrome for this.';
+			if (id ==   'NO_PNACL') return 'Portable Native Client requires a newer version of Chromium or Google Chrome, please update.';
+			if (id ==      'NO_GL') return 'Your browser or graphics card does not seem to support <a href="http://khronos.org/webgl/wiki/Getting_a_WebGL_Implementation" style="color:#000">WebGL</a>.<br>Find out how to get it <a href="http://get.webgl.org/" style="color:#000">here</a>.';
+		};
+		var zl_module = null;
+		var doStatus = function(msg)
+		{
+			if (msg == null) { zl_status.innerHTML = ''; zl_status.style.display = 'none'; }
+			else zl_status.innerHTML = 'Status: ' + msg;
+		};
+		var doError = function(msg)
+		{
+			doStatus(null);
+			zl_error.innerHTML = '<div style="text-align:center;background-color:#FFF;color:#000;padding:1.5em;width:540px;margin:2em auto">' + msg + '</div>';
+			if (zl_module) { zl_module.parentNode.removeChild(zl_module); zl_module = null; }
+		};
+		if (navigator.mimeTypes['application/x-pnacl'] == undefined || !zl_container)
+		{
+			doError(L(navigator.userAgent.match('Chrome/') ? 'NO_PNACL' : 'NO_CHROME'));
+			return;
+		}
+		zl_module = document.createElement('embed');
+		zl_module.width = zl_module.height = 1;
+		zl_module.type = 'application/x-pnacl';
+		zl_module.src = 'data:;,' + encodeURIComponent('{"program":{"portable":{"pnacl-translate":{"url":"' + url_pexe + '"}}}}');
+		zl_module.addEventListener('message', function(msg)
+		{
+			var type = msg.data.substr(0, 3);
+			//zl_log.innerHTML = msg.data + '<br>' + zl_log.innerHTML;
+			switch (type)
+			{
+				case 'LOG':
+					zl_log.innerHTML = msg.data.substr(3) + '<br>' + zl_log.innerHTML;
+					break;
+				case 'NOG':
+					doError(L('NO_GL'));
+					break;
+				case 'RDY':
+					//zl_module.postMessage('SZX'+'960');
+					//zl_module.postMessage('SZY'+'540');
+					if (url_assets)
+					{
+						doStatus('LOADING DATA...');
+						zl_module.postMessage('PKG'+url_assets);
+					}
+					else
+					{
+						doStatus(null);
+						zl_module.postMessage('INI');
+					}
+					break;
+				case 'PKP':
+					var progress = msg.data.match(/^PKP(\d+).(\d+)/);
+					doStatus('LOADING DATA: '+Math.floor(progress[1]*100/(progress[2]*1+1))+'%');
+					break;
+				case 'PKE':
+					doError(L('LOAD_ERROR'));
+					break;
+				case 'PKD':
+					zl_module.postMessage('INI');
+					break;
+				case 'WIN':
+					doStatus(null);
+					var size = msg.data.substr(3).match(/(\d+).(\d+)/);
+					zl_container.style.background = 'black';
+					zl_module.width = size[1];
+					zl_module.height = size[2];
+					zl_module.postMessage('RUN');
+					zl_module.focus();
+					break;
+				case 'URL':
+					var a = document.getElementById('zl_popup_a'), d = document.getElementById('zl_popup');
+					if (a == undefined || d == undefined) { window.open(msg.data.substr(3), '_newtab'); }
+					else { a.href = a.innerHTML = msg.data.substr(3); d.style.display = ''; }
+					break;
+				case 'GET':
+					zl_module.config = msg.data.substr(3);
+					for (var a in localStorage) if (a.match('^'+zl_module.config+' ')) zl_module.postMessage('VAR'+(a.length-1-zl_module.config.length)+a.substr(zl_module.config.length)+localStorage[a]);
+					break;
+				case 'SET':
+					var namelen = msg.data.match(/^SET(\d+) /);
+					if (zl_module.config) localStorage[zl_module.config+' '+msg.data.substr(namelen[0].length, namelen[1])] = msg.data.substr(namelen[0].length+parseInt(namelen[1]));
+					break;
+				case 'DEL':
+					if (zl_module.config) localStorage.removeItem(zl_module.config+' '+msg.data.substr(3));
+					break;
+			}
+		}, true);
+		zl_container.appendChild(zl_module);
+		if (zl_module.readyState == undefined)
+		{
+			doError(L('NO_PNACL'));
+			return;
+		}
+		zl_module.onerror = function(e)
+		{
+			doError(L('LOAD_ERROR'));
+		}
+		doStatus('LOADING MODULE...');
+	});
+	</script>
+	<style type="text/css">:fullscreen{background:#000;margin:0!important}:full-screen{background:#000;margin:0!important}:-webkit-full-screen{background:#000;margin:0!important}:-moz-full-screen{background:#000;margin:0!important}</style>
+</head>
+<body style="background:#CCCCCC">
+	<h1 style="text-align:center">{{ZILLAAPP}}</h1>
+	<h2 id="zl_status" style="text-align:center"></h2>
+	<div id="zl_error" style="text-align:center"></div>
+	<div id="zl_container" style="text-align:center;line-height:0"></div>
+	<div id="zl_popup" style="text-align:center;position:absolute;top:300px;left:0;width:99%;z-index:9;display:none"><div id="zl_popupmsg" style="width:500px;margin:0 auto;padding:20px 10px;background:#444;color:#DDD;border:1px solid white">Please open the following link in a new window to continue<br><br><a id="zl_popup_a" target="_blank" style="color:#88D"></a><br><br><input type="button" value="CLOSE THIS" onclick="document.getElementById('zl_popup').style.display = 'none'"></div></div>
+	<hr style="border:0;border-bottom:1px dashed gray;margin:10px 0">
+	<div id="zl_log"></div>
+</body>
+</html>

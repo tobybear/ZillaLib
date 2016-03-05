@@ -1,0 +1,8 @@
+*.user
+*.suo
+*.lib
+*.sdf
+Release-Win32/
+Release-ARM/
+Debug-Win32/
+Debug-ARM/

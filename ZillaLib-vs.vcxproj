@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="UserMacros">
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '11.0' Or '$(PlatformToolsetVersion)' == '110' Or '$(MSBuildToolsVersion)' ==  '4.0'">2012</VisualStudioYear>
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '12.0' Or '$(PlatformToolsetVersion)' == '120' Or '$(MSBuildToolsVersion)' == '12.0'">2013</VisualStudioYear>
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '14.0' Or '$(PlatformToolsetVersion)' == '140' Or '$(MSBuildToolsVersion)' == '14.0'">2015</VisualStudioYear>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Emscripten-Debug|Win32">
+      <Configuration>Emscripten-Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Emscripten-Release|Win32">
+      <Configuration>Emscripten-Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="NACL-Debug|Win32">
+      <Configuration>NACL-Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="NACL-Release|Win32">
+      <Configuration>NACL-Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Android-Debug|Win32">
+      <Configuration>Android-Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Android-Release|Win32">
+      <Configuration>Android-Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectName>ZillaLib</ProjectName>
+    <RootNamespace>ZillaLib</RootNamespace>
+    <ProjectGuid>{2177A217-7A21-77A2-177A-2177A2177777}</ProjectGuid>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2012'">v110_xp</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2013'">v120_xp</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2015'">v140_xp</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Debug' Or '$(Configuration)'=='Emscripten-Release'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='NACL-Debug' Or '$(Configuration)'=='NACL-Release'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Android-Debug' Or '$(Configuration)'=='Android-Release'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>Debug-vs$(VisualStudioYear)\</OutDir>
+    <IntDir>Debug-vs$(VisualStudioYear)\</IntDir>
+    <TargetName>ZillaLib</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>Release-vs$(VisualStudioYear)\</OutDir>
+    <IntDir>Release-vs$(VisualStudioYear)\</IntDir>
+    <TargetName>ZillaLib</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>Debug-vs$(VisualStudioYear)x64\</OutDir>
+    <IntDir>Debug-vs$(VisualStudioYear)x64\</IntDir>
+    <TargetName>ZillaLib</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>Release-vs$(VisualStudioYear)x64\</OutDir>
+    <IntDir>Release-vs$(VisualStudioYear)x64\</IntDir>
+    <TargetName>ZillaLib</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Emscripten-Debug|Win32'">
+    <OutDir>Emscripten\build-debug\</OutDir>
+    <IntDir>Emscripten\build-debug\</IntDir>
+    <BaseIntermediateOutputPath>Emscripten\build-debug\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -vc</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -vc -B</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -vc -clean</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Emscripten-Release|Win32'">
+    <OutDir>Emscripten\build\</OutDir>
+    <IntDir>Emscripten\build\</IntDir>
+    <BaseIntermediateOutputPath>Emscripten\build\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -rel -vc</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -rel -vc -B</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -rel -vc -clean</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='NACL-Debug|Win32'">
+    <OutDir>NACL\build-debug\</OutDir>
+    <IntDir>NACL\build-debug\</IntDir>
+    <BaseIntermediateOutputPath>NACL\build-debug\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -vc</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -vc -B</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -vc -clean</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='NACL-Release|Win32'">
+    <OutDir>NACL\build\</OutDir>
+    <IntDir>NACL\build\</IntDir>
+    <BaseIntermediateOutputPath>NACL\build\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -rel -vc</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -rel -vc -B</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -rel -vc -clean</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Android-Debug|Win32'">
+    <OutDir>Android\build-debug\</OutDir>
+    <IntDir>Android\build-debug\</IntDir>
+    <BaseIntermediateOutputPath>Android\build-debug\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=1 -B</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=1 clean</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Android-Release|Win32'">
+    <OutDir>Android\build\</OutDir>
+    <IntDir>Android\build\</IntDir>
+    <BaseIntermediateOutputPath>Android\build\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=0</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=0 -B</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=0 clean</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LocalDebuggerCommand>This is the library, you can't run it. Make sure to set your game project as StartUp Project by right clicking it in the Solution Explorer</LocalDebuggerCommand>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile>
+      <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>./Include;./Source/zlib;./Source/sdl/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_HAS_EXCEPTIONS=0;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;ZILLALOG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>false</ExceptionHandling>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Lib>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions</EnableEnhancedInstructionSet>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>./Include;./Source/zlib;./Source/sdl/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_HAS_EXCEPTIONS=0;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <ExceptionHandling>false</ExceptionHandling>
+      <OmitFramePointers>true</OmitFramePointers>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions Condition="'$(VisualStudioYear)' &gt;= '2013'">/Gw %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Lib>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Source\zlib\miniz.c" />
+    <ClCompile Include="Source\enet\callbacks.c" />
+    <ClCompile Include="Source\enet\host.c" />
+    <ClCompile Include="Source\enet\list.c" />
+    <ClCompile Include="Source\enet\packet.c" />
+    <ClCompile Include="Source\enet\peer.c" />
+    <ClCompile Include="Source\enet\protocol.c" />
+    <ClCompile Include="Source\enet\win32.c" />
+    <ClCompile Include="Source\sdl\audio\SDL_audio.c" />
+    <ClCompile Include="Source\sdl\events\SDL_clipboardevents.c" />
+    <ClCompile Include="Source\sdl\audio\directsound\SDL_directsound.c" />
+    <ClCompile Include="Source\sdl\events\SDL_dropevents.c" />
+    <ClCompile Include="Source\sdl\joystick\windows\SDL_dxjoystick.c" />
+    <ClCompile Include="Source\sdl\events\SDL_events.c" />
+    <ClCompile Include="Source\sdl\joystick\SDL_joystick.c" />
+    <ClCompile Include="Source\sdl\events\SDL_keyboard.c" />
+    <ClCompile Include="Source\sdl\events\SDL_mouse.c" />
+    <ClCompile Include="Source\sdl\events\SDL_quit.c" />
+    <ClCompile Include="Source\sdl\video\SDL_rect.c" />
+    <ClCompile Include="Source\sdl\thread\generic\SDL_syscond.c" />
+    <ClCompile Include="Source\sdl\loadso\windows\SDL_sysloadso.c" />
+    <ClCompile Include="Source\sdl\thread\windows\SDL_sysmutex.c" />
+    <ClCompile Include="Source\sdl\thread\windows\SDL_syssem.c" />
+    <ClCompile Include="Source\sdl\thread\windows\SDL_systhread.c" />
+    <ClCompile Include="Source\sdl\timer\windows\SDL_systimer.c" />
+    <ClCompile Include="Source\sdl\thread\SDL_thread.c" />
+    <ClCompile Include="Source\sdl\events\SDL_touch.c" />
+    <ClCompile Include="Source\sdl\video\SDL_video.c" />
+    <ClCompile Include="Source\sdl\events\SDL_windowevents.c" />
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsclipboard.c" />
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsevents.c" />
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsframebuffer.c" />
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowskeyboard.c" />
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsmessagebox.c" />
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsmodes.c" />
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsmouse.c" />
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsopengl.c" />
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsvideo.c" />
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowswindow.c" />
+    <ClCompile Include="Source\libtess2\tesselator.c" />
+    <ClCompile Include="Source\stb\stb_image.cpp" />
+    <ClCompile Include="Source\stb\stb_vorbis.cpp" />
+    <ClCompile Include="Source\stb\stb_truetype.cpp" />
+    <ClCompile Include="Source\ZL_Application.cpp" />
+    <ClCompile Include="Source\ZL_Display.cpp" />
+    <ClCompile Include="Source\ZL_File.cpp" />
+    <ClCompile Include="Source\ZL_File_ZIP.cpp" />
+    <ClCompile Include="Source\ZL_Font.cpp" />
+    <ClCompile Include="Source\ZL_Input.cpp" />
+    <ClCompile Include="Source\ZL_Math.cpp" />
+    <ClCompile Include="Source\ZL_Network.cpp" />
+    <ClCompile Include="Source\ZL_Particles.cpp" />
+    <ClInclude Include="Source\zlib\zlib.h" />
+    <ClInclude Include="Source\ZL_Platform.h" />
+    <ClCompile Include="Source\ZL_PlatformAndroid.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
+    <ClInclude Include="Source\ZL_PlatformAndroid.h">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_PlatformConfig.h" />
+    <ClCompile Include="Source\ZL_PlatformEmscripten.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
+    <ClInclude Include="Source\ZL_PlatformEmscripten.h">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClInclude>
+    <ClCompile Include="Source\ZL_PlatformGLSL.cpp" />
+    <ClInclude Include="Source\ZL_PlatformGLSL.h" />
+    <ClInclude Include="Source\ZL_PlatformIOS.h">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClInclude>
+    <None Include="Source\ZL_PlatformIOS.mm">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </None>
+    <ClCompile Include="Source\ZL_PlatformNACL.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
+    <ClInclude Include="Source\ZL_PlatformNACL.h">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClInclude>
+    <ClCompile Include="Source\ZL_PlatformPosix.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_PlatformSDL.cpp" />
+    <ClInclude Include="Source\ZL_PlatformSDL.h" />
+    <ClCompile Include="Source\ZL_PlatformWP.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
+    <ClInclude Include="Source\ZL_PlatformWP.h">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_PlatformPosix.h">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClInclude>
+    <ClCompile Include="Source\ZL_Scene.cpp" />
+    <ClCompile Include="Source\ZL_Signal.cpp" />
+    <ClInclude Include="Source\ZL_Texture_Impl.h" />
+    <ClCompile Include="Source\ZL_Audio.cpp" />
+    <ClCompile Include="Source\ZL_String.cpp" />
+    <ClCompile Include="Source\ZL_Surface.cpp" />
+    <ClCompile Include="Source\ZL_SynthImc.cpp" />
+    <ClCompile Include="Source\ZL_Texture_Impl.cpp" />
+    <ClCompile Include="Source\ZL_Thread.cpp" />
+    <ClCompile Include="Source\ZL_Timer.cpp" />
+    <ClCompile Include="Source\ZL_Data.cpp" />
+    <ClInclude Include="Source\ZL_Display_Impl.h" />
+    <ClInclude Include="Source\ZL_File_Impl.h" />
+    <ClInclude Include="Source\ZL_Impl.h" />
+    <ClInclude Include="Source\sdl\include\SDL_stdinc.h" />
+    <ClInclude Include="Source\libtess2\tesselator.h" />
+    <ClInclude Include="Include\ZL_Application.h" />
+    <ClInclude Include="Include\ZL_Display.h" />
+    <ClInclude Include="Include\ZL_Events.h" />
+    <ClInclude Include="Include\ZL_File.h" />
+    <ClInclude Include="Include\ZL_Font.h" />
+    <ClInclude Include="Include\ZL_Input.h" />
+    <ClInclude Include="Include\ZL_Math.h" />
+    <ClInclude Include="Include\ZL_Network.h" />
+    <ClInclude Include="Include\ZL_Particles.h" />
+    <ClInclude Include="Include\ZL_Scene.h" />
+    <ClInclude Include="Include\ZL_Signal.h" />
+    <ClInclude Include="Include\ZL_Audio.h" />
+    <ClInclude Include="Include\ZL_String.h" />
+    <ClInclude Include="Include\ZL_Surface.h" />
+    <ClInclude Include="Include\ZL_SynthImc.h" />
+    <ClInclude Include="Include\ZL_Thread.h" />
+    <ClInclude Include="Include\ZL_Timer.h" />
+    <ClInclude Include="Include\ZL_Data.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="DoLibOutputFilesMatch" />
+</Project>

@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="9.00"
+	Name="ZillaLib"
+	ProjectGUID="{2177A217-7A21-77A2-177A-2177A2177777}"
+	RootNamespace="ZillaLib"
+	TargetFrameworkVersion="0"
+	>
+	<Platforms><Platform Name="Win32" />
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="Release|Win32"
+			OutputDirectory=".\Release-vc9"
+			IntermediateDirectory=".\Release-vc9"
+			ConfigurationType="4"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool Name="VCPreBuildEventTool" />
+			<Tool Name="VCCustomBuildTool" />
+			<Tool Name="VCXMLDataGeneratorTool" />
+			<Tool Name="VCWebServiceProxyGeneratorTool" />
+			<Tool Name="VCMIDLTool" />
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="2"
+				InlineFunctionExpansion="1"
+				AdditionalIncludeDirectories="./Include;./Source/zlib;./Source/sdl/include"
+				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS"
+				StringPooling="true"
+				RuntimeLibrary="0"
+				BufferSecurityCheck="false"
+				EnableFunctionLevelLinking="true"
+				PrecompiledHeaderFile=".\Release-vc9/ZillaLib.pch"
+				AssemblerListingLocation=".\Release-vc9/"
+				ObjectFile=".\Release-vc9/"
+				ProgramDataBaseFileName=".\Release-vc9/"
+				WarningLevel="3"
+				SuppressStartupBanner="true"
+				ExceptionHandling="false"
+			/>
+			<Tool Name="VCManagedResourceCompilerTool" />
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="NDEBUG"
+				Culture="2055"
+			/>
+			<Tool Name="VCPreLinkEventTool" />
+			<Tool
+				Name="VCLibrarianTool"
+				OutputFile=".\Release-vc9\ZillaLib.lib"
+				SuppressStartupBanner="true"
+			/>
+			<Tool Name="VCALinkTool" />
+			<Tool Name="VCXDCMakeTool" />
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile=".\Release-vc9/ZillaLib.bsc"
+			/>
+			<Tool Name="VCFxCopTool" />
+			<Tool Name="VCPostBuildEventTool" />
+		</Configuration>
+		<Configuration
+			Name="Debug|Win32"
+			OutputDirectory=".\Debug-vc9"
+			IntermediateDirectory=".\Debug-vc9"
+			ConfigurationType="4"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC60.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+			<Tool Name="VCPreBuildEventTool" />
+			<Tool Name="VCCustomBuildTool" />
+			<Tool Name="VCXMLDataGeneratorTool" />
+			<Tool Name="VCWebServiceProxyGeneratorTool" />
+			<Tool Name="VCMIDLTool" />
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions="/MP"
+				Optimization="0"
+				AdditionalIncludeDirectories="./Include;./Source/zlib;./Source/sdl/include"
+				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;ZILLALOG;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS"
+				MinimalRebuild="false"
+				BasicRuntimeChecks="3"
+				RuntimeLibrary="1"
+				BufferSecurityCheck="false"
+				PrecompiledHeaderFile=".\Debug-vc9/ZillaLib.pch"
+				AssemblerListingLocation=".\Debug-vc9/"
+				ObjectFile=".\Debug-vc9/"
+				ProgramDataBaseFileName=".\Debug-vc9/"
+				WarningLevel="3"
+				SuppressStartupBanner="true"
+				DebugInformationFormat="4"
+				ExceptionHandling="false"
+			/>
+			<Tool Name="VCManagedResourceCompilerTool" />
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="_DEBUG"
+				Culture="2055"
+			/>
+			<Tool Name="VCPreLinkEventTool" />
+			<Tool
+				Name="VCLibrarianTool"
+				OutputFile=".\Debug-vc9\ZillaLib.lib"
+				SuppressStartupBanner="true"
+			/>
+			<Tool Name="VCALinkTool" />
+			<Tool Name="VCXDCMakeTool" />
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile=".\Debug-vc9/ZillaLib.bsc"
+			/>
+			<Tool Name="VCFxCopTool" />
+			<Tool Name="VCPostBuildEventTool" />
+		</Configuration>
+		<Configuration Name="NACL-Release|Win32" OutputDirectory="NACL/build" IntermediateDirectory="NACL/build" ConfigurationType="0">
+			<Tool Name="VCNMakeTool"
+				BuildCommandLine="python NACL/ZillaLibNACL.py build -rel -vc"
+				ReBuildCommandLine="python NACL/ZillaLibNACL.py build -rel -vc -B"
+				CleanCommandLine="python NACL/ZillaLibNACL.py build -rel -vc -clean"
+				Output="NACL/build/ZillaLib_x86_64.a"
+				PreprocessorDefinitions="" IncludeSearchPath="" ForcedIncludes="" AssemblySearchPath="" ForcedUsingAssemblies="" CompileAsManaged=""/>
+		</Configuration>
+		<Configuration Name="NACL-Debug|Win32" OutputDirectory="NACL/build-debug" IntermediateDirectory="NACL/build-debug" ConfigurationType="0">
+			<Tool Name="VCNMakeTool"
+				BuildCommandLine="python NACL/ZillaLibNACL.py build -vc"
+				ReBuildCommandLine="python NACL/ZillaLibNACL.py build -vc -B"
+				CleanCommandLine="python NACL/ZillaLibNACL.py build -vc -clean"
+				Output="NACL/build-debug/ZillaLib_x86_64.a"
+				PreprocessorDefinitions="" IncludeSearchPath="" ForcedIncludes="" AssemblySearchPath="" ForcedUsingAssemblies="" CompileAsManaged=""/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<Filter Name="Dependencies">
+			<Filter Name="ZLIB">
+				<File RelativePath="Source\zlib\miniz.c" />
+			</Filter>
+			<Filter Name="ENET">
+				<File RelativePath="Source\enet\callbacks.c" />
+				<File RelativePath="Source\enet\host.c" />
+				<File RelativePath="Source\enet\list.c" />
+				<File RelativePath="Source\enet\packet.c" />
+				<File RelativePath="Source\enet\peer.c" />
+				<File RelativePath="Source\enet\protocol.c" />
+				<File RelativePath="Source\enet\win32.c" />
+			</Filter>
+			<Filter Name="SDL">
+				<File RelativePath="Source\sdl\audio\SDL_audio.c" />
+				<File RelativePath="Source\sdl\events\SDL_clipboardevents.c" />
+				<File RelativePath="Source\sdl\audio\directsound\SDL_directsound.c" />
+				<File RelativePath="Source\sdl\events\SDL_dropevents.c" />
+				<File RelativePath="Source\sdl\joystick\windows\SDL_dxjoystick.c" />
+				<File RelativePath="Source\sdl\events\SDL_events.c" />
+				<File RelativePath="Source\sdl\joystick\SDL_joystick.c" />
+				<File RelativePath="Source\sdl\events\SDL_keyboard.c" />
+				<File RelativePath="Source\sdl\events\SDL_mouse.c" />
+				<File RelativePath="Source\sdl\events\SDL_quit.c" />
+				<File RelativePath="Source\sdl\video\SDL_rect.c" />
+				<File RelativePath="Source\sdl\include\SDL_stdinc.h" />
+				<File RelativePath="Source\sdl\thread\generic\SDL_syscond.c" />
+				<File RelativePath="Source\sdl\loadso\windows\SDL_sysloadso.c" />
+				<File RelativePath="Source\sdl\thread\windows\SDL_sysmutex.c" />
+				<File RelativePath="Source\sdl\thread\windows\SDL_syssem.c" />
+				<File RelativePath="Source\sdl\thread\windows\SDL_systhread.c" />
+				<File RelativePath="Source\sdl\timer\windows\SDL_systimer.c" />
+				<File RelativePath="Source\sdl\thread\SDL_thread.c" />
+				<File RelativePath="Source\sdl\events\SDL_touch.c" />
+				<File RelativePath="Source\sdl\video\SDL_video.c" />
+				<File RelativePath="Source\sdl\events\SDL_windowevents.c" />
+				<File RelativePath="Source\sdl\video\windows\SDL_windowsclipboard.c" />
+				<File RelativePath="Source\sdl\video\windows\SDL_windowsevents.c" />
+				<File RelativePath="Source\sdl\video\windows\SDL_windowsframebuffer.c" />
+				<File RelativePath="Source\sdl\video\windows\SDL_windowskeyboard.c" />
+				<File RelativePath="Source\sdl\video\windows\SDL_windowsmessagebox.c" />
+				<File RelativePath="Source\sdl\video\windows\SDL_windowsmodes.c" />
+				<File RelativePath="Source\sdl\video\windows\SDL_windowsmouse.c" />
+				<File RelativePath="Source\sdl\video\windows\SDL_windowsopengl.c" />
+				<File RelativePath="Source\sdl\video\windows\SDL_windowsvideo.c" />
+				<File RelativePath="Source\sdl\video\windows\SDL_windowswindow.c" />
+			</Filter>
+			<Filter Name="LIBTESS">
+				<File RelativePath="Source\libtess\dict.c" />
+				<File RelativePath="Source\libtess\geom.c" />
+				<File RelativePath="Source\libtess\glues.h" />
+				<File RelativePath="Source\libtess\memalloc.c" />
+				<File RelativePath="Source\libtess\mesh.c" />
+				<File RelativePath="Source\libtess\normal.c" />
+				<File RelativePath="Source\libtess\priorityq.c" />
+				<File RelativePath="Source\libtess\render.c" />
+				<File RelativePath="Source\libtess\sweep.c" />
+				<File RelativePath="Source\libtess\tess.c" />
+				<File RelativePath="Source\libtess\tessmono.c" />
+			</Filter>
+			<Filter Name="STB">
+				<File RelativePath="Source\stb\stb_image.cpp" />
+				<File RelativePath="Source\stb\stb_vorbis.cpp" />
+				<File RelativePath="Source\stb\stb_truetype.cpp" />
+			</Filter>
+		</Filter>
+		<Filter Name="Include" Filter="h;hpp;hxx;hm;inl">
+			<File RelativePath="Include\ZL_Application.h" />
+			<File RelativePath="Include\ZL_Display.h" />
+			<File RelativePath="Include\ZL_File.h" />
+			<File RelativePath="Include\ZL_Font.h" />
+			<File RelativePath="Include\ZL_Input.h" />
+			<File RelativePath="Include\ZL_Math.h" />
+			<File RelativePath="Include\ZL_Network.h" />
+			<File RelativePath="Include\ZL_Particles.h" />
+			<File RelativePath="Include\ZL_Scene.h" />
+			<File RelativePath="Include\ZL_Signal.h" />
+			<File RelativePath="Include\ZL_Audio.h" />
+			<File RelativePath="Include\ZL_String.h" />
+			<File RelativePath="Include\ZL_Surface.h" />
+			<File RelativePath="Include\ZL_SynthImc.h" />
+			<File RelativePath="Include\ZL_Thread.h" />
+			<File RelativePath="Include\ZL_Timer.h" />
+			<File RelativePath="Include\ZL_Data.h" />
+		</Filter>
+		<Filter Name="Source" Filter="cpp">
+			<File RelativePath="Source\ZL_Application.cpp" />
+			<File RelativePath="Source\ZL_Display.cpp" />
+			<File RelativePath="Source\ZL_Display_Impl.h" />
+			<File RelativePath="Source\ZL_File.cpp" />
+			<File RelativePath="Source\ZL_File_Impl.h" />
+			<File RelativePath="Source\ZL_File_ZIP.cpp" />
+			<File RelativePath="Source\ZL_Font.cpp" />
+			<File RelativePath="Source\ZL_Impl.h" />
+			<File RelativePath="Source\ZL_Input.cpp" />
+			<File RelativePath="Source\ZL_Math.cpp" />
+			<File RelativePath="Source\ZL_Network.cpp" />
+			<File RelativePath="Source\ZL_Particles.cpp" />
+			<File RelativePath="Source\ZL_PlatformGLSL.cpp" />
+			<File RelativePath="Source\ZL_PlatformGLSL.h" />
+			<File RelativePath="Source\ZL_PlatformSDL.cpp" />
+			<File RelativePath="Source\ZL_PlatformSDL.h" />
+			<File RelativePath="Source\ZL_Scene.cpp" />
+			<File RelativePath="Source\ZL_Signal.cpp" />
+			<File RelativePath="Source\ZL_Audio.cpp" />
+			<File RelativePath="Source\ZL_String.cpp" />
+			<File RelativePath="Source\ZL_Surface.cpp" />
+			<File RelativePath="Source\ZL_SynthImc.cpp" />
+			<File RelativePath="Source\ZL_Texture_Impl.cpp" />
+			<File RelativePath="Source\ZL_Texture_Impl.h" />
+			<File RelativePath="Source\ZL_Thread.cpp" />
+			<File RelativePath="Source\ZL_Timer.cpp" />
+			<File RelativePath="Source\ZL_Data.cpp" />
+		</Filter>
+	</Files>
+</VisualStudioProject>

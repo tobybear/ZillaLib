@@ -1,0 +1,515 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		949488F01BDFA3E200486A3F /* stb_truetype.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488ED1BDFA3E200486A3F /* stb_truetype.cpp */; settings = {ASSET_TAGS = (); }; };
+		949488F11BDFA3E200486A3F /* stb_image.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488EE1BDFA3E200486A3F /* stb_image.cpp */; settings = {ASSET_TAGS = (); }; };
+		949488F21BDFA3E200486A3F /* stb_vorbis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488EF1BDFA3E200486A3F /* stb_vorbis.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489121BDFA43F00486A3F /* ZL_PlatformGLSL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488F71BDFA43F00486A3F /* ZL_PlatformGLSL.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489151BDFA43F00486A3F /* ZL_Application.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488FA1BDFA43F00486A3F /* ZL_Application.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489161BDFA43F00486A3F /* ZL_Display.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488FB1BDFA43F00486A3F /* ZL_Display.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489171BDFA43F00486A3F /* ZL_File.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488FC1BDFA43F00486A3F /* ZL_File.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489181BDFA43F00486A3F /* ZL_File_ZIP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488FD1BDFA43F00486A3F /* ZL_File_ZIP.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489191BDFA43F00486A3F /* ZL_Font.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488FE1BDFA43F00486A3F /* ZL_Font.cpp */; settings = {ASSET_TAGS = (); }; };
+		9494891A1BDFA43F00486A3F /* ZL_SynthImc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488FF1BDFA43F00486A3F /* ZL_SynthImc.cpp */; settings = {ASSET_TAGS = (); }; };
+		9494891B1BDFA43F00486A3F /* ZL_Math.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949489001BDFA43F00486A3F /* ZL_Math.cpp */; settings = {ASSET_TAGS = (); }; };
+		9494891C1BDFA43F00486A3F /* ZL_Network.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949489011BDFA43F00486A3F /* ZL_Network.cpp */; settings = {ASSET_TAGS = (); }; };
+		9494891D1BDFA43F00486A3F /* ZL_Input.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949489021BDFA43F00486A3F /* ZL_Input.cpp */; settings = {ASSET_TAGS = (); }; };
+		9494891E1BDFA43F00486A3F /* ZL_Scene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949489031BDFA43F00486A3F /* ZL_Scene.cpp */; settings = {ASSET_TAGS = (); }; };
+		9494891F1BDFA43F00486A3F /* ZL_Signal.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949489041BDFA43F00486A3F /* ZL_Signal.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489201BDFA43F00486A3F /* ZL_Audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949489051BDFA43F00486A3F /* ZL_Audio.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489211BDFA43F00486A3F /* ZL_String.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949489061BDFA43F00486A3F /* ZL_String.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489221BDFA43F00486A3F /* ZL_Surface.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949489071BDFA43F00486A3F /* ZL_Surface.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489231BDFA43F00486A3F /* ZL_Texture_Impl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949489081BDFA43F00486A3F /* ZL_Texture_Impl.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489241BDFA43F00486A3F /* ZL_Thread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949489091BDFA43F00486A3F /* ZL_Thread.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489251BDFA43F00486A3F /* ZL_Timer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9494890A1BDFA43F00486A3F /* ZL_Timer.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489261BDFA43F00486A3F /* ZL_Data.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9494890B1BDFA43F00486A3F /* ZL_Data.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489281BDFA43F00486A3F /* ZL_Particles.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9494890D1BDFA43F00486A3F /* ZL_Particles.cpp */; settings = {ASSET_TAGS = (); }; };
+		9494894B1BDFB2FC00486A3F /* SDL_coreaudio.c in Sources */ = {isa = PBXBuildFile; fileRef = 9494892A1BDFB2FC00486A3F /* SDL_coreaudio.c */; settings = {ASSET_TAGS = (); }; };
+		9494894C1BDFB2FC00486A3F /* SDL_audio.c in Sources */ = {isa = PBXBuildFile; fileRef = 9494892B1BDFB2FC00486A3F /* SDL_audio.c */; settings = {ASSET_TAGS = (); }; };
+		9494894D1BDFB2FC00486A3F /* SDL_audiodev.c in Sources */ = {isa = PBXBuildFile; fileRef = 9494892C1BDFB2FC00486A3F /* SDL_audiodev.c */; settings = {ASSET_TAGS = (); }; };
+		9494894E1BDFB2FC00486A3F /* SDL_clipboardevents.c in Sources */ = {isa = PBXBuildFile; fileRef = 9494892D1BDFB2FC00486A3F /* SDL_clipboardevents.c */; settings = {ASSET_TAGS = (); }; };
+		9494894F1BDFB2FC00486A3F /* SDL_dropevents.c in Sources */ = {isa = PBXBuildFile; fileRef = 9494892E1BDFB2FC00486A3F /* SDL_dropevents.c */; settings = {ASSET_TAGS = (); }; };
+		949489501BDFB2FC00486A3F /* SDL_events.c in Sources */ = {isa = PBXBuildFile; fileRef = 9494892F1BDFB2FC00486A3F /* SDL_events.c */; settings = {ASSET_TAGS = (); }; };
+		949489511BDFB2FC00486A3F /* SDL_keyboard.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489301BDFB2FC00486A3F /* SDL_keyboard.c */; settings = {ASSET_TAGS = (); }; };
+		949489521BDFB2FC00486A3F /* SDL_mouse.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489311BDFB2FC00486A3F /* SDL_mouse.c */; settings = {ASSET_TAGS = (); }; };
+		949489531BDFB2FC00486A3F /* SDL_quit.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489321BDFB2FC00486A3F /* SDL_quit.c */; settings = {ASSET_TAGS = (); }; };
+		949489541BDFB2FC00486A3F /* SDL_touch.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489331BDFB2FC00486A3F /* SDL_touch.c */; settings = {ASSET_TAGS = (); }; };
+		949489551BDFB2FC00486A3F /* SDL_windowevents.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489341BDFB2FC00486A3F /* SDL_windowevents.c */; settings = {ASSET_TAGS = (); }; };
+		949489561BDFB2FC00486A3F /* SDL_sysjoystick.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489351BDFB2FC00486A3F /* SDL_sysjoystick.c */; settings = {ASSET_TAGS = (); }; };
+		949489571BDFB2FC00486A3F /* SDL_joystick.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489361BDFB2FC00486A3F /* SDL_joystick.c */; settings = {ASSET_TAGS = (); }; };
+		949489581BDFB2FC00486A3F /* SDL_sysloadso.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489371BDFB2FC00486A3F /* SDL_sysloadso.c */; settings = {ASSET_TAGS = (); }; };
+		949489591BDFB2FC00486A3F /* SDL_syscond.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489381BDFB2FC00486A3F /* SDL_syscond.c */; settings = {ASSET_TAGS = (); }; };
+		9494895A1BDFB2FC00486A3F /* SDL_sysmutex.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489391BDFB2FC00486A3F /* SDL_sysmutex.c */; settings = {ASSET_TAGS = (); }; };
+		9494895B1BDFB2FC00486A3F /* SDL_syssem.c in Sources */ = {isa = PBXBuildFile; fileRef = 9494893A1BDFB2FC00486A3F /* SDL_syssem.c */; settings = {ASSET_TAGS = (); }; };
+		9494895C1BDFB2FC00486A3F /* SDL_systhread.c in Sources */ = {isa = PBXBuildFile; fileRef = 9494893B1BDFB2FC00486A3F /* SDL_systhread.c */; settings = {ASSET_TAGS = (); }; };
+		9494895D1BDFB2FC00486A3F /* SDL_thread.c in Sources */ = {isa = PBXBuildFile; fileRef = 9494893C1BDFB2FC00486A3F /* SDL_thread.c */; settings = {ASSET_TAGS = (); }; };
+		9494895E1BDFB2FC00486A3F /* SDL_systimer.c in Sources */ = {isa = PBXBuildFile; fileRef = 9494893D1BDFB2FC00486A3F /* SDL_systimer.c */; settings = {ASSET_TAGS = (); }; };
+		9494895F1BDFB2FC00486A3F /* SDL_cocoaclipboard.m in Sources */ = {isa = PBXBuildFile; fileRef = 9494893E1BDFB2FC00486A3F /* SDL_cocoaclipboard.m */; settings = {ASSET_TAGS = (); }; };
+		949489601BDFB2FC00486A3F /* SDL_cocoaevents.m in Sources */ = {isa = PBXBuildFile; fileRef = 9494893F1BDFB2FC00486A3F /* SDL_cocoaevents.m */; settings = {ASSET_TAGS = (); }; };
+		949489611BDFB2FC00486A3F /* SDL_cocoakeyboard.m in Sources */ = {isa = PBXBuildFile; fileRef = 949489401BDFB2FC00486A3F /* SDL_cocoakeyboard.m */; settings = {ASSET_TAGS = (); }; };
+		949489621BDFB2FC00486A3F /* SDL_cocoamessagebox.m in Sources */ = {isa = PBXBuildFile; fileRef = 949489411BDFB2FC00486A3F /* SDL_cocoamessagebox.m */; settings = {ASSET_TAGS = (); }; };
+		949489631BDFB2FC00486A3F /* SDL_cocoamodes.m in Sources */ = {isa = PBXBuildFile; fileRef = 949489421BDFB2FC00486A3F /* SDL_cocoamodes.m */; settings = {ASSET_TAGS = (); }; };
+		949489641BDFB2FC00486A3F /* SDL_cocoamouse.m in Sources */ = {isa = PBXBuildFile; fileRef = 949489431BDFB2FC00486A3F /* SDL_cocoamouse.m */; settings = {ASSET_TAGS = (); }; };
+		949489651BDFB2FC00486A3F /* SDL_cocoamousetap.m in Sources */ = {isa = PBXBuildFile; fileRef = 949489441BDFB2FC00486A3F /* SDL_cocoamousetap.m */; settings = {ASSET_TAGS = (); }; };
+		949489661BDFB2FC00486A3F /* SDL_cocoaopengl.m in Sources */ = {isa = PBXBuildFile; fileRef = 949489451BDFB2FC00486A3F /* SDL_cocoaopengl.m */; settings = {ASSET_TAGS = (); }; };
+		949489681BDFB2FC00486A3F /* SDL_cocoavideo.m in Sources */ = {isa = PBXBuildFile; fileRef = 949489471BDFB2FC00486A3F /* SDL_cocoavideo.m */; settings = {ASSET_TAGS = (); }; };
+		949489691BDFB2FC00486A3F /* SDL_cocoawindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 949489481BDFB2FC00486A3F /* SDL_cocoawindow.m */; settings = {ASSET_TAGS = (); }; };
+		9494896A1BDFB2FC00486A3F /* SDL_rect.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489491BDFB2FC00486A3F /* SDL_rect.c */; settings = {ASSET_TAGS = (); }; };
+		9494896B1BDFB2FC00486A3F /* SDL_video.c in Sources */ = {isa = PBXBuildFile; fileRef = 9494894A1BDFB2FC00486A3F /* SDL_video.c */; settings = {ASSET_TAGS = (); }; };
+		9494897B1BDFDA4D00486A3F /* ZL_PlatformSDL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9494897A1BDFDA4D00486A3F /* ZL_PlatformSDL.cpp */; settings = {ASSET_TAGS = (); }; };
+		949489851BDFDCA500486A3F /* miniz.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489841BDFDCA500486A3F /* miniz.c */; settings = {ASSET_TAGS = (); }; };
+		949489891BDFDE3900486A3F /* SDL_atomic.c in Sources */ = {isa = PBXBuildFile; fileRef = 949489881BDFDE3900486A3F /* SDL_atomic.c */; settings = {ASSET_TAGS = (); }; };
+		AD5E5A7211F8CE9600FCA1AF /* callbacks.c in Sources */ = {isa = PBXBuildFile; fileRef = AD5E5A5F11F8CE9600FCA1AF /* callbacks.c */; };
+		AD5E5A7311F8CE9600FCA1AF /* host.c in Sources */ = {isa = PBXBuildFile; fileRef = AD5E5A6011F8CE9600FCA1AF /* host.c */; };
+		AD5E5A7D11F8CE9600FCA1AF /* list.c in Sources */ = {isa = PBXBuildFile; fileRef = AD5E5A6C11F8CE9600FCA1AF /* list.c */; };
+		AD5E5A7E11F8CE9600FCA1AF /* packet.c in Sources */ = {isa = PBXBuildFile; fileRef = AD5E5A6D11F8CE9600FCA1AF /* packet.c */; };
+		AD5E5A7F11F8CE9600FCA1AF /* peer.c in Sources */ = {isa = PBXBuildFile; fileRef = AD5E5A6E11F8CE9600FCA1AF /* peer.c */; };
+		AD5E5A8011F8CE9600FCA1AF /* protocol.c in Sources */ = {isa = PBXBuildFile; fileRef = AD5E5A6F11F8CE9600FCA1AF /* protocol.c */; };
+		AD5E5A8111F8CE9600FCA1AF /* unix.c in Sources */ = {isa = PBXBuildFile; fileRef = AD5E5A7011F8CE9600FCA1AF /* unix.c */; };
+		AD5E5BBA11F8CEF500FCA1AF /* tesselator.c in Sources */ = {isa = PBXBuildFile; fileRef = AD5E5BA111F8CEF500FCA1AF /* tesselator.c */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		949488ED1BDFA3E200486A3F /* stb_truetype.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = stb_truetype.cpp; path = Source/stb/stb_truetype.cpp; sourceTree = "<group>"; };
+		949488EE1BDFA3E200486A3F /* stb_image.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = stb_image.cpp; path = Source/stb/stb_image.cpp; sourceTree = "<group>"; };
+		949488EF1BDFA3E200486A3F /* stb_vorbis.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = stb_vorbis.cpp; path = Source/stb/stb_vorbis.cpp; sourceTree = "<group>"; };
+		949488F31BDFA43F00486A3F /* ZL_Platform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ZL_Platform.h; path = Source/ZL_Platform.h; sourceTree = "<group>"; };
+		949488F41BDFA43F00486A3F /* ZL_PlatformConfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ZL_PlatformConfig.h; path = Source/ZL_PlatformConfig.h; sourceTree = "<group>"; };
+		949488F71BDFA43F00486A3F /* ZL_PlatformGLSL.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_PlatformGLSL.cpp; path = Source/ZL_PlatformGLSL.cpp; sourceTree = "<group>"; };
+		949488FA1BDFA43F00486A3F /* ZL_Application.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Application.cpp; path = Source/ZL_Application.cpp; sourceTree = "<group>"; };
+		949488FB1BDFA43F00486A3F /* ZL_Display.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Display.cpp; path = Source/ZL_Display.cpp; sourceTree = "<group>"; };
+		949488FC1BDFA43F00486A3F /* ZL_File.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_File.cpp; path = Source/ZL_File.cpp; sourceTree = "<group>"; };
+		949488FD1BDFA43F00486A3F /* ZL_File_ZIP.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_File_ZIP.cpp; path = Source/ZL_File_ZIP.cpp; sourceTree = "<group>"; };
+		949488FE1BDFA43F00486A3F /* ZL_Font.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Font.cpp; path = Source/ZL_Font.cpp; sourceTree = "<group>"; };
+		949488FF1BDFA43F00486A3F /* ZL_SynthImc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_SynthImc.cpp; path = Source/ZL_SynthImc.cpp; sourceTree = "<group>"; };
+		949489001BDFA43F00486A3F /* ZL_Math.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Math.cpp; path = Source/ZL_Math.cpp; sourceTree = "<group>"; };
+		949489011BDFA43F00486A3F /* ZL_Network.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Network.cpp; path = Source/ZL_Network.cpp; sourceTree = "<group>"; };
+		949489021BDFA43F00486A3F /* ZL_Input.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Input.cpp; path = Source/ZL_Input.cpp; sourceTree = "<group>"; };
+		949489031BDFA43F00486A3F /* ZL_Scene.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Scene.cpp; path = Source/ZL_Scene.cpp; sourceTree = "<group>"; };
+		949489041BDFA43F00486A3F /* ZL_Signal.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Signal.cpp; path = Source/ZL_Signal.cpp; sourceTree = "<group>"; };
+		949489051BDFA43F00486A3F /* ZL_Audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Audio.cpp; path = Source/ZL_Audio.cpp; sourceTree = "<group>"; };
+		949489061BDFA43F00486A3F /* ZL_String.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_String.cpp; path = Source/ZL_String.cpp; sourceTree = "<group>"; };
+		949489071BDFA43F00486A3F /* ZL_Surface.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Surface.cpp; path = Source/ZL_Surface.cpp; sourceTree = "<group>"; };
+		949489081BDFA43F00486A3F /* ZL_Texture_Impl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Texture_Impl.cpp; path = Source/ZL_Texture_Impl.cpp; sourceTree = "<group>"; };
+		949489091BDFA43F00486A3F /* ZL_Thread.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Thread.cpp; path = Source/ZL_Thread.cpp; sourceTree = "<group>"; };
+		9494890A1BDFA43F00486A3F /* ZL_Timer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Timer.cpp; path = Source/ZL_Timer.cpp; sourceTree = "<group>"; };
+		9494890B1BDFA43F00486A3F /* ZL_Data.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Data.cpp; path = Source/ZL_Data.cpp; sourceTree = "<group>"; };
+		9494890D1BDFA43F00486A3F /* ZL_Particles.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_Particles.cpp; path = Source/ZL_Particles.cpp; sourceTree = "<group>"; };
+		9494892A1BDFB2FC00486A3F /* SDL_coreaudio.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_coreaudio.c; path = Source/sdl/audio/coreaudio/SDL_coreaudio.c; sourceTree = "<group>"; };
+		9494892B1BDFB2FC00486A3F /* SDL_audio.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_audio.c; path = Source/sdl/audio/SDL_audio.c; sourceTree = "<group>"; };
+		9494892C1BDFB2FC00486A3F /* SDL_audiodev.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_audiodev.c; path = Source/sdl/audio/SDL_audiodev.c; sourceTree = "<group>"; };
+		9494892D1BDFB2FC00486A3F /* SDL_clipboardevents.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_clipboardevents.c; path = Source/sdl/events/SDL_clipboardevents.c; sourceTree = "<group>"; };
+		9494892E1BDFB2FC00486A3F /* SDL_dropevents.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_dropevents.c; path = Source/sdl/events/SDL_dropevents.c; sourceTree = "<group>"; };
+		9494892F1BDFB2FC00486A3F /* SDL_events.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_events.c; path = Source/sdl/events/SDL_events.c; sourceTree = "<group>"; };
+		949489301BDFB2FC00486A3F /* SDL_keyboard.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_keyboard.c; path = Source/sdl/events/SDL_keyboard.c; sourceTree = "<group>"; };
+		949489311BDFB2FC00486A3F /* SDL_mouse.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_mouse.c; path = Source/sdl/events/SDL_mouse.c; sourceTree = "<group>"; };
+		949489321BDFB2FC00486A3F /* SDL_quit.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_quit.c; path = Source/sdl/events/SDL_quit.c; sourceTree = "<group>"; };
+		949489331BDFB2FC00486A3F /* SDL_touch.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_touch.c; path = Source/sdl/events/SDL_touch.c; sourceTree = "<group>"; };
+		949489341BDFB2FC00486A3F /* SDL_windowevents.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_windowevents.c; path = Source/sdl/events/SDL_windowevents.c; sourceTree = "<group>"; };
+		949489351BDFB2FC00486A3F /* SDL_sysjoystick.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_sysjoystick.c; path = Source/sdl/joystick/darwin/SDL_sysjoystick.c; sourceTree = "<group>"; };
+		949489361BDFB2FC00486A3F /* SDL_joystick.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_joystick.c; path = Source/sdl/joystick/SDL_joystick.c; sourceTree = "<group>"; };
+		949489371BDFB2FC00486A3F /* SDL_sysloadso.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_sysloadso.c; path = Source/sdl/loadso/dlopen/SDL_sysloadso.c; sourceTree = "<group>"; };
+		949489381BDFB2FC00486A3F /* SDL_syscond.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_syscond.c; path = Source/sdl/thread/pthread/SDL_syscond.c; sourceTree = "<group>"; };
+		949489391BDFB2FC00486A3F /* SDL_sysmutex.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_sysmutex.c; path = Source/sdl/thread/pthread/SDL_sysmutex.c; sourceTree = "<group>"; };
+		9494893A1BDFB2FC00486A3F /* SDL_syssem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_syssem.c; path = Source/sdl/thread/pthread/SDL_syssem.c; sourceTree = "<group>"; };
+		9494893B1BDFB2FC00486A3F /* SDL_systhread.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_systhread.c; path = Source/sdl/thread/pthread/SDL_systhread.c; sourceTree = "<group>"; };
+		9494893C1BDFB2FC00486A3F /* SDL_thread.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_thread.c; path = Source/sdl/thread/SDL_thread.c; sourceTree = "<group>"; };
+		9494893D1BDFB2FC00486A3F /* SDL_systimer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_systimer.c; path = Source/sdl/timer/unix/SDL_systimer.c; sourceTree = "<group>"; };
+		9494893E1BDFB2FC00486A3F /* SDL_cocoaclipboard.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDL_cocoaclipboard.m; path = Source/sdl/video/cocoa/SDL_cocoaclipboard.m; sourceTree = "<group>"; };
+		9494893F1BDFB2FC00486A3F /* SDL_cocoaevents.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDL_cocoaevents.m; path = Source/sdl/video/cocoa/SDL_cocoaevents.m; sourceTree = "<group>"; };
+		949489401BDFB2FC00486A3F /* SDL_cocoakeyboard.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDL_cocoakeyboard.m; path = Source/sdl/video/cocoa/SDL_cocoakeyboard.m; sourceTree = "<group>"; };
+		949489411BDFB2FC00486A3F /* SDL_cocoamessagebox.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDL_cocoamessagebox.m; path = Source/sdl/video/cocoa/SDL_cocoamessagebox.m; sourceTree = "<group>"; };
+		949489421BDFB2FC00486A3F /* SDL_cocoamodes.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDL_cocoamodes.m; path = Source/sdl/video/cocoa/SDL_cocoamodes.m; sourceTree = "<group>"; };
+		949489431BDFB2FC00486A3F /* SDL_cocoamouse.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDL_cocoamouse.m; path = Source/sdl/video/cocoa/SDL_cocoamouse.m; sourceTree = "<group>"; };
+		949489441BDFB2FC00486A3F /* SDL_cocoamousetap.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDL_cocoamousetap.m; path = Source/sdl/video/cocoa/SDL_cocoamousetap.m; sourceTree = "<group>"; };
+		949489451BDFB2FC00486A3F /* SDL_cocoaopengl.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDL_cocoaopengl.m; path = Source/sdl/video/cocoa/SDL_cocoaopengl.m; sourceTree = "<group>"; };
+		949489471BDFB2FC00486A3F /* SDL_cocoavideo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDL_cocoavideo.m; path = Source/sdl/video/cocoa/SDL_cocoavideo.m; sourceTree = "<group>"; };
+		949489481BDFB2FC00486A3F /* SDL_cocoawindow.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SDL_cocoawindow.m; path = Source/sdl/video/cocoa/SDL_cocoawindow.m; sourceTree = "<group>"; };
+		949489491BDFB2FC00486A3F /* SDL_rect.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_rect.c; path = Source/sdl/video/SDL_rect.c; sourceTree = "<group>"; };
+		9494894A1BDFB2FC00486A3F /* SDL_video.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_video.c; path = Source/sdl/video/SDL_video.c; sourceTree = "<group>"; };
+		9494897A1BDFDA4D00486A3F /* ZL_PlatformSDL.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ZL_PlatformSDL.cpp; path = Source/ZL_PlatformSDL.cpp; sourceTree = "<group>"; };
+		9494897C1BDFDA5B00486A3F /* ZL_PlatformSDL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ZL_PlatformSDL.h; path = Source/ZL_PlatformSDL.h; sourceTree = "<group>"; };
+		949489841BDFDCA500486A3F /* miniz.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = miniz.c; path = Source/zlib/miniz.c; sourceTree = "<group>"; };
+		949489881BDFDE3900486A3F /* SDL_atomic.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL_atomic.c; path = Source/sdl/atomic/SDL_atomic.c; sourceTree = "<group>"; };
+		AD5E5A5F11F8CE9600FCA1AF /* callbacks.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = callbacks.c; sourceTree = "<group>"; };
+		AD5E5A6011F8CE9600FCA1AF /* host.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = host.c; sourceTree = "<group>"; };
+		AD5E5A6C11F8CE9600FCA1AF /* list.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = list.c; sourceTree = "<group>"; };
+		AD5E5A6D11F8CE9600FCA1AF /* packet.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = packet.c; sourceTree = "<group>"; };
+		AD5E5A6E11F8CE9600FCA1AF /* peer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = peer.c; sourceTree = "<group>"; };
+		AD5E5A6F11F8CE9600FCA1AF /* protocol.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = protocol.c; sourceTree = "<group>"; };
+		AD5E5A7011F8CE9600FCA1AF /* unix.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = unix.c; sourceTree = "<group>"; };
+		AD5E5BA111F8CEF500FCA1AF /* tesselator.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = tesselator.c; sourceTree = "<group>"; };
+		D2AAC046055464E500DB518D /* libZillaLib.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libZillaLib.a; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		08FB7794FE84155DC02AAC07 /* ZillaLib */ = {
+			isa = PBXGroup;
+			children = (
+				AD5E5A5411F8CE8100FCA1AF /* Source */,
+				1AB674ADFE9D54B511CA2CBB /* Products */,
+			);
+			name = ZillaLib;
+			sourceTree = "<group>";
+		};
+		1AB674ADFE9D54B511CA2CBB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D2AAC046055464E500DB518D /* libZillaLib.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		949488EC1BDFA3D200486A3F /* stb */ = {
+			isa = PBXGroup;
+			children = (
+				949488ED1BDFA3E200486A3F /* stb_truetype.cpp */,
+				949488EE1BDFA3E200486A3F /* stb_image.cpp */,
+				949488EF1BDFA3E200486A3F /* stb_vorbis.cpp */,
+			);
+			name = stb;
+			sourceTree = "<group>";
+		};
+		949489291BDFAF3A00486A3F /* sdl */ = {
+			isa = PBXGroup;
+			children = (
+				949489881BDFDE3900486A3F /* SDL_atomic.c */,
+				9494892A1BDFB2FC00486A3F /* SDL_coreaudio.c */,
+				9494892B1BDFB2FC00486A3F /* SDL_audio.c */,
+				9494892C1BDFB2FC00486A3F /* SDL_audiodev.c */,
+				9494892D1BDFB2FC00486A3F /* SDL_clipboardevents.c */,
+				9494892E1BDFB2FC00486A3F /* SDL_dropevents.c */,
+				9494892F1BDFB2FC00486A3F /* SDL_events.c */,
+				949489301BDFB2FC00486A3F /* SDL_keyboard.c */,
+				949489311BDFB2FC00486A3F /* SDL_mouse.c */,
+				949489321BDFB2FC00486A3F /* SDL_quit.c */,
+				949489331BDFB2FC00486A3F /* SDL_touch.c */,
+				949489341BDFB2FC00486A3F /* SDL_windowevents.c */,
+				949489351BDFB2FC00486A3F /* SDL_sysjoystick.c */,
+				949489361BDFB2FC00486A3F /* SDL_joystick.c */,
+				949489371BDFB2FC00486A3F /* SDL_sysloadso.c */,
+				949489381BDFB2FC00486A3F /* SDL_syscond.c */,
+				949489391BDFB2FC00486A3F /* SDL_sysmutex.c */,
+				9494893A1BDFB2FC00486A3F /* SDL_syssem.c */,
+				9494893B1BDFB2FC00486A3F /* SDL_systhread.c */,
+				9494893C1BDFB2FC00486A3F /* SDL_thread.c */,
+				9494893D1BDFB2FC00486A3F /* SDL_systimer.c */,
+				9494893E1BDFB2FC00486A3F /* SDL_cocoaclipboard.m */,
+				9494893F1BDFB2FC00486A3F /* SDL_cocoaevents.m */,
+				949489401BDFB2FC00486A3F /* SDL_cocoakeyboard.m */,
+				949489411BDFB2FC00486A3F /* SDL_cocoamessagebox.m */,
+				949489421BDFB2FC00486A3F /* SDL_cocoamodes.m */,
+				949489431BDFB2FC00486A3F /* SDL_cocoamouse.m */,
+				949489441BDFB2FC00486A3F /* SDL_cocoamousetap.m */,
+				949489451BDFB2FC00486A3F /* SDL_cocoaopengl.m */,
+				949489471BDFB2FC00486A3F /* SDL_cocoavideo.m */,
+				949489481BDFB2FC00486A3F /* SDL_cocoawindow.m */,
+				949489491BDFB2FC00486A3F /* SDL_rect.c */,
+				9494894A1BDFB2FC00486A3F /* SDL_video.c */,
+			);
+			name = sdl;
+			sourceTree = "<group>";
+		};
+		949489821BDFDC8300486A3F /* zlib */ = {
+			isa = PBXGroup;
+			children = (
+				949489841BDFDCA500486A3F /* miniz.c */,
+			);
+			name = zlib;
+			sourceTree = "<group>";
+		};
+		AD5E5A5411F8CE8100FCA1AF /* Source */ = {
+			isa = PBXGroup;
+			children = (
+				949489291BDFAF3A00486A3F /* sdl */,
+				AD5E5B9F11F8CEF500FCA1AF /* libtess2 */,
+				AD5E5A5E11F8CE9600FCA1AF /* enet */,
+				949488EC1BDFA3D200486A3F /* stb */,
+				949489821BDFDC8300486A3F /* zlib */,
+				949488F31BDFA43F00486A3F /* ZL_Platform.h */,
+				949488F41BDFA43F00486A3F /* ZL_PlatformConfig.h */,
+				949488F71BDFA43F00486A3F /* ZL_PlatformGLSL.cpp */,
+				9494897C1BDFDA5B00486A3F /* ZL_PlatformSDL.h */,
+				9494897A1BDFDA4D00486A3F /* ZL_PlatformSDL.cpp */,
+				949488FA1BDFA43F00486A3F /* ZL_Application.cpp */,
+				949488FB1BDFA43F00486A3F /* ZL_Display.cpp */,
+				949488FC1BDFA43F00486A3F /* ZL_File.cpp */,
+				949488FD1BDFA43F00486A3F /* ZL_File_ZIP.cpp */,
+				949488FE1BDFA43F00486A3F /* ZL_Font.cpp */,
+				949488FF1BDFA43F00486A3F /* ZL_SynthImc.cpp */,
+				949489001BDFA43F00486A3F /* ZL_Math.cpp */,
+				949489011BDFA43F00486A3F /* ZL_Network.cpp */,
+				949489021BDFA43F00486A3F /* ZL_Input.cpp */,
+				949489031BDFA43F00486A3F /* ZL_Scene.cpp */,
+				949489041BDFA43F00486A3F /* ZL_Signal.cpp */,
+				949489051BDFA43F00486A3F /* ZL_Audio.cpp */,
+				949489061BDFA43F00486A3F /* ZL_String.cpp */,
+				949489071BDFA43F00486A3F /* ZL_Surface.cpp */,
+				949489081BDFA43F00486A3F /* ZL_Texture_Impl.cpp */,
+				949489091BDFA43F00486A3F /* ZL_Thread.cpp */,
+				9494890A1BDFA43F00486A3F /* ZL_Timer.cpp */,
+				9494890B1BDFA43F00486A3F /* ZL_Data.cpp */,
+				9494890D1BDFA43F00486A3F /* ZL_Particles.cpp */,
+			);
+			name = Source;
+			sourceTree = "<group>";
+		};
+		AD5E5A5E11F8CE9600FCA1AF /* enet */ = {
+			isa = PBXGroup;
+			children = (
+				AD5E5A5F11F8CE9600FCA1AF /* callbacks.c */,
+				AD5E5A6011F8CE9600FCA1AF /* host.c */,
+				AD5E5A6C11F8CE9600FCA1AF /* list.c */,
+				AD5E5A6D11F8CE9600FCA1AF /* packet.c */,
+				AD5E5A6E11F8CE9600FCA1AF /* peer.c */,
+				AD5E5A6F11F8CE9600FCA1AF /* protocol.c */,
+				AD5E5A7011F8CE9600FCA1AF /* unix.c */,
+			);
+			name = enet;
+			path = Source/enet;
+			sourceTree = "<group>";
+		};
+		AD5E5B9F11F8CEF500FCA1AF /* libtess2 */ = {
+			isa = PBXGroup;
+			children = (
+				AD5E5BA111F8CEF500FCA1AF /* tesselator.c */,
+			);
+			name = libtess2;
+			path = Source/libtess2;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		D2AAC043055464E500DB518D /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		2177A2177A2177A2177A0044 /* ZillaLib */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1DEB91EB08733DB70010E9CD /* Build configuration list for PBXNativeTarget "ZillaLib" */;
+			buildPhases = (
+				D2AAC043055464E500DB518D /* Headers */,
+				D2AAC044055464E500DB518D /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ZillaLib;
+			productName = "___PROJECTNAME___";
+			productReference = D2AAC046055464E500DB518D /* libZillaLib.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		08FB7793FE84155DC02AAC07 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0700;
+			};
+			buildConfigurationList = 1DEB91EF08733DB70010E9CD /* Build configuration list for PBXProject "ZillaLib-OSX" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 1;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 08FB7794FE84155DC02AAC07 /* ZillaLib */;
+			projectDirPath = "";
+			projectRoot = ..;
+			targets = (
+				2177A2177A2177A2177A0044 /* ZillaLib */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D2AAC044055464E500DB518D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9494891E1BDFA43F00486A3F /* ZL_Scene.cpp in Sources */,
+				949489161BDFA43F00486A3F /* ZL_Display.cpp in Sources */,
+				949489171BDFA43F00486A3F /* ZL_File.cpp in Sources */,
+				949489501BDFB2FC00486A3F /* SDL_events.c in Sources */,
+				949489621BDFB2FC00486A3F /* SDL_cocoamessagebox.m in Sources */,
+				949489281BDFA43F00486A3F /* ZL_Particles.cpp in Sources */,
+				9494891C1BDFA43F00486A3F /* ZL_Network.cpp in Sources */,
+				949489191BDFA43F00486A3F /* ZL_Font.cpp in Sources */,
+				949489681BDFB2FC00486A3F /* SDL_cocoavideo.m in Sources */,
+				949489601BDFB2FC00486A3F /* SDL_cocoaevents.m in Sources */,
+				949489251BDFA43F00486A3F /* ZL_Timer.cpp in Sources */,
+				9494891A1BDFA43F00486A3F /* ZL_SynthImc.cpp in Sources */,
+				9494895F1BDFB2FC00486A3F /* SDL_cocoaclipboard.m in Sources */,
+				9494891B1BDFA43F00486A3F /* ZL_Math.cpp in Sources */,
+				949489261BDFA43F00486A3F /* ZL_Data.cpp in Sources */,
+				949489511BDFB2FC00486A3F /* SDL_keyboard.c in Sources */,
+				9494895C1BDFB2FC00486A3F /* SDL_systhread.c in Sources */,
+				949489201BDFA43F00486A3F /* ZL_Audio.cpp in Sources */,
+				949489231BDFA43F00486A3F /* ZL_Texture_Impl.cpp in Sources */,
+				AD5E5A7211F8CE9600FCA1AF /* callbacks.c in Sources */,
+				9494891F1BDFA43F00486A3F /* ZL_Signal.cpp in Sources */,
+				AD5E5A7311F8CE9600FCA1AF /* host.c in Sources */,
+				AD5E5A7D11F8CE9600FCA1AF /* list.c in Sources */,
+				949489521BDFB2FC00486A3F /* SDL_mouse.c in Sources */,
+				AD5E5A7E11F8CE9600FCA1AF /* packet.c in Sources */,
+				AD5E5A7F11F8CE9600FCA1AF /* peer.c in Sources */,
+				9494894B1BDFB2FC00486A3F /* SDL_coreaudio.c in Sources */,
+				949489631BDFB2FC00486A3F /* SDL_cocoamodes.m in Sources */,
+				949489181BDFA43F00486A3F /* ZL_File_ZIP.cpp in Sources */,
+				AD5E5A8011F8CE9600FCA1AF /* protocol.c in Sources */,
+				9494895A1BDFB2FC00486A3F /* SDL_sysmutex.c in Sources */,
+				AD5E5A8111F8CE9600FCA1AF /* unix.c in Sources */,
+				9494896B1BDFB2FC00486A3F /* SDL_video.c in Sources */,
+				949488F11BDFA3E200486A3F /* stb_image.cpp in Sources */,
+				949489211BDFA43F00486A3F /* ZL_String.cpp in Sources */,
+				9494896A1BDFB2FC00486A3F /* SDL_rect.c in Sources */,
+				949488F21BDFA3E200486A3F /* stb_vorbis.cpp in Sources */,
+				949489121BDFA43F00486A3F /* ZL_PlatformGLSL.cpp in Sources */,
+				9494894E1BDFB2FC00486A3F /* SDL_clipboardevents.c in Sources */,
+				949489221BDFA43F00486A3F /* ZL_Surface.cpp in Sources */,
+				949489241BDFA43F00486A3F /* ZL_Thread.cpp in Sources */,
+				9494895D1BDFB2FC00486A3F /* SDL_thread.c in Sources */,
+				949489561BDFB2FC00486A3F /* SDL_sysjoystick.c in Sources */,
+				949489541BDFB2FC00486A3F /* SDL_touch.c in Sources */,
+				949489581BDFB2FC00486A3F /* SDL_sysloadso.c in Sources */,
+				9494891D1BDFA43F00486A3F /* ZL_Input.cpp in Sources */,
+				949489661BDFB2FC00486A3F /* SDL_cocoaopengl.m in Sources */,
+				949489891BDFDE3900486A3F /* SDL_atomic.c in Sources */,
+				AD5E5BBA11F8CEF500FCA1AF /* tesselator.c in Sources */,
+				949489611BDFB2FC00486A3F /* SDL_cocoakeyboard.m in Sources */,
+				949489641BDFB2FC00486A3F /* SDL_cocoamouse.m in Sources */,
+				949489551BDFB2FC00486A3F /* SDL_windowevents.c in Sources */,
+				9494895E1BDFB2FC00486A3F /* SDL_systimer.c in Sources */,
+				9494894C1BDFB2FC00486A3F /* SDL_audio.c in Sources */,
+				949489591BDFB2FC00486A3F /* SDL_syscond.c in Sources */,
+				949489651BDFB2FC00486A3F /* SDL_cocoamousetap.m in Sources */,
+				949489151BDFA43F00486A3F /* ZL_Application.cpp in Sources */,
+				9494897B1BDFDA4D00486A3F /* ZL_PlatformSDL.cpp in Sources */,
+				949489691BDFB2FC00486A3F /* SDL_cocoawindow.m in Sources */,
+				9494895B1BDFB2FC00486A3F /* SDL_syssem.c in Sources */,
+				9494894D1BDFB2FC00486A3F /* SDL_audiodev.c in Sources */,
+				949489571BDFB2FC00486A3F /* SDL_joystick.c in Sources */,
+				9494894F1BDFB2FC00486A3F /* SDL_dropevents.c in Sources */,
+				949489531BDFB2FC00486A3F /* SDL_quit.c in Sources */,
+				949488F01BDFA3E200486A3F /* stb_truetype.cpp in Sources */,
+				949489851BDFDCA500486A3F /* miniz.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1DEB91EC08733DB70010E9CD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		1DEB91ED08733DB70010E9CD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		1DEB91F008733DB70010E9CD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_DIR = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Debug";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CONFIGURATION_BUILD_DIR = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Debug";
+				CONFIGURATION_TEMP_DIR = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Debug";
+				COPY_PHASE_STRIP = NO;
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_WARN_UNUSED_VALUE = NO;
+				HEADER_SEARCH_PATHS = (
+					Include,
+					Source/zlib,
+					Source/sdl/include,
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.5;
+				OBJROOT = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Debug";
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = (
+					"-DDEBUG",
+					"-D_DEBUG",
+					"-DZILLALOG",
+				);
+				PRODUCT_NAME = ZillaLib;
+				SDKROOT = macosx;
+				SHARED_PRECOMPS_DIR = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Debug";
+				SYMROOT = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Debug";
+			};
+			name = Debug;
+		};
+		1DEB91F108733DB70010E9CD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_DIR = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Release";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CONFIGURATION_BUILD_DIR = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Release";
+				CONFIGURATION_TEMP_DIR = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Release";
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_WARN_UNUSED_VALUE = NO;
+				HEADER_SEARCH_PATHS = (
+					Include,
+					Source/zlib,
+					Source/sdl/include,
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.5;
+				OBJROOT = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Release";
+				OTHER_CFLAGS = (
+					"-DNDEBUG",
+					"-fvisibility=hidden",
+					"-ffunction-sections",
+					"-fdata-sections",
+				);
+				PRODUCT_NAME = ZillaLib;
+				SDKROOT = macosx;
+				SHARED_PRECOMPS_DIR = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Release";
+				SYMROOT = "$(SRCROOT)/ZillaLib-OSX.xcodeproj/Release";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1DEB91EB08733DB70010E9CD /* Build configuration list for PBXNativeTarget "ZillaLib" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1DEB91EC08733DB70010E9CD /* Debug */,
+				1DEB91ED08733DB70010E9CD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1DEB91EF08733DB70010E9CD /* Build configuration list for PBXProject "ZillaLib-OSX" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1DEB91F008733DB70010E9CD /* Debug */,
+				1DEB91F108733DB70010E9CD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 08FB7793FE84155DC02AAC07 /* Project object */;
+}

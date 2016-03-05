@@ -1,0 +1,235 @@
+<!--
+***********************************************************************************************
+ZillaApp-vs.props
+***********************************************************************************************
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="UserMacros">
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '11.0' Or '$(PlatformToolsetVersion)' == '110' Or '$(MSBuildToolsVersion)' ==  '4.0'">2012</VisualStudioYear>
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '12.0' Or '$(PlatformToolsetVersion)' == '120' Or '$(MSBuildToolsVersion)' == '12.0'">2013</VisualStudioYear>
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '14.0' Or '$(PlatformToolsetVersion)' == '140' Or '$(MSBuildToolsVersion)' == '14.0'">2015</VisualStudioYear>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2012'">v110_xp</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2013'">v120_xp</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2015'">v140_xp</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Debug' Or '$(Configuration)'=='Emscripten-Release'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='NACL-Debug' Or '$(Configuration)'=='NACL-Release'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Android-Debug' Or '$(Configuration)'=='Android-Release'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <LinkIncremental>true</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <LinkIncremental>false</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>Debug-vs$(VisualStudioYear)\</OutDir>
+    <IntDir>Debug-vs$(VisualStudioYear)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>Release-vs$(VisualStudioYear)\</OutDir>
+    <IntDir>Release-vs$(VisualStudioYear)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>Debug-vs$(VisualStudioYear)x64\</OutDir>
+    <IntDir>Debug-vs$(VisualStudioYear)x64\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>Release-vs$(VisualStudioYear)x64\</OutDir>
+    <IntDir>Release-vs$(VisualStudioYear)x64\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(DataAssets)'!='' And '$(Configuration)'=='Release'">
+    <LocalDebuggerCommand>$(OutDir)$(TargetName)_WithData.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Debug'">
+    <OutDir>Debug-emscripten\</OutDir>
+    <IntDir>Debug-emscripten\</IntDir>
+    <BaseIntermediateOutputPath>Debug-emscripten\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -vc "$(ProjectName)"</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -vc -B "$(ProjectName)"</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -vc -clean "$(ProjectName)"</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(PythonDir)python.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>"$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" run</LocalDebuggerCommandArguments>
+    <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Release'">
+    <OutDir>Release-emscripten\</OutDir>
+    <IntDir>Release-emscripten\</IntDir>
+    <BaseIntermediateOutputPath>Release-emscripten\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -rel -vc "$(ProjectName)"</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -rel -vc -B "$(ProjectName)"</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -rel -vc -clean "$(ProjectName)"</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(PythonDir)python.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>"$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" run -rel</LocalDebuggerCommandArguments>
+    <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='NACL-Debug'">
+    <OutDir>Debug-nacl\</OutDir>
+    <IntDir>Debug-nacl\</IntDir>
+    <BaseIntermediateOutputPath>Debug-nacl\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -vc "$(ProjectName)"</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -vc -B "$(ProjectName)"</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -vc -clean "$(ProjectName)"</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(PythonDir)python.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>"$(ZillaLibDir)/NACL/ZillaLibNACL.py" run</LocalDebuggerCommandArguments>
+    <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='NACL-Release'">
+    <OutDir>Release-nacl\</OutDir>
+    <IntDir>Release-nacl\</IntDir>
+    <BaseIntermediateOutputPath>Release-nacl\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -rel -vc "$(ProjectName)"</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -rel -vc -B "$(ProjectName)"</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -rel -vc -clean "$(ProjectName)"</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(PythonDir)python.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>"$(ZillaLibDir)/NACL/ZillaLibNACL.py" run -rel</LocalDebuggerCommandArguments>
+    <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Android-Debug'">
+    <OutDir>Android\bin\</OutDir>
+    <IntDir>Android\obj\</IntDir>
+    <BaseIntermediateOutputPath>Android\obj\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=1 "ZillaApp=$(ProjectName)"</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=1 "ZillaApp=$(ProjectName)" -B</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=1 "ZillaApp=$(ProjectName)" clean</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(ZillaLibDir)\Tools\make.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>-f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=1 "ZillaApp=$(ProjectName)" -k install pauseatend</LocalDebuggerCommandArguments>
+    <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Android-Release'">
+    <OutDir>Android\bin\</OutDir>
+    <IntDir>Android\obj\</IntDir>
+    <BaseIntermediateOutputPath>Android\obj\</BaseIntermediateOutputPath>
+    <NMakeBuildCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=0 "ZillaApp=$(ProjectName)"</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=0 "ZillaApp=$(ProjectName)" -B</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=0 "ZillaApp=$(ProjectName)" clean</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(ZillaLibDir)\Tools\make.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>-f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=0 "ZillaApp=$(ProjectName)" -k install pauseatend</LocalDebuggerCommandArguments>
+    <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Android-Debug' Or '$(Configuration)'=='Android-Release'">
+    <BuildLog><Path>nul:</Path></BuildLog>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile>
+      <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(ZillaLibDir)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_HAS_EXCEPTIONS=0;_CONSOLE;ZILLALOG;%(PreprocessorDefinitions);$(CmdLinePreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>false</ExceptionHandling>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0807</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>$(ZillaLibDir)/$(OutDir)ZillaLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <IgnoreSpecificDefaultLibraries>libcmt;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <SubSystem>Console</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions</EnableEnhancedInstructionSet>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>$(ZillaLibDir)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions);$(CmdLinePreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <ExceptionHandling>false</ExceptionHandling>
+      <OmitFramePointers>true</OmitFramePointers>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions Condition="'$(VisualStudioYear)' &gt;= '2013'">/Gw %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0807</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>$(ZillaLibDir)/$(OutDir)ZillaLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+      <SubSystem>Windows</SubSystem>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <IgnoreEmbeddedIDL>true</IgnoreEmbeddedIDL>
+      <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(DataAssets)'!='' And '$(Configuration)'=='Release' And $(SkipDataAssets)==''">
+    <PostBuildEvent>
+      <Command>
+"$(PythonDir)python" -c "import sys,os,zipfile;z=zipfile.ZipFile(sys.argv[1],'w');[z.write(a) for a in sys.argv[2:]];[z.write(r+'/'+f) for a in sys.argv[2:] for r,d,fs in os.walk(a) for f in fs]" "$(TargetDir)ASSETS.ZIP" $(DataAssets) 2&gt;nul:
+if errorlevel 1 7z u -y -bd -mx0 "$(TargetDir)ASSETS.ZIP" $(DataAssets) 2&gt;nul:
+if not exist "$(TargetDir)ASSETS.ZIP" echo ERROR: &amp;&amp; echo ERROR: Could not find "$(TargetDir)ASSETS.ZIP" &amp;&amp; echo ERROR: Create it with 'store' mode (no compression) containing all your asset data files and directories &amp;&amp; echo ERROR: To create it automatically, define a User Macro 'PythonDir' (ending with a backslash) in the Cpp.user Property Sheet to where python.exe is stored &amp;&amp; echo ERROR: Or put a directory containing either 7z.exe or python.exe into Executable Directories of the Cpp.user Property Sheet or into system PATH &amp;&amp; echo ERROR: &amp;&amp; exit 1
+copy /Y /B "$(TargetPath)" + "$(TargetDir)ASSETS.ZIP" "$(TargetDir)$(TargetName)_WithData.exe" 2&gt;nul: &gt;nul:
+if errorlevel 1 exit 1
+echo Packed data assets into $(TargetDir)$(TargetName)_WithData.exe
+      </Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(ZillaLibDir)/ZillaLib-vs.vcxproj">
+      <Project>{2177A217-7A21-77A2-177A-2177A2177777}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

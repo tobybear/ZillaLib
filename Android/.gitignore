@@ -1,0 +1,5 @@
+JavaHome.cfg
+ZillaAppLocalConfig.mk
+build/
+build-debug/
+stlport/

@@ -1,0 +1,694 @@
+/*
+  ZillaLib
+  Copyright (C) 2010-2016 Bernhard Schelling
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+*/
+
+#include "ZL_Platform.h"
+#ifdef ZL_USE_SDL
+
+#include "ZL_Application.h"
+#include "ZL_String.h"
+#include "ZL_Data.h"
+#include "ZL_Display_Impl.h"
+#include "ZL_Display.h"
+#include "ZL_Impl.h"
+#include "ZL_Thread.h"
+
+#if (defined(_MSC_VER) && !defined(WINAPI_FAMILY))
+#pragma comment (lib, "advapi32.lib")
+#pragma comment (lib, "Imm32.lib")
+#pragma comment (lib, "Ole32.lib")
+#pragma comment (lib, "Oleaut32.lib")
+#endif
+
+#include <SDL_config.h>
+#ifndef SDL_VIDEO_OPENGL
+#error SDL is only usable with OpenGL
+#endif
+#include <SDL_timer.h>
+#include <SDL_events.h>
+#include <SDL_audio.h>
+#include <SDL_joystick.h>
+#include <SDL_endian.h>
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN && !defined(ZL_USE_BIGENDIAN)
+#error This platform should define ZL_USE_BIGENDIAN
+#endif
+
+extern "C" {
+#include "sdl/video/SDL_sysvideo.h"
+#include "sdl/joystick/SDL_sysjoystick.h"
+#include "sdl/timer/SDL_timer_c.h"
+void SDL_ResetMouse(void);
+}
+
+//for ZL_OpenExternalUrl
+#ifdef __WIN32__
+#include <shellapi.h>
+#else
+#include <unistd.h>
+#endif
+
+#ifdef __MACOSX__
+#include "CoreFoundation/CoreFoundation.h"
+#endif
+
+void initExtensionEntries();
+void processSDLEvents();
+
+static SDL_Window* ZL_SDL_Window = NULL;
+static ZL_String jsonConfigFile;
+static ZL_Json jsonConfig;
+
+void ZL_SettingsInit(const char* FallbackConfigFilePrefix)
+{
+	jsonConfigFile.erase();
+	jsonConfigFile << FallbackConfigFilePrefix << ".cfg";
+	if (ZL_File::Exists(jsonConfigFile)) jsonConfig = ZL_Json(ZL_File(jsonConfigFile));
+}
+
+const ZL_String ZL_SettingsGet(const char* Key)
+{
+	ZL_Json field = jsonConfig.GetByKey(Key);
+	return (!field ? ZL_String() : ZL_String(field.GetString()));
+}
+
+void ZL_SettingsSet(const char* Key, const ZL_String& Value)
+{
+	jsonConfig[Key].SetString(Value);
+}
+
+void ZL_SettingsDel(const char* Key)
+{
+	jsonConfig.Erase(Key);
+}
+
+bool ZL_SettingsHas(const char* Key)
+{
+	return jsonConfig.HasKey(Key);
+}
+
+void ZL_SettingsSynchronize()
+{
+	ZL_File(jsonConfigFile, "w").SetContents(jsonConfig);
+}
+
+void ZL_OpenExternalUrl(const char* url)
+{
+	#ifdef __WIN32__
+	ShellExecuteA(NULL, "open", url, NULL, NULL, SW_SHOWNORMAL);
+	#else
+	int ret = system(ZL_String("xdg-open ")<<url<<"||gnome-open "<<url<<"||exo-open "<<url<<"||open "<<url<<" &");(void)ret;
+	#endif
+}
+
+void ZL_SDL_ShowError(const char* msg)
+{
+	#ifdef __WIN32__
+	MessageBoxA(NULL, msg, "Error", MB_ICONSTOP);
+	#else
+	fprintf(stderr, "%s", msg);
+	#endif
+}
+
+#if defined(NDEBUG)
+static char *argv0;
+bool ZL_LoadReleaseDesktopDataBundle(const char* DataBundleFileName)
+{
+	if ((ZL_File::DefaultReadFileContainer = ZL_FileContainer_ZIP(DataBundleFileName ? DataBundleFileName : argv0))) return true;
+	if (argv0 && DataBundleFileName)
+	{
+		char *dirsepf = strrchr(argv0, '/'), *dirsepb = strrchr(argv0, '\\');
+		size_t szp = (!dirsepb && !dirsepf ? 0 : (dirsepb && (!dirsepf || dirsepb < dirsepf) ? dirsepb : dirsepf) - argv0), szf = strlen(DataBundleFileName);
+		if (szp && szp + szf < 510)
+		{
+			char buf[512];
+			memcpy(buf, argv0, szp);
+			buf[szp] = *(dirsepb && (!dirsepf || dirsepb < dirsepf) ? dirsepb : dirsepf);
+			memcpy(buf+szp+1, DataBundleFileName, szf);
+			buf[szp+1+szf] = 0;
+			if ((ZL_File::DefaultReadFileContainer = ZL_FileContainer_ZIP(buf))) return true;
+		}
+	}
+	#ifdef __WIN32__
+	MessageBoxA(NULL, "Could not load data file", "Load Error", MB_ICONSTOP);
+	#else
+	fprintf(stderr, "Error: Could not load data file\n");
+	#endif
+	return false;
+}
+#endif
+
+#if defined(__WIN32__)
+extern "C" { extern LPTSTR SDL_Appname; extern HINSTANCE SDL_Instance; }
+#endif
+
+int main(int argc, char *argv[])
+{
+	#if defined(NDEBUG)
+		argv0 = (argc ? argv[0] : NULL);
+	#endif
+	#if defined(__MACOSX__)
+		static char path[PATH_MAX];
+		CFBundleRef mainBundle = CFBundleGetMainBundle();
+		CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
+		if (CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8 *)path, PATH_MAX)) chdir(path);
+		CFRelease(resourcesURL);
+		#if defined(NDEBUG)
+		resourcesURL = CFBundleCopyExecutableURL(mainBundle);
+		if (CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8 *)path, PATH_MAX)) argv0 = path;
+		CFRelease(resourcesURL);
+		#endif
+	#endif
+	#if defined(__WIN32__)
+		//set this for icon resource identifier
+		SDL_Appname = (LPTSTR)"Z\0L\0\0";
+		SDL_Instance = GetModuleHandle(NULL);
+	#endif
+	SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);
+	ZillaLibInit(argc, argv);
+	while (!(ZL_MainApplicationFlags & ZL_APPLICATION_DONE))
+	{
+		processSDLEvents();
+		ZL_MainApplication->Frame();
+		SDL_GL_SwapWindow(ZL_SDL_Window);
+		//#ifdef __WIN32__
+		//if ((ZL_MainApplicationFlags & (ZL_APPLICATION_NOVSYNC|ZL_APPLICATION_VSYNCFAILED|ZL_APPLICATION_VSYNCHACK)) == (ZL_APPLICATION_VSYNCFAILED|ZL_APPLICATION_VSYNCHACK))
+		//{
+		//	//hack to fix vsync issue on ATI cards on windows (Maybe other platforms/cards affected?)
+		//	//see http://www.gamedev.net/topic/544239-jerky-movement-when-vsync-turned-on-wglswapintervalext/page-2
+		//	//see https://github.com/LaurentGomila/SFML/issues/320
+		//	if (ZL_Application::FrameCount>>2) glFinish();
+		//}
+		//#endif
+		//avoid any "input lag" (see: http://www.opengl.org/wiki/Swap_Interval#GPU_vs_CPU_synchronization)
+		if (!(ZL_MainApplicationFlags & ZL_APPLICATION_NOVSYNC)) glFinish();
+	}
+	ZL_MainApplication->OnQuit();
+	return ZL_DoneReturn;
+}
+
+#if defined(__WIN32__) && defined(WINAPI)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+{
+	return main(__argc, __argv); //(lpCmdLine[0] ? 1 : 0), &lpCmdLine);
+}
+#endif
+
+//application
+ticks_t ZL_GetTicks()
+{
+	return SDL_GetTicks();
+}
+
+void ZL_Delay(ticks_t ms)
+{
+	SDL_Delay(ms);
+}
+
+void ZL_StartTicks()
+{
+	SDL_TicksInit();
+}
+
+//Joystick
+bool ZL_InitJoystickSubSystem()
+{
+	return (SDL_JoystickInit() ? true : false);
+}
+
+int ZL_NumJoysticks()
+{
+	return SDL_NumJoysticks();
+}
+
+ZL_JoystickData* ZL_JoystickHandleOpen(int index)
+{
+	#if (defined(_MSC_VER) && !defined(WINAPI_FAMILY))
+	//if compiler errors here, SDL_Joystick struct definition does not match ZL_JoystickData
+	enum { __asrt = 1/(int)( (void*)&((ZL_JoystickData*)0)->buttons == (void*)&((SDL_Joystick*)0)->buttons ) };
+	#endif
+	SDL_Joystick* joy = SDL_JoystickOpen(index);
+	return (ZL_JoystickData*)joy;
+}
+
+void ZL_JoystickHandleClose(ZL_JoystickData* joystick)
+{
+	SDL_JoystickClose((SDL_Joystick*)joystick);
+}
+
+bool ZL_CreateWindow(const char* windowtitle, int width, int height, int displayflags)
+{
+	#if (defined(_MSC_VER) && !defined(WINAPI_FAMILY))
+	//if compiler errors, enum ZL_WindowFlags does not map to enum SDL_WindowFlags
+	enum { __asrt = 1/(int)(ZL_WINDOW_FULLSCREEN==SDL_WINDOW_FULLSCREEN&&ZL_WINDOW_MINIMIZED==SDL_WINDOW_MINIMIZED&&ZL_WINDOW_RESIZABLE==SDL_WINDOW_RESIZABLE) };
+	#endif
+
+	Uint32 windowflags = SDL_WINDOW_OPENGL; // | SDL_WINDOW_SHOWN;
+	if (displayflags & ZL_DISPLAY_FULLSCREEN) windowflags |= SDL_WINDOW_FULLSCREEN;
+	if (displayflags & ZL_DISPLAY_RESIZABLE) windowflags |= SDL_WINDOW_RESIZABLE;
+
+	if (SDL_VideoInit(NULL) < 0) { ZL_SDL_ShowError("Could not initialize video display"); return false; }
+
+	//limit window size to desktop resolution of primary display (if data can be acquired via SDL)
+	SDL_VideoDevice *device = SDL_GetVideoDevice();
+	if (device && device->displays)
+	{
+		if (device->displays->desktop_mode.w > 500 && width > device->displays->desktop_mode.w) width = device->displays->desktop_mode.w;
+		if (device->displays->desktop_mode.h > 400 && height > device->displays->desktop_mode.h) height = device->displays->desktop_mode.h;
+	}
+
+	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, (displayflags & ZL_WINDOW_DEPTHBUFFER ? 16 : 0));
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+	// should enable 4x AA if possible
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+
+	ZL_SDL_Window = SDL_CreateWindow(windowtitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, windowflags);
+	if (!ZL_SDL_Window)
+	{
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
+		ZL_SDL_Window = SDL_CreateWindow(windowtitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, windowflags);
+		if (!ZL_SDL_Window) { ZL_SDL_ShowError("Could not create OpenGL window"); return false; }
+	}
+
+	if (!SDL_GL_CreateContext(ZL_SDL_Window)) { ZL_SDL_ShowError("Could not initialize OpenGL context"); return false; }
+
+	glClear(GL_COLOR_BUFFER_BIT);
+	SDL_GL_SwapWindow(ZL_SDL_Window);
+	ZL_UpdateTPFLimit();
+
+	//const GLubyte* pstrGlVendor = glGetString(GL_VENDOR);
+	//if (pstrGlVendor[0] == 'A' && pstrGlVendor[1] == 'T' && pstrGlVendor[2] == 'I') ZL_MainApplicationFlags |= ZL_APPLICATION_VSYNCHACK;
+
+	//printf("Vendor: %s\n", glGetString(GL_VENDOR));
+	//printf("Renderer: %s\n", glGetString(GL_RENDERER));
+	//printf("Version: %s\n", glGetString(GL_VERSION));
+	//printf("GLSL: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+	//printf("Extensions : %s\n", glGetString(GL_EXTENSIONS));
+	//printf("\n");
+
+	initExtensionEntries();
+
+	/*
+#ifndef __MACOSX__
+	printf("glDeleteBuffers =           %d\n", (glDeleteBuffers       ? 1 : 0));
+	printf("glCreateShader =            %d\n", (glCreateShader        ? 1 : 0));
+	printf("glCompileShader =           %d\n", (glCompileShader       ? 1 : 0));
+	printf("glCreateProgram =           %d\n", (glCreateProgram       ? 1 : 0));
+	printf("glLinkProgram =             %d\n", (glLinkProgram         ? 1 : 0));
+	printf("glUseProgram =              %d\n", (glUseProgram          ? 1 : 0));
+	printf("glBindAttribLocation =      %d\n", (glBindAttribLocation  ? 1 : 0));
+	printf("glVertexAttribPointer =     %d\n", (glVertexAttribPointer ? 1 : 0));
+	printf("glVertexAttrib4fv =         %d\n", (glVertexAttrib4fv     ? 1 : 0));
+	printf("glUniform1f =               %d\n", (glUniform1f           ? 1 : 0));
+	printf("glIsProgram =               %d\n", (glIsProgram           ? 1 : 0));
+#if !defined(ZL_DOUBLE_PRECISCION)
+	printf("glUniformMatrix4fv =        %d\n", (glUniformMatrix4fv    ? 1 : 0));
+#else
+#endif
+#ifndef GL_ATI_blend_equation_separate
+	printf("glBlendEquation =           %d\n", (glBlendEquation       ? 1 : 0));
+#endif
+#endif
+	printf("glGenFramebuffers =         %d\n", (glGenFramebuffers     ? 1 : 0));
+	printf("glDeleteFramebuffers =      %d\n", (glDeleteFramebuffers  ? 1 : 0));
+	printf("glBindFramebuffer =         %d\n", (glBindFramebuffer     ? 1 : 0));
+	printf("glFramebufferTexture2D =    %d\n", (glFramebufferTexture2D? 1 : 0));
+	printf("\n");
+	*/
+
+	pZL_WindowFlags = (unsigned int*)&ZL_SDL_Window->flags;
+
+	return true;
+}
+
+void ZL_UpdateTPFLimit()
+{
+	SDL_VideoDevice *device = SDL_GetVideoDevice();
+	if (!device) return;
+	bool UseVSync = (device->displays && ZL_TPF_Limit && ZL_TPF_Limit == (unsigned short)((1000.0f / (float)device->displays->desktop_mode.refresh_rate)-0.0495f));
+	SDL_GL_SetSwapInterval(UseVSync ? 1 : 0);
+	ZL_MainApplicationFlags = (UseVSync ? ZL_MainApplicationFlags & ~ZL_APPLICATION_NOVSYNC : ZL_MainApplicationFlags | ZL_APPLICATION_NOVSYNC);
+}
+
+void processSDLEvents()
+{
+	SDL_Event in;
+	while (SDL_PollEvent(&in))
+	{
+		ZL_Event out;
+		switch (in.type)
+		{
+			case SDL_MOUSEMOTION:
+				out.type = ZL_EVENT_MOUSEMOTION;
+				out.motion.which = 0;
+				out.motion.state = in.motion.state;
+				out.motion.x = (scalar)in.motion.x;
+				out.motion.y = (scalar)in.motion.y;
+				out.motion.xrel = (scalar)in.motion.xrel;
+				out.motion.yrel = (scalar)in.motion.yrel;
+				break;
+			case SDL_MOUSEBUTTONDOWN:
+			case SDL_MOUSEBUTTONUP:
+				out.type = (in.type == SDL_MOUSEBUTTONDOWN ? ZL_EVENT_MOUSEBUTTONDOWN : ZL_EVENT_MOUSEBUTTONUP);
+				out.button.which = 0;
+				out.button.button = in.button.button;
+				out.button.is_down = (in.button.state == SDL_PRESSED);
+				out.button.x = (scalar)in.button.x;
+				out.button.y = (scalar)in.button.y;
+				break;
+			case SDL_MOUSEWHEEL:
+				out.type = ZL_EVENT_MOUSEWHEEL;
+				out.wheel.which = 0;
+				out.wheel.x = (scalar)(in.wheel.x*120);
+				out.wheel.y = (scalar)(in.wheel.y*120);
+				break;
+			case SDL_KEYDOWN:
+			case SDL_KEYUP:
+				out.type = (in.type == SDL_KEYDOWN ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
+				out.key.is_down = (in.key.state == SDL_PRESSED);
+				out.key.key = (ZL_Key)in.key.keysym.scancode;
+				out.key.mod = in.key.keysym.mod;
+				if (in.type == SDL_KEYDOWN && (out.key.key == ZLK_TAB || out.key.key == ZLK_RETURN || out.key.key == ZLK_KP_ENTER || out.key.key == ZLK_BACKSPACE))
+				{
+					in.type = SDL_TEXTINPUT;
+					in.text.text[0] = (out.key.key == ZLK_RETURN || out.key.key == ZLK_KP_ENTER ? '\n' : (out.key.key == ZLK_BACKSPACE ? '\b' : '\t'));
+					in.text.text[1] = 0;
+					SDL_PushEvent(&in);
+				}
+				break;
+			case SDL_TEXTINPUT:
+				out.type = ZL_EVENT_TEXTINPUT;
+				#if (defined(_MSC_VER) && !defined(WINAPI_FAMILY))
+				//if compiler errors here, SDL text event size does not match ZL text event size
+				enum { __asrt = 1/(int)(sizeof(out.text.text) == sizeof(in.text.text)) };
+				#endif
+				if (in.text.text[1]) memcpy(out.text.text, in.text.text, sizeof(out.text.text));
+				else { out.text.text[0] = (in.text.text[0] == '\r' ? '\n' : in.text.text[0]) ; out.text.text[1] = 0; }
+				break;
+			case SDL_JOYAXISMOTION:
+				out.type = ZL_EVENT_JOYAXISMOTION;
+				out.jaxis.which = in.jaxis.which;
+				out.jaxis.axis = in.jaxis.axis;
+				out.jaxis.value = in.jaxis.value;
+				break;
+			case SDL_JOYBALLMOTION:
+				out.type = ZL_EVENT_JOYBALLMOTION;
+				out.jball.which = in.jball.which;
+				out.jball.ball = in.jball.ball;
+				out.jball.xrel = in.jball.xrel;
+				out.jball.yrel = in.jball.yrel;
+				break;
+			case SDL_JOYHATMOTION:
+				out.type = ZL_EVENT_JOYHATMOTION;
+				out.jhat.which = in.jhat.which;
+				out.jhat.hat = in.jhat.hat;
+				out.jhat.value = in.jhat.value;
+				break;
+			case SDL_JOYBUTTONDOWN:
+			case SDL_JOYBUTTONUP:
+				out.type = (in.type == SDL_JOYBUTTONDOWN ? ZL_EVENT_JOYBUTTONDOWN : ZL_EVENT_JOYBUTTONUP);
+				out.jbutton.which = in.jbutton.which;
+				out.jbutton.button = in.jbutton.button;
+				out.jbutton.is_down = (in.jbutton.state == SDL_PRESSED);
+				break;
+			case SDL_QUIT:
+				out.type = ZL_EVENT_QUIT;
+				break;
+			case SDL_WINDOWEVENT:
+				if (in.window.event == SDL_WINDOWEVENT_EXPOSED) continue;
+				#if defined(__WIN32__) && defined(WM_MOUSELEAVE) && defined(TME_LEAVE)
+				if (in.window.event == SDL_WINDOWEVENT_ENTER) //fix for SDL2, might not work with MINGW...
+				{ TRACKMOUSEEVENT t = { sizeof(TRACKMOUSEEVENT), TME_LEAVE, *(((HWND*)(ZL_SDL_Window->driverdata))+1), 0 }; TrackMouseEvent(&t); }
+				#endif
+				out.type = ZL_EVENT_WINDOW;
+				if (in.window.event == SDL_WINDOWEVENT_MOVED)          out.window.event = ZL_WINDOWEVENT_MOVED;
+				else if (in.window.event == SDL_WINDOWEVENT_CLOSE)     out.window.event = ZL_WINDOWEVENT_CLOSE;
+				else if (in.window.event == SDL_WINDOWEVENT_MINIMIZED) out.window.event = ZL_WINDOWEVENT_MINIMIZED;
+				else if (in.window.event == SDL_WINDOWEVENT_RESTORED)  out.window.event = ZL_WINDOWEVENT_RESTORED;
+				else if (in.window.event == SDL_WINDOWEVENT_MOVED)     out.window.event = ZL_WINDOWEVENT_MOVED;
+				else if (in.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+				{
+					out.window.event = ZL_WINDOWEVENT_RESIZED;
+					out.window.data1 = in.window.data1;
+					out.window.data2 = in.window.data2;
+				}
+				else
+				{
+					out.window.event = ZL_WINDOWEVENT_FOCUS;
+					//linux SDL loses input focus when switching to fullscreen
+					if (ZL_SDL_Window->flags & SDL_WINDOW_FULLSCREEN) ZL_SDL_Window->flags |= SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_MOUSE_FOCUS;
+				}
+				if ((out.window.event == ZL_WINDOWEVENT_MINIMIZED || out.window.event == ZL_WINDOWEVENT_FOCUS) && !ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS)) SDL_ResetMouse();
+				break;
+			#if defined(ZILLALOG)
+			case SDL_APP_TERMINATING: printf("UNUSED SDL EVENT [SDL_APP_TERMINATING]\n"); break;
+			case SDL_APP_LOWMEMORY: printf("UNUSED SDL EVENT [SDL_APP_LOWMEMORY]\n"); break;
+			case SDL_APP_WILLENTERBACKGROUND: printf("UNUSED SDL EVENT [SDL_APP_WILLENTERBACKGROUND]\n"); break;
+			case SDL_APP_DIDENTERBACKGROUND: printf("UNUSED SDL EVENT [SDL_APP_DIDENTERBACKGROUND]\n"); break;
+			case SDL_APP_WILLENTERFOREGROUND: printf("UNUSED SDL EVENT [SDL_APP_WILLENTERFOREGROUND]\n"); break;
+			case SDL_APP_DIDENTERFOREGROUND: printf("UNUSED SDL EVENT [SDL_APP_DIDENTERFOREGROUND]\n"); break;
+			case SDL_SYSWMEVENT: printf("UNUSED SDL EVENT [SDL_SYSWMEVENT]\n"); break;
+			case SDL_TEXTEDITING: printf("UNUSED SDL EVENT [SDL_TEXTEDITING]\n"); break;
+			case SDL_JOYDEVICEADDED: printf("UNUSED SDL EVENT [SDL_JOYDEVICEADDED]\n"); break;
+			case SDL_JOYDEVICEREMOVED: printf("UNUSED SDL EVENT [SDL_JOYDEVICEREMOVED]\n"); break;
+			case SDL_CONTROLLERAXISMOTION: printf("UNUSED SDL EVENT [SDL_CONTROLLERAXISMOTION]\n"); break;
+			case SDL_CONTROLLERBUTTONDOWN: printf("UNUSED SDL EVENT [SDL_CONTROLLERBUTTONDOWN]\n"); break;
+			case SDL_CONTROLLERBUTTONUP: printf("UNUSED SDL EVENT [SDL_CONTROLLERBUTTONUP]\n"); break;
+			case SDL_CONTROLLERDEVICEADDED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEADDED]\n"); break;
+			case SDL_CONTROLLERDEVICEREMOVED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEREMOVED]\n"); break;
+			case SDL_CONTROLLERDEVICEREMAPPED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEREMAPPED]\n"); break;
+			case SDL_FINGERDOWN: printf("UNUSED SDL EVENT [SDL_FINGERDOWN]\n"); break;
+			case SDL_FINGERUP: printf("UNUSED SDL EVENT [SDL_FINGERUP]\n"); break;
+			case SDL_FINGERMOTION: printf("UNUSED SDL EVENT [SDL_FINGERMOTION]\n"); break;
+			case SDL_DOLLARGESTURE: printf("UNUSED SDL EVENT [SDL_DOLLARGESTURE]\n"); break;
+			case SDL_DOLLARRECORD: printf("UNUSED SDL EVENT [SDL_DOLLARRECORD]\n"); break;
+			case SDL_MULTIGESTURE: printf("UNUSED SDL EVENT [SDL_MULTIGESTURE]\n"); break;
+			case SDL_CLIPBOARDUPDATE: printf("UNUSED SDL EVENT [SDL_CLIPBOARDUPDATE]\n"); break;
+			case SDL_DROPFILE: printf("UNUSED SDL EVENT [SDL_DROPFILE]\n"); break;
+			case SDL_RENDER_TARGETS_RESET: printf("UNUSED SDL EVENT [SDL_RENDER_TARGETS_RESET]\n"); break;
+			case SDL_USEREVENT: printf("UNUSED SDL EVENT [SDL_USEREVENT]\n"); break;
+			#endif
+			default:
+				continue;
+		}
+		ZL_Display_Process_Event(out);
+	}
+}
+
+void ZL_SetFullscreen(bool toFullscreen)
+{
+	SDL_VideoDevice *device = SDL_GetVideoDevice();
+	SDL_VideoDisplay *display = SDL_GetDisplayForWindow(ZL_SDL_Window);
+	if(toFullscreen)
+	{
+		ZL_SDL_Window->flags |= SDL_WINDOW_FULLSCREEN;
+		ZL_SDL_Window->x = 0;
+		ZL_SDL_Window->y = 0;
+		ZL_SDL_Window->w = display->desktop_mode.w;
+		ZL_SDL_Window->h = display->desktop_mode.h;
+		device->SetWindowSize(device, ZL_SDL_Window);
+	}
+	else
+	{
+		ZL_SDL_Window->flags &= ~SDL_WINDOW_FULLSCREEN;
+		ZL_SDL_Window->x = ZL_SDL_Window->windowed.x;
+		ZL_SDL_Window->y = ZL_SDL_Window->windowed.y;
+		ZL_SDL_Window->w = ZL_SDL_Window->windowed.w;
+		ZL_SDL_Window->h = ZL_SDL_Window->windowed.h;
+	}
+	device->SetWindowFullscreen(device, ZL_SDL_Window, display, (SDL_bool)toFullscreen);
+	if(toFullscreen) SDL_OnWindowResized(ZL_SDL_Window);
+	else SDL_SetWindowSize(ZL_SDL_Window, ZL_SDL_Window->windowed.w, ZL_SDL_Window->windowed.h);
+}
+
+void ZL_SetPointerLock(bool doLockPointer)
+{
+	ZL_SDL_Window->flags = (doLockPointer ? (ZL_SDL_Window->flags|ZL_WINDOW_POINTERLOCK) : (ZL_SDL_Window->flags&~ZL_WINDOW_POINTERLOCK));
+	//SDL_ShowCursor(doLockPointer ? 0 : 1);
+	SDL_SetRelativeMouseMode((SDL_bool)doLockPointer);
+}
+
+void ZL_GetWindowSize(int *w, int *h)
+{
+	SDL_GetWindowSize(ZL_SDL_Window, w, h);
+}
+
+static void ZL_SdlAudioMix(void *udata, Uint8 *stream, int len)
+{
+	ZL_PlatformAudioMix((char*)stream, len);
+}
+
+bool ZL_AudioOpen()
+{
+	if (SDL_AudioInit(NULL) < 0) return false;
+	SDL_AudioSpec desired;
+	desired.freq = 44100;
+	desired.format = AUDIO_S16LSB;
+	desired.channels = 2;
+	desired.samples = 4096;
+	desired.callback = ZL_SdlAudioMix;
+	desired.userdata = NULL;
+	if (SDL_OpenAudio(&desired, NULL) < 0) return false;
+	SDL_PauseAudio(0);
+	return true;
+}
+
+//thread
+ZL_ThreadHandle ZL_CreateThread(void *(*start_routine) (void *p), void *arg)
+{
+	return SDL_CreateThread((SDL_ThreadFunction)start_routine, NULL, arg);
+}
+void ZL_WaitThread(ZL_ThreadHandle hthread, int *pstatus)
+{
+	SDL_WaitThread((SDL_Thread*)hthread, pstatus);
+}
+int ZL_MutexLock(ZL_MutexHandle mutex) { return SDL_LockMutex((SDL_mutex*)mutex); }
+int ZL_MutexUnlock(ZL_MutexHandle mutex) { return SDL_UnlockMutex((SDL_mutex*)mutex); }
+bool ZL_MutexTryLock(ZL_MutexHandle mutex) { return (SDL_TryLockMutex((SDL_mutex*)mutex)==0); }
+ZL_MutexHandle ZL_CreateMutex() { return SDL_CreateMutex(); }
+void ZL_MutexDestroy(ZL_MutexHandle mutex) { SDL_DestroyMutex((SDL_mutex*)mutex); }
+
+struct ZL_Mutex_Impl : ZL_Impl { virtual ~ZL_Mutex_Impl() { SDL_DestroyMutex(mutex); } SDL_mutex* mutex; };
+ZL_IMPL_OWNER_NONULLCON_IMPLEMENTATIONS(ZL_Mutex)
+ZL_Mutex::ZL_Mutex() { (impl = new ZL_Mutex_Impl())->mutex = SDL_CreateMutex(); }
+void ZL_Mutex::Lock() { SDL_LockMutex(impl->mutex); }
+void ZL_Mutex::Unlock() { SDL_UnlockMutex(impl->mutex); }
+bool ZL_Mutex::TryLock() { return (SDL_TryLockMutex(impl->mutex)==0); }
+
+struct ZL_Semaphore_Impl : ZL_Impl { virtual ~ZL_Semaphore_Impl() { SDL_DestroySemaphore(sem); } SDL_sem* sem; };
+ZL_IMPL_OWNER_NONULLCON_IMPLEMENTATIONS(ZL_Semaphore)
+ZL_Semaphore::ZL_Semaphore() { (impl = new ZL_Semaphore_Impl())->sem = SDL_CreateSemaphore(0); }
+bool ZL_Semaphore::Wait() { return (SDL_SemWait(impl->sem)==0); }
+bool ZL_Semaphore::TryWait() { return (SDL_SemTryWait(impl->sem)==0); }
+bool ZL_Semaphore::WaitTimeout(int ms) { return (SDL_SemWaitTimeout(impl->sem, (Uint32)ms)==0); }
+void ZL_Semaphore::Post() { SDL_SemPost(impl->sem); }
+
+//gl2 stuff
+#ifndef __MACOSX__
+PFNGLDELETEBUFFERSPROC            glDeleteBuffers;
+PFNGLBINDBUFFERPROC               glBindBuffer;
+PFNGLBUFFERDATAPROC               glBufferData;
+PFNGLCREATESHADERPROC             glCreateShader;
+PFNGLSHADERSOURCEPROC             glShaderSource;
+PFNGLCOMPILESHADERPROC            glCompileShader;
+PFNGLCREATEPROGRAMPROC            glCreateProgram;
+PFNGLATTACHSHADERPROC             glAttachShader;
+PFNGLLINKPROGRAMPROC              glLinkProgram;
+PFNGLUSEPROGRAMPROC               glUseProgram;
+PFNGLGETSHADERIVPROC              glGetShaderiv;
+PFNGLGETSHADERINFOLOGPROC         glGetShaderInfoLog;
+PFNGLGETPROGRAMIVPROC             glGetProgramiv;
+PFNGLGETPROGRAMINFOLOGPROC        glGetProgramInfoLog;
+PFNGLGETATTRIBLOCATIONPROC        glGetAttribLocation;
+PFNGLBINDATTRIBLOCATIONPROC       glBindAttribLocation;
+PFNGLVERTEXATTRIBPOINTERPROC      glVertexAttribPointer;
+PFNGLENABLEVERTEXATTRIBARRAYPROC  glEnableVertexAttribArray;
+PFNGLGETUNIFORMLOCATIONPROC       glGetUniformLocation;
+#if !defined(ZL_DOUBLE_PRECISCION)
+PFNGLUNIFORMMATRIX4FVPROC         glUniformMatrix4fv;
+PFNGLVERTEXATTRIB4FVPROC          glVertexAttrib4fv;
+PFNGLVERTEXATTRIB4FPROC           glVertexAttrib4f;
+PFNGLUNIFORM1FPROC                glUniform1f;
+PFNGLUNIFORM2FPROC                glUniform2f;
+#else
+PFNGLUNIFORMMATRIX4DVPROC         glUniformMatrix4dv;
+PFNGLVERTEXATTRIB4DVPROC          glVertexAttrib4dv;
+PFNGLVERTEXATTRIB4DPROC           glVertexAttrib4d;
+PFNGLUNIFORM1DPROC                glUniform1d;
+PFNGLUNIFORM2DPROC                glUniform2d;
+#endif
+PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
+PFNGLDELETESHADERPROC             glDeleteShader;
+PFNGLDELETEPROGRAMPROC            glDeleteProgram;
+PFNGLISPROGRAMPROC                glIsProgram;
+PFNGLBLENDEQUATIONSEPARATEPROC    glBlendEquationSeparate;
+PFNGLBLENDFUNCSEPARATEPROC        glBlendFuncSeparate;
+#ifndef GL_ATI_blend_equation_separate
+PFNGLBLENDCOLORPROC               glBlendColor;
+PFNGLBLENDEQUATIONPROC            glBlendEquation;
+#endif
+#endif
+PFNGLGENFRAMEBUFFERSPROC          glGenFramebuffers;
+PFNGLDELETEFRAMEBUFFERSPROC       glDeleteFramebuffers;
+PFNGLBINDFRAMEBUFFERPROC          glBindFramebuffer;
+PFNGLFRAMEBUFFERTEXTURE2DPROC     glFramebufferTexture2D;
+void initExtensionEntries()
+{
+#ifndef __MACOSX__
+	glDeleteBuffers =            (PFNGLDELETEBUFFERSPROC           )(size_t)SDL_GL_GetProcAddress("glDeleteBuffers");
+	glBindBuffer =               (PFNGLBINDBUFFERPROC              )(size_t)SDL_GL_GetProcAddress("glBindBuffer");
+	glBufferData =               (PFNGLBUFFERDATAPROC              )(size_t)SDL_GL_GetProcAddress("glBufferData");
+	glCreateShader =             (PFNGLCREATESHADERPROC            )(size_t)SDL_GL_GetProcAddress("glCreateShader");
+	glShaderSource =             (PFNGLSHADERSOURCEPROC            )(size_t)SDL_GL_GetProcAddress("glShaderSource");
+	glCompileShader =            (PFNGLCOMPILESHADERPROC           )(size_t)SDL_GL_GetProcAddress("glCompileShader");
+	glCreateProgram =            (PFNGLCREATEPROGRAMPROC           )(size_t)SDL_GL_GetProcAddress("glCreateProgram");
+	glAttachShader =             (PFNGLATTACHSHADERPROC            )(size_t)SDL_GL_GetProcAddress("glAttachShader");
+	glLinkProgram =              (PFNGLLINKPROGRAMPROC             )(size_t)SDL_GL_GetProcAddress("glLinkProgram");
+	glUseProgram =               (PFNGLUSEPROGRAMPROC              )(size_t)SDL_GL_GetProcAddress("glUseProgram");
+	glGetShaderiv =              (PFNGLGETSHADERIVPROC             )(size_t)SDL_GL_GetProcAddress("glGetShaderiv");
+	glGetShaderInfoLog =         (PFNGLGETSHADERINFOLOGPROC        )(size_t)SDL_GL_GetProcAddress("glGetShaderInfoLog");
+	glGetProgramiv =             (PFNGLGETPROGRAMIVPROC            )(size_t)SDL_GL_GetProcAddress("glGetProgramiv");
+	glGetProgramInfoLog =        (PFNGLGETPROGRAMINFOLOGPROC       )(size_t)SDL_GL_GetProcAddress("glGetProgramInfoLog");
+	glGetAttribLocation =        (PFNGLGETATTRIBLOCATIONPROC       )(size_t)SDL_GL_GetProcAddress("glGetAttribLocation");
+	glBindAttribLocation =       (PFNGLBINDATTRIBLOCATIONPROC      )(size_t)SDL_GL_GetProcAddress("glBindAttribLocation");
+	glVertexAttribPointer =      (PFNGLVERTEXATTRIBPOINTERPROC     )(size_t)SDL_GL_GetProcAddress("glVertexAttribPointer");
+	glEnableVertexAttribArray =  (PFNGLENABLEVERTEXATTRIBARRAYPROC )(size_t)SDL_GL_GetProcAddress("glEnableVertexAttribArray");
+	glGetUniformLocation =       (PFNGLGETUNIFORMLOCATIONPROC      )(size_t)SDL_GL_GetProcAddress("glGetUniformLocation");
+#if !defined(ZL_DOUBLE_PRECISCION)
+	glUniformMatrix4fv =         (PFNGLUNIFORMMATRIX4FVPROC        )(size_t)SDL_GL_GetProcAddress("glUniformMatrix4fv");
+	glVertexAttrib4fv =          (PFNGLVERTEXATTRIB4FVPROC         )(size_t)SDL_GL_GetProcAddress("glVertexAttrib4fv");
+	glVertexAttrib4f =           (PFNGLVERTEXATTRIB4FPROC          )(size_t)SDL_GL_GetProcAddress("glVertexAttrib4f");
+	glUniform1f =                (PFNGLUNIFORM1FPROC               )(size_t)SDL_GL_GetProcAddress("glUniform1f");
+	glUniform2f =                (PFNGLUNIFORM2FPROC               )(size_t)SDL_GL_GetProcAddress("glUniform2f");
+#else
+	glUniformMatrix4dv =         (PFNGLUNIFORMMATRIX4DVPROC        )(size_t)SDL_GL_GetProcAddress("glUniformMatrix4dv");
+	glVertexAttrib4dv =          (PFNGLVERTEXATTRIB4DVPROC         )(size_t)SDL_GL_GetProcAddress("glVertexAttrib4dv");
+	glVertexAttrib4d =           (PFNGLVERTEXATTRIB4DPROC          )(size_t)SDL_GL_GetProcAddress("glVertexAttrib4d");
+	glUniform1d =                (PFNGLUNIFORM1DPROC               )(size_t)SDL_GL_GetProcAddress("glUniform1d");
+	glUniform2d =                (PFNGLUNIFORM2DPROC               )(size_t)SDL_GL_GetProcAddress("glUniform2d");
+#endif
+	glDisableVertexAttribArray = (PFNGLDISABLEVERTEXATTRIBARRAYPROC)(size_t)SDL_GL_GetProcAddress("glDisableVertexAttribArray");
+	glDeleteShader =             (PFNGLDELETESHADERPROC            )(size_t)SDL_GL_GetProcAddress("glDeleteShader");
+	glDeleteProgram =            (PFNGLDELETEPROGRAMPROC           )(size_t)SDL_GL_GetProcAddress("glDeleteProgram");
+	glIsProgram =                (PFNGLISPROGRAMPROC               )(size_t)SDL_GL_GetProcAddress("glIsProgram");
+	glBlendEquationSeparate =    (PFNGLBLENDEQUATIONSEPARATEPROC   )(size_t)SDL_GL_GetProcAddress("glBlendEquationSeparate");
+	glBlendFuncSeparate =        (PFNGLBLENDFUNCSEPARATEPROC       )(size_t)SDL_GL_GetProcAddress("glBlendFuncSeparate");
+#ifndef GL_ATI_blend_equation_separate
+	glBlendColor =               (PFNGLBLENDCOLORPROC              )(size_t)SDL_GL_GetProcAddress("glBlendColor");
+	glBlendEquation =            (PFNGLBLENDEQUATIONPROC           )(size_t)SDL_GL_GetProcAddress("glBlendEquation");
+#endif
+#endif
+	glGenFramebuffers =          (PFNGLGENFRAMEBUFFERSPROC         )(size_t)SDL_GL_GetProcAddress("glGenFramebuffers");
+	glDeleteFramebuffers =       (PFNGLDELETEFRAMEBUFFERSPROC      )(size_t)SDL_GL_GetProcAddress("glDeleteFramebuffers");
+	glBindFramebuffer =          (PFNGLBINDFRAMEBUFFERPROC         )(size_t)SDL_GL_GetProcAddress("glBindFramebuffer");
+	glFramebufferTexture2D =     (PFNGLFRAMEBUFFERTEXTURE2DPROC    )(size_t)SDL_GL_GetProcAddress("glFramebufferTexture2D");
+}
+
+#define ZL_SDL_DO_OVERRIDE_IMPLEMENTATIONS
+#include <SDL_config_zillalib.h>
+
+#endif

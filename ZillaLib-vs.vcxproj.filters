@@ -1,0 +1,352 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Dependencies">
+      <UniqueIdentifier>{6d723ad2-5068-464d-8637-5fef1e31b25c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Dependencies\ZLIB">
+      <UniqueIdentifier>{387624a9-0267-440f-bb88-5754f22031ba}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Dependencies\ENET">
+      <UniqueIdentifier>{6dd454d2-ddf4-4caa-a8d2-52d6a7a8b423}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Dependencies\SDL">
+      <UniqueIdentifier>{f00472e6-b9a1-45cd-96eb-bbdd2db9cf62}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Dependencies\LIBTESS2">
+      <UniqueIdentifier>{104b3c32-73f0-4260-83b6-7e71d8fb1668}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Dependencies\STB">
+      <UniqueIdentifier>{9130f8df-2764-4604-880f-cfcc8c6899f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Include">
+      <UniqueIdentifier>{512decc3-1b8d-46fb-bd04-de1fffa5b8ae}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl</Extensions>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{889035b2-f6bd-4d49-a545-9624f323bd85}</UniqueIdentifier>
+      <Extensions>cpp</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Source\zlib\miniz.c">
+      <Filter>Dependencies\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\enet\callbacks.c">
+      <Filter>Dependencies\ENET</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\enet\host.c">
+      <Filter>Dependencies\ENET</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\enet\list.c">
+      <Filter>Dependencies\ENET</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\enet\packet.c">
+      <Filter>Dependencies\ENET</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\enet\peer.c">
+      <Filter>Dependencies\ENET</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\enet\protocol.c">
+      <Filter>Dependencies\ENET</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\enet\win32.c">
+      <Filter>Dependencies\ENET</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\audio\SDL_audio.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\events\SDL_clipboardevents.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\audio\directsound\SDL_directsound.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\events\SDL_dropevents.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\joystick\windows\SDL_dxjoystick.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\events\SDL_events.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\joystick\SDL_joystick.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\events\SDL_keyboard.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\events\SDL_mouse.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\events\SDL_quit.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\SDL_rect.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\thread\generic\SDL_syscond.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\loadso\windows\SDL_sysloadso.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\thread\windows\SDL_sysmutex.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\thread\windows\SDL_syssem.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\thread\windows\SDL_systhread.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\timer\windows\SDL_systimer.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\thread\SDL_thread.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\events\SDL_touch.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\SDL_video.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\events\SDL_windowevents.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsclipboard.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsevents.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsframebuffer.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowskeyboard.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsmessagebox.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsmodes.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsmouse.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsopengl.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowsvideo.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\sdl\video\windows\SDL_windowswindow.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\libtess2\tesselator.c">
+      <Filter>Dependencies\LIBTESS2</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\stb\stb_image.cpp">
+      <Filter>Dependencies\STB</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\stb\stb_vorbis.cpp">
+      <Filter>Dependencies\STB</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\stb\stb_truetype.cpp">
+      <Filter>Dependencies\STB</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Display.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_File.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_File_ZIP.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Font.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Input.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Math.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Network.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Particles.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_PlatformGLSL.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_PlatformSDL.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Scene.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Signal.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Audio.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_String.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Surface.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_SynthImc.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Texture_Impl.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Thread.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Timer.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Data.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_PlatformAndroid.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_PlatformEmscripten.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_PlatformNACL.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_PlatformPosix.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_PlatformWP.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZL_Application.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Source\sdl\include\SDL_stdinc.h">
+      <Filter>Dependencies\SDL</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\libtess2\tesselator.h">
+      <Filter>Dependencies\LIBTESS2</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Application.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Display.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_File.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Font.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Input.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Math.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Network.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Particles.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Scene.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Signal.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Audio.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_String.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Surface.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_SynthImc.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Thread.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Timer.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Data.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_Display_Impl.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_File_Impl.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_Impl.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_PlatformGLSL.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_PlatformSDL.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_Texture_Impl.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_Platform.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_PlatformAndroid.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_PlatformConfig.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_PlatformEmscripten.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_PlatformIOS.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_PlatformNACL.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_PlatformPosix.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZL_PlatformWP.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\ZL_Events.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\zlib\zlib.h">
+      <Filter>Dependencies\ZLIB</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Source\ZL_PlatformIOS.mm">
+      <Filter>Source</Filter>
+    </None>
+  </ItemGroup>
+</Project>

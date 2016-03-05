@@ -1,0 +1,29 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{2177A217-7A21-77A2-177A-2177A2177AAA}") = "ZillaLib-vs2012wp8", "ZillaLib-vs2012wp8.vcxproj", "{2177A217-7A21-77A2-177A-2177A2177777}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug-WP8|Win32 = Debug-WP8|Win32
+		Release-WP8|Win32 = Release-WP8|Win32
+		Debug-WP8|ARM = Debug-WP8|ARM
+		Release-WP8|ARM = Release-WP8|ARM
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2177A217-7A21-77A2-177A-2177A2177777}.Debug-WP8|Win32.ActiveCfg = Debug|Win32
+		{2177A217-7A21-77A2-177A-2177A2177777}.Debug-WP8|Win32.Build.0 = Debug|Win32
+		{2177A217-7A21-77A2-177A-2177A2177777}.Debug-WP8|Win32.Deploy.0 = Debug|Win32
+		{2177A217-7A21-77A2-177A-2177A2177777}.Release-WP8|Win32.ActiveCfg = Release|Win32
+		{2177A217-7A21-77A2-177A-2177A2177777}.Release-WP8|Win32.Build.0 = Release|Win32
+		{2177A217-7A21-77A2-177A-2177A2177777}.Release-WP8|Win32.Deploy.0 = Release|Win32
+		{2177A217-7A21-77A2-177A-2177A2177777}.Debug-WP8|ARM.ActiveCfg = Debug|ARM
+		{2177A217-7A21-77A2-177A-2177A2177777}.Debug-WP8|ARM.Build.0 = Debug|ARM
+		{2177A217-7A21-77A2-177A-2177A2177777}.Debug-WP8|ARM.Deploy.0 = Debug|ARM
+		{2177A217-7A21-77A2-177A-2177A2177777}.Release-WP8|ARM.ActiveCfg = Release|ARM
+		{2177A217-7A21-77A2-177A-2177A2177777}.Release-WP8|ARM.Build.0 = Release|ARM
+		{2177A217-7A21-77A2-177A-2177A2177777}.Release-WP8|ARM.Deploy.0 = Release|ARM
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
