@@ -149,7 +149,7 @@ void ZL_Surface_Impl::CalcUnclippedTexCoordBoxAndContentSize()
 	TexCoordBox[1] = TexCoordBox[3] = (tex->hTex > tex->h ? tex->h / s(tex->hTex) : s(1));
 	if (tex->pFrameBuffer)
 	{
-		//Related to screen space textures are loaded upside down, so our framebuffered textures which were already drawn to upside down need to be re-flipped
+		//Related to screen space textures are loaded upside down, so our framebuffered textures which were drawn to normally need to be flipped to match.
 		TexCoordBox[1] = TexCoordBox[5]; TexCoordBox[5] = TexCoordBox[7] = TexCoordBox[3]; TexCoordBox[3] = TexCoordBox[1];
 	}
 	fHCW = tex->w * fScaleW / 2;
@@ -239,7 +239,7 @@ void ZL_Surface_Impl::DrawTo(const scalar x1, const scalar y1, const scalar x2, 
 			orY = ((orDraw & ZL_Origin::_MASK_TOP)  ? s(0) : ((orDraw & ZL_Origin::_MASK_BOTTOM) ? s(1) : s(.5)));
 		}
 		scalar w = (x1 - x2)/s(tex->wRep)/scalew, h = (y1 - y2)/s(tex->hRep)/scaleh;
-		if (tex->pFrameBuffer) h *= -1; //textures are loaded upside down, so framebuffer textures which were already drawn to upside down need to be re-flipped again
+		if (tex->pFrameBuffer) h *= -1; //textures are loaded upside down, so framebuffer textures which were drawn to normally need to be flipped
 		GLscalar RepeatTexCoordBox[8];
 		RepeatTexCoordBox[0] = RepeatTexCoordBox[4] =  w * orX;
 		RepeatTexCoordBox[2] = RepeatTexCoordBox[6] = -w * (s(1) - orX);
@@ -284,9 +284,9 @@ scalar ZL_Surface::GetRotateDeg() const { return impl ? impl->fRotate*PIUNDER180
 ZL_Surface& ZL_Surface::SetColor(const ZL_Color &color)                  { if (impl) impl->color = color; return *this; }
 ZL_Surface& ZL_Surface::SetAlpha(scalar opacity)                         { if (impl) impl->fOpacity = opacity; return *this; }
 ZL_Surface& ZL_Surface::AddAlpha(scalar opacity)                         { if (impl) impl->fOpacity += opacity; return *this; }
-ZL_Surface& ZL_Surface::SetOrigin(ZL_Origin::Type Origin)                      { if (impl) impl->orDraw = impl->orRotate = Origin; return *this; }
-ZL_Surface& ZL_Surface::SetDrawOrigin(ZL_Origin::Type DrawOrigin)              { if (impl) impl->orDraw = DrawOrigin; return *this; }
-ZL_Surface& ZL_Surface::SetRotateOrigin(ZL_Origin::Type RotateOrigin)          { if (impl) impl->orRotate = RotateOrigin; return *this; }
+ZL_Surface& ZL_Surface::SetOrigin(ZL_Origin::Type Origin)                { if (impl) impl->orDraw = impl->orRotate = Origin; return *this; }
+ZL_Surface& ZL_Surface::SetDrawOrigin(ZL_Origin::Type DrawOrigin)        { if (impl) impl->orDraw = DrawOrigin; return *this; }
+ZL_Surface& ZL_Surface::SetRotateOrigin(ZL_Origin::Type RotateOrigin)    { if (impl) impl->orRotate = RotateOrigin; return *this; }
 ZL_Surface& ZL_Surface::SetRotate(scalar rotate_rad)                     { if (impl) impl->CalcRotation(rotate_rad); return *this; }
 ZL_Surface& ZL_Surface::AddRotate(scalar rotate_rad)                     { if (impl) impl->CalcRotation(impl->fRotate + rotate_rad); return *this; }
 ZL_Surface& ZL_Surface::SetRotateDeg(scalar rotate_deg)                  { if (impl) impl->CalcRotation(rotate_deg*PIOVER180); return *this; }
@@ -303,8 +303,8 @@ ZL_Surface& ZL_Surface::FlipV()                                          { if (i
 ZL_Vector ZL_Surface::GetTileSize() const
 {
 	if (!impl || !impl->hasClipping) return ZL_Vector(0, 0);
-	int w = (int)(impl->TexCoordBox[2] > impl->TexCoordBox[0] ? (impl->TexCoordBox[2] - impl->TexCoordBox[0]) * impl->tex->w + 1.1f : (impl->TexCoordBox[0] - impl->TexCoordBox[2]) * impl->tex->w - 0.1f); if (!w) w = 1;
-	int h = (int)(impl->TexCoordBox[1] > impl->TexCoordBox[5] ? (impl->TexCoordBox[1] - impl->TexCoordBox[5]) * impl->tex->h + 1.1f : (impl->TexCoordBox[5] - impl->TexCoordBox[1]) * impl->tex->h - 0.1f); if (!h) h = 1;
+	int w = (int)((impl->TexCoordBox[2] > impl->TexCoordBox[0] ? (impl->TexCoordBox[2] - impl->TexCoordBox[0]) : (impl->TexCoordBox[0] - impl->TexCoordBox[2])) * impl->tex->w + 1.1f); if (!w) w = 1;
+	int h = (int)((impl->TexCoordBox[1] > impl->TexCoordBox[5] ? (impl->TexCoordBox[1] - impl->TexCoordBox[5]) : (impl->TexCoordBox[5] - impl->TexCoordBox[1])) * impl->tex->h + 1.1f); if (!h) h = 1;
 	return ZL_Vector(s(w), s(h));
 }
 
@@ -312,17 +312,19 @@ ZL_Surface& ZL_Surface::SetClipping(ZL_Rect clip)
 {
 	if (!impl) return *this;
 	impl->hasClipping = true;
-	if (impl->tex->pFrameBuffer != NULL)
-	{
-		//Related to screen space textures are loaded upside down. Because top and bottom of ZL_Rect are already reversed (related to screen space),
-		//only clipping of a framebuffer texture needs to be re-flipped, as it was already rendered upside down to.
-		clip.bottom = impl->tex->hTex - clip.bottom; clip.top = impl->tex->hTex - clip.top;
-	}
 	const int divisor = (impl->tex->filtermag == GL_NEAREST ? 12 : 2);
 	impl->TexCoordBox[0] = impl->TexCoordBox[4] = s(clip.left  *divisor+1) / (impl->tex->wTex*divisor);
 	impl->TexCoordBox[1] = impl->TexCoordBox[3] = s(clip.bottom*divisor-1) / (impl->tex->hTex*divisor);
 	impl->TexCoordBox[2] = impl->TexCoordBox[6] = s(clip.right *divisor-1) / (impl->tex->wTex*divisor);
 	impl->TexCoordBox[5] = impl->TexCoordBox[7] = s(clip.top   *divisor+1) / (impl->tex->hTex*divisor);
+	if (impl->tex->pFrameBuffer != NULL)
+	{
+		//Related to screen space, textures are loaded upside down. Because top and bottom of ZL_Rect are already upside down (top being zero),
+		//only clipping of a framebuffer texture needs to be flipped, as it was rendered normally to.
+		impl->TexCoordBox[1] = impl->TexCoordBox[3] = 1 - impl->TexCoordBox[1];
+		impl->TexCoordBox[5] = impl->TexCoordBox[7] = 1 - impl->TexCoordBox[5];
+
+	}
 	impl->fHCW = impl->fScaleW * sabs(s(clip.Width()))  * s(.5);
 	impl->fHCH = impl->fScaleH * sabs(s(clip.Height())) * s(.5);
 	return *this;
@@ -335,8 +337,8 @@ ZL_Surface& ZL_Surface::SetClipping(ZL_Rectf clip)
 	impl->hasClipping = true;
 	if (!impl->tex->pFrameBuffer)
 	{
-		//Related to screen space textures are loaded upside down. Thus clipping needs to be reversed too.
-		//Except for a framebuffer texture, because it was already rendered upside down to.
+		//Related to screen space, textures are loaded upside down. Thus clipping needs to be inverted, too.
+		//Except for a framebuffer texture, because it was already rendered normally to.
 		clip.low = 1 - clip.low; clip.high = 1 - clip.high;
 	}
 	impl->TexCoordBox[0] = impl->TexCoordBox[4] = (impl->tex->wTex > impl->tex->w ? clip.left  * impl->tex->w / impl->tex->wTex : clip.left);
@@ -358,17 +360,17 @@ ZL_Surface& ZL_Surface::SetTilesetClipping(int ImageNumTileCols, int ImageNumTil
 ZL_Surface& ZL_Surface::SetTilesetIndex(int Index)
 {
 	if (!impl || !impl->hasClipping) return *this;
-	int w = (int)(impl->TexCoordBox[2] > impl->TexCoordBox[0] ? (impl->TexCoordBox[2] - impl->TexCoordBox[0]) * impl->tex->w + 1.1f : (impl->TexCoordBox[0] - impl->TexCoordBox[2]) * impl->tex->w - 0.1f); if (!w) w = 1;
-	int h = (int)(impl->TexCoordBox[1] > impl->TexCoordBox[5] ? (impl->TexCoordBox[1] - impl->TexCoordBox[5]) * impl->tex->h + 1.1f : (impl->TexCoordBox[5] - impl->TexCoordBox[1]) * impl->tex->h - 0.1f); if (!h) h = 1;
-	int cols = (impl->tex->w / w), x = (w * (Index % cols)), y = (h * (Index / cols));
+	int w = (int)((impl->TexCoordBox[2] > impl->TexCoordBox[0] ? (impl->TexCoordBox[2] - impl->TexCoordBox[0]) : (impl->TexCoordBox[0] - impl->TexCoordBox[2])) * impl->tex->w + 1.1f); if (!w) w = 1;
+	int h = (int)((impl->TexCoordBox[1] > impl->TexCoordBox[5] ? (impl->TexCoordBox[1] - impl->TexCoordBox[5]) : (impl->TexCoordBox[5] - impl->TexCoordBox[1])) * impl->tex->h + 1.1f); if (!h) h = 1;
+	int cols = (w > impl->tex->w ? 1 : impl->tex->w / w), x = (w * (Index % cols)), y = (h * (Index / cols));
 	return SetClipping(ZL_Rect(x, y, x+w, y+h));
 }
 
 ZL_Surface& ZL_Surface::SetTilesetIndex(int IndexCol, int IndexRow)
 {
 	if (!impl || !impl->hasClipping) return *this;
-	int w = (int)(impl->TexCoordBox[2] > impl->TexCoordBox[0] ? (impl->TexCoordBox[2] - impl->TexCoordBox[0]) * impl->tex->w + 1.1f : (impl->TexCoordBox[0] - impl->TexCoordBox[2]) * impl->tex->w - 0.1f); if (!w) w = 1;
-	int h = (int)(impl->TexCoordBox[1] > impl->TexCoordBox[5] ? (impl->TexCoordBox[1] - impl->TexCoordBox[5]) * impl->tex->h + 1.1f : (impl->TexCoordBox[5] - impl->TexCoordBox[1]) * impl->tex->h - 0.1f); if (!h) h = 1;
+	int w = (int)((impl->TexCoordBox[2] > impl->TexCoordBox[0] ? (impl->TexCoordBox[2] - impl->TexCoordBox[0]) : (impl->TexCoordBox[0] - impl->TexCoordBox[2])) * impl->tex->w + 1.1f); if (!w) w = 1;
+	int h = (int)((impl->TexCoordBox[1] > impl->TexCoordBox[5] ? (impl->TexCoordBox[1] - impl->TexCoordBox[5]) : (impl->TexCoordBox[5] - impl->TexCoordBox[1])) * impl->tex->h + 1.1f); if (!h) h = 1;
 	int x = w * IndexCol, y = h * IndexRow;
 	return SetClipping(ZL_Rect(x, y, x+w, y+h));
 }
