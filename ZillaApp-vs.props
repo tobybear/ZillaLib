@@ -12,9 +12,12 @@ ZillaApp-vs.props
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
-    <PlatformToolset Condition="'$(VisualStudioYear)' == '2012'">v110_xp</PlatformToolset>
-    <PlatformToolset Condition="'$(VisualStudioYear)' == '2013'">v120_xp</PlatformToolset>
-    <PlatformToolset Condition="'$(VisualStudioYear)' == '2015'">v140_xp</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2012' And '$(NoXPSupport)' == ''">v110_xp</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2013' And '$(NoXPSupport)' == ''">v120_xp</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2015' And '$(NoXPSupport)' == ''">v140_xp</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2012' And '$(NoXPSupport)' != ''">v110</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2013' And '$(NoXPSupport)' != ''">v120</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2015' And '$(NoXPSupport)' != ''">v140</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
