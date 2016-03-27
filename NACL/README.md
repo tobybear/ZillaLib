@@ -1,6 +1,15 @@
 ZillaLib on Native Client
 =========================
 
+  * [Setup](#setup)
+    * [Get Python 2.7](#get-python-27)
+    * [Get the NACL SDK](#get-the-nacl-sdk)
+    * [Setup building ZillaLib](#setup-building-zillalib)
+  * [Building](#building)
+    * [Building from Visual Studio on Windows](#building-from-visual-studio-on-windows)
+    * [Building anywhere else](#building-anywhere-else)
+  * [Possible issues](#possible-issues)
+
 # Setup
 
 You can follow the guide on the NACL developers page on [how to set up the Native Client SDK](https://developer.chrome.com/native-client/sdk/download). Here are the main steps.

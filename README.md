@@ -2,15 +2,18 @@ ZillaLib Game SDK
 =================
 
   * [Welcome to ZillaLib](#welcome-to-zillalib)
+  * [Games using ZillaLib](#games-using-zillalib)
+  * [Sample Code](#sample-code)
+  * [Tutorials](#tutorials)
   * [ZillaLib Features](#zillalib-features)
   * [License](#license)
   * [Setting Up a Project](#setting-up-a-project)
   * [Platforms and Setup](#platforms-and-setup)
-    * [Windows (32 and 64 bit)](#windows-32-and-64-bit-)
+    * [Windows (32 and 64 bit)](#windows-32-and-64-bit)
     * [Android](#android)
-    * [iOS (iPhone/iPad/iPod)](#ios-iphone-ipad-ipod-)
+    * [iOS (iPhone/iPad/iPod)](#ios-iphoneipadipod)
     * [Chrome Portable Native Client](#chrome-portable-native-client)
-    * [Emscripten (HTML5)](#emscripten-html5-)
+    * [Emscripten (HTML5)](#emscripten-html5)
     * [Linux](#linux)
     * [Max OS X](#max-os-x)
   * [Asset File Handling](#asset-file-handling)
@@ -25,11 +28,15 @@ The library itself compiles quickly, has zero external dependencies, and links s
 
 ## Games using ZillaLib
 
-See [Games.md](Games.md) for a list. These can be played directly in the web browser or downloaded, and come with full source code in the same license as ZillaLib.
+See [Games.md](Games.md) for a list. These can be played directly in the web browser or downloaded, and come with full source code under the same license as ZillaLib.
 
 ## Sample Code
 
 See the [ZillaLibSamples](//github.com/schellingb/ZillaLibSamples) repository for short and easy to understand sample code for almost all features.
+
+## Tutorials
+
+See the [tutorials listing](https://zillalib.github.io/tutorials/) on the ZillaLib website.
 
 ## ZillaLib Features
 Here's a list of features provided by the ZillaLib.
@@ -42,11 +49,11 @@ Here's a list of features provided by the ZillaLib.
 - Easy to set up, no dependencies
 
 ### Platforms
-- [Windows (32 and 64 bit)](#windows-32-and-64-bit-)
+- [Windows (32 and 64 bit)](#windows-32-and-64-bit)
 - [Android](#android)
-- [iOS (iPhone/iPad/iPod)](#ios-iphone-ipad-ipod-)
+- [iOS (iPhone/iPad/iPod)](#ios-iphoneipadipod)
 - [Chrome Portable Native Client](#chrome-portable-native-client)
-- [Emscripten (HTML5)](#emscripten-html5-)
+- [Emscripten (HTML5)](#emscripten-html5)
 - [Linux](#linux)
 - [Max OS X](#max-os-x)
 
@@ -115,7 +122,7 @@ By far the easiest way to get started is to use the interactive [ZillaLib Projec
 Just enter a project name and select the target project files to generate.  
 If you have placed ZillaLib in a directory named dfferent than "ZillaLib" or if you want to place your game project in a directory that is not next to ZillaLib's, you have to specify the relative path in the field 'Path to ZillaLib'. For instance, if you have ZillaLib in "D:\dev\libs\ZillaLib-master" and you plan to put your game project in "D:\dev\proj\MySuperGame", then specify "../../libs/ZillaLib-master" as the path to ZillaLib. Always specify the relative path. It makes it easy to build various platforms and even from different virtual machines in the same place.
 
-When finished, click "Create and Download Project Archive (ZIP)" and everything will automagically be prepared for you. Extract the project files in the planned location. There's even some sample code included to start up right away. Check the specific platform from the [list below](#platforms) you want to build for on how to set it up and how to actually get your project up and running.
+When finished, click "Create and Download Project Archive (ZIP)" and everything will automagically be prepared for you. Extract the project files in the planned location. There's even some sample code included to start up right away. Check the specific platform from the [list below](#platforms-and-setup) you want to build for on how to set it up and how to actually get your project up and running.
 
 Alternatively you could copy the sample project and modify the paths and names in it. But that would be quite a hassle. An offline project generator might be added some day.
 
