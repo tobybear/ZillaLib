@@ -24,37 +24,57 @@
 
 struct ZL_Impl
 {
-	ZL_Impl() : iRefCount(1) { }
-	virtual ~ZL_Impl() {}
-	void AddRef() { iRefCount++; }
-	void DelRef() { if (!(--iRefCount)) delete this; }
-	int GetRefCount() { return iRefCount; }
-	static void CopyRef(ZL_Impl *const *source, ZL_Impl **target)
+	inline ZL_Impl() : RefCount(1) { }
+	inline virtual ~ZL_Impl() {}
+	inline void AddRef() { RefCount++; }
+	inline void DelRef() { if (!(--RefCount)) delete this; }
+	inline int GetRefCount() { return RefCount; }
+	static void CopyRef(ZL_Impl* source, ZL_Impl*& target)
 	{
-		if (*source == *target) return;
-		if (*target) (*target)->DelRef();
-		if (*source) (*source)->AddRef();
-		*target = *source;
+		if (source == target) return;
+		if (target) target->DelRef();
+		if (source) source->AddRef();
+		target = source;
 	}
 private:
-	int iRefCount;
+	unsigned int RefCount;
 };
 
 #define ZL_IMPL_OWNER_NONULLCON_IMPLEMENTATIONS(ZL_CLASS) \
 	ZL_CLASS::~ZL_CLASS() { if (impl) impl->DelRef(); } \
-	ZL_CLASS::ZL_CLASS(const ZL_CLASS &source) : impl(0) { ZL_Impl::CopyRef((ZL_Impl**)&source.impl, (ZL_Impl**)&impl); } \
-	ZL_CLASS & ZL_CLASS::operator=(const ZL_CLASS &source) { ZL_Impl::CopyRef((ZL_Impl**)&source.impl, (ZL_Impl**)&impl); return *this; }
+	ZL_CLASS::ZL_CLASS(const ZL_CLASS &source) : impl(0) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); } \
+	ZL_CLASS & ZL_CLASS::operator=(const ZL_CLASS &source) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); return *this; }
 
 #define ZL_IMPL_OWNER_NOASSIGNMENT_IMPLEMENTATIONS(ZL_CLASS) \
 	ZL_CLASS::ZL_CLASS() : impl(NULL) { } \
 	ZL_CLASS::~ZL_CLASS() { if (impl) impl->DelRef(); } \
-	ZL_CLASS::ZL_CLASS(const ZL_CLASS &source) : impl(0) { ZL_Impl::CopyRef((ZL_Impl**)&source.impl, (ZL_Impl**)&impl); } \
-
+	ZL_CLASS::ZL_CLASS(const ZL_CLASS &source) : impl(0) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); } \
+	
 #define ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_CLASS) \
 	ZL_CLASS::ZL_CLASS() : impl(NULL) { } \
 	ZL_IMPL_OWNER_NONULLCON_IMPLEMENTATIONS(ZL_CLASS)
 
+#define ZL_IMPL_OWNER_INHERITED_IMPLEMENTATIONS(ZL_CLASS) \
+	ZL_CLASS::ZL_CLASS() {} \
+	ZL_CLASS::~ZL_CLASS() {} \
+	ZL_CLASS::ZL_CLASS(const ZL_CLASS &source) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); } \
+	ZL_CLASS & ZL_CLASS::operator=(const ZL_CLASS &source) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); return *this; }
+
 #define ZL_STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
+
+#if defined(_MSC_VER) && (_MSC_VER <= 1200)
+#define ZL_STATIC_ISSAME(TYPE1,TYPE2) true
+#else
+#define ZL_STATIC_ISSAME(TYPE1,TYPE2) (ZL_STATIC_ISSAME_TEMPLATE<const TYPE1, const TYPE2>::value)
+template<typename T, typename U> struct ZL_STATIC_ISSAME_TEMPLATE { static const bool value = false; };
+template<typename T> struct ZL_STATIC_ISSAME_TEMPLATE<T,T> { static const bool value = true; };
+#endif
+
+#ifdef ZILLALOG
+#define ZL_DEBUG_ASSERT(COND,MSG) (COND)?0:(*(int*)0)++
+#else
+#define ZL_DEBUG_ASSERT(COND,MSG)
+#endif
 
 template<class ImplType, class OwnerType> static inline ImplType* ZL_ImplFromOwner(OwnerType* owner); //no implementation, use the one below
 
@@ -68,6 +88,7 @@ template<class OwnerType, class ImplType> static inline OwnerType ZL_ImplMakeOwn
 {
 	ZL_STATIC_ASSERT(sizeof(OwnerType) == sizeof(ImplType*), OwnerType_Is_Bad);
 	OwnerType ret;
+	ZL_DEBUG_ASSERT(!*(ImplType**)&ret, Owner_Default_Constructor_Needs_Null_Impl);
 	if (impl) { *(ImplType**)&ret = impl; if (countNewReference) impl->AddRef(); }
 	return ret;
 }

@@ -409,7 +409,7 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	if (ZL_IOS_view != nil) return true;
 	ZL_IOS_WantsLandscape = (width > height ? 1 : 0);
 	if (displayflags & ZL_DISPLAY_ALLOWANYORIENTATION) ZL_IOS_WindowFlags |= ZL_WINDOW_ALLOWANYORIENTATION;
-	//if (displayflags & ZL_DISPLAY_DEPTHBUFFER) ZL_IOS_WindowFlags |= ZL_WINDOW_DEPTHBUFFER;
+	if (displayflags & ZL_DISPLAY_DEPTHBUFFER) ZL_IOS_WindowFlags |= ZL_WINDOW_DEPTHBUFFER;
 	ZL_IOS_WindowWidth = ZL_IOS_WindowHeight = 0;
 
 	ZL_IOS_viewcontroller = [[ZL_UIViewController alloc] init];

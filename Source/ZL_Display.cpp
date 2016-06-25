@@ -32,6 +32,7 @@ scalar ZL_Display::Width = 0, ZL_Display::Height = 0;
 int native_width = 0, native_height = 0, window_viewport[4], window_framebuffer = 0, *active_viewport = window_viewport, active_framebuffer = 0;
 bool native_aspectcorrection = false; //GLscalar native_aspectborders[2*2*6];
 bool (*funcProcessEventsJoystick)(ZL_Event&) = NULL;
+void (*funcInitGL3D)(bool RecreateContext) = NULL;
 
 const ZL_Color ZL_Color::Transparent(0.00f, 0.00f, 0.00f, 0.f), ZL_Color::Red    (1.00f, 0.00f, 0.00f, 1.f), ZL_Color::DarkRed    (0.50f, 0.00f, 0.00f, 1.f);
 const ZL_Color ZL_Color::White      (1.00f, 1.00f, 1.00f, 1.f), ZL_Color::Green  (0.00f, 1.00f, 0.00f, 1.f), ZL_Color::DarkGreen  (0.00f, 0.50f, 0.00f, 1.f);
@@ -305,10 +306,11 @@ void InitGL(int width, int height)
 
 	#ifdef ZL_VIDEO_WEAKCONTEXT
 	#ifdef ZL_VIDEO_USE_GLSL
-	if (CheckProgramsIfContextLost())
+	bool RecreateContext = CheckProgramsIfContextLost();
 	#else
-	if (CheckTexturesIfContextLost() || CheckFontTexturesIfContextLost())
+	bool RecreateContext = (CheckTexturesIfContextLost() || CheckFontTexturesIfContextLost());
 	#endif
+	if (RecreateContext)
 	{
 		#ifdef ZL_VIDEO_USE_GLSL
 		RecreateAllProgramsOnContextLost();
@@ -316,6 +318,9 @@ void InitGL(int width, int height)
 		RecreateAllTexturesOnContextLost();
 		RecreateAllFontTexturesOnContextLost();
 	}
+	if (funcInitGL3D) funcInitGL3D(RecreateContext);
+	#else
+	if (funcInitGL3D) funcInitGL3D(false);
 	#endif
 }
 
@@ -472,7 +477,7 @@ void ZL_Display::DrawLine(scalar x1, scalar y1, scalar x2, scalar y2, const ZL_C
 	ZLGL_DISABLE_TEXTURE();
 	ZLGL_COLOR(color);
 	ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, vertices);
-	glDrawArrays(GL_LINES, 0, 2);
+	glDrawArraysUnbuffered(GL_LINES, 0, 2);
 	/*
 	ZL_Vector direction(x1, y1, x2, y2);
 	ZL_Vector perpDirection = direction.Perp();
@@ -541,10 +546,10 @@ void ZL_Display::DrawEllipse(scalar cx, scalar cy, scalar rx, scalar ry, const Z
 	{
 		ZLGL_COLOR(color_fill);
 		#ifndef ZL_VIDEO_DIRECT3D //avoid triangle fans
-		glDrawArrays(GL_TRIANGLE_FAN, 0, iNumVert);
+		glDrawArraysUnbuffered(GL_TRIANGLE_FAN, 0, iNumVert);
 		#else
 		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, pCircleVerticesFill[iSize]);
-		glDrawArrays(GL_TRIANGLES, 0, iNumVertFill);
+		glDrawArraysUnbuffered(GL_TRIANGLES, 0, iNumVertFill);
 		#endif
 	}
 	if (color_border.a)
@@ -553,8 +558,8 @@ void ZL_Display::DrawEllipse(scalar cx, scalar cy, scalar rx, scalar ry, const Z
 		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, pCircleVertices[iSize]);
 		#endif
 		ZLGL_COLOR(color_border);
-		glDrawArrays(GL_LINE_STRIP, 1, iNumVert-1);
-		glDrawArrays(GL_POINTS, 1, iNumVert-2);
+		glDrawArraysUnbuffered(GL_LINE_STRIP, 1, iNumVert-1);
+		glDrawArraysUnbuffered(GL_POINTS, 1, iNumVert-2);
 	}
 	GLPOPMATRIX();
 }
@@ -567,7 +572,7 @@ void ZL_Display::FillGradient(const scalar& x1, const scalar& y1, const scalar& 
 	ZLGL_COLORARRAY_ENABLE();
 	ZLGL_COLORARRAY_POINTER(4, GL_SCALAR, 0, colorsbox);
 	ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, verticesbox);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
 	ZLGL_COLORARRAY_DISABLE();
 }
 
@@ -580,7 +585,7 @@ void ZL_Display::DrawRect(const scalar& x1, const scalar& y1, const scalar& x2, 
 		GLscalar verticesbox[8] = { x1 , y2 , x2 , y2 , x1 , y1 ,  x2 , y1 };
 		ZLGL_COLOR(color_fill);
 		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, verticesbox);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
 		return;
 	}
 
@@ -591,20 +596,20 @@ void ZL_Display::DrawRect(const scalar& x1, const scalar& y1, const scalar& x2, 
 	{
 		GLscalar verticesouter[8] = { x1-t , y2+t , x2+t , y2+t , x1-t , y1-t ,  x2+t , y1-t };
 		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, verticesouter);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
 	}
 	else
 	{
 		if (t > thicknessmaxhalf)  t = thicknessmaxhalf;
 		GLscalar b = t - s(0.5), verticesborder[16] = { x1-t, y1, x2+b, y1, x2, y1-t, x2, y2+b, x2+b, y2, x1-b, y2,x1, y2+b, x1, y1-b };
 		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, verticesborder);
-		glDrawArrays(GL_LINES, 0, 8);
+		glDrawArraysUnbuffered(GL_LINES, 0, 8);
 	}
 
 	GLscalar verticesinner[8] = { x1+t , y2-t , x2-t , y2-t , x1+t , y1+t ,  x2-t , y1+t };
 	ZLGL_COLOR(color_fill);
 	ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, verticesinner);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 void ZL_Display::DrawTriangle(scalar x1, scalar y1, scalar x2, scalar y2, scalar x3, scalar y3, const ZL_Color &color_border, const ZL_Color &color_fill)
@@ -615,13 +620,13 @@ void ZL_Display::DrawTriangle(scalar x1, scalar y1, scalar x2, scalar y2, scalar
 	if (color_fill.a)
 	{
 		ZLGL_COLOR(color_fill);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDrawArraysUnbuffered(GL_TRIANGLES, 0, 3);
 	}
 	if (color_border.a)
 	{
 		ZLGL_COLOR(color_border);
-		glDrawArrays(GL_LINE_STRIP, 0, 4);
-		glDrawArrays(GL_POINTS, 0, 3);
+		glDrawArraysUnbuffered(GL_LINE_STRIP, 0, 4);
+		glDrawArraysUnbuffered(GL_POINTS, 0, 3);
 	}
 }
 
@@ -633,14 +638,14 @@ void ZL_Display::DrawQuad(scalar x1, scalar y1, scalar x2, scalar y2, scalar x3,
 	if (color_fill.a)
 	{
 		ZLGL_COLOR(color_fill);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
 	}
 	if (color_border.a)
 	{
 		vertices[4] = x3; vertices[5] = y3; vertices[6] = x4; vertices[7] = y4;
 		ZLGL_COLOR(color_border);
-		glDrawArrays(GL_LINE_STRIP, 0, 5);
-		glDrawArrays(GL_POINTS, 0, 4);
+		glDrawArraysUnbuffered(GL_LINE_STRIP, 0, 5);
+		glDrawArraysUnbuffered(GL_POINTS, 0, 4);
 	}
 }
 
@@ -1040,8 +1045,8 @@ struct ZL_Polygon_Impl : ZL_Impl
 				}
 				else { from = 0; to = 1; }
 				TessVerticesTexCoords[i+0] = TessVerticesTexCoords[i+2] = from;
-				TessVerticesTexCoords[i+1] = TessVerticesTexCoords[i+5] = 1-TexCordOff;
-				TessVerticesTexCoords[i+3] = TessVerticesTexCoords[i+7] = 0+TexCordOff;
+				TessVerticesTexCoords[i+1] = TessVerticesTexCoords[i+5] = 0+TexCordOff;
+				TessVerticesTexCoords[i+3] = TessVerticesTexCoords[i+7] = 1-TexCordOff;
 				TessVerticesTexCoords[i+4] = TessVerticesTexCoords[i+6] = to;
 			}
 		}
@@ -1068,15 +1073,15 @@ struct ZL_Polygon_Impl : ZL_Impl
 		{
 			ZLGL_COLOR(color_fill);
 			i=0; for (ZL_Polygon_Impl::TessElementPair* it = &fill->TessElements[0], *itEnd = it+fill->TessElements.size(); it != itEnd; ++it)
-			{ glDrawElements(it->Mode, it->IdxEnd - i, GL_UNSIGNED_SHORT, &fill->TessVerticeIdx[i]); i = it->IdxEnd; }
+			{ glDrawElementsUnbuffered(it->Mode, it->IdxEnd - i, GL_UNSIGNED_SHORT, &fill->TessVerticeIdx[i]); i = it->IdxEnd; }
 		}
 
 		if (color_border.a && !pSurfaceImpl && border)
 		{
 			ZLGL_COLOR(color_border);
 			i=0; for (ZL_Polygon_Impl::TessElementPair *it = &border->TessElements[0], *itEnd = it+border->TessElements.size(); it != itEnd; ++it)
-			{ glDrawElements(it->Mode, it->IdxEnd - i, GL_UNSIGNED_SHORT, &border->TessVerticeIdx[i]); i = it->IdxEnd; }
-			glDrawArrays(GL_POINTS, 0, (GLsizei)(TessVertices.size()/2));
+			{ glDrawElementsUnbuffered(it->Mode, it->IdxEnd - i, GL_UNSIGNED_SHORT, &border->TessVerticeIdx[i]); i = it->IdxEnd; }
+			glDrawArraysUnbuffered(GL_POINTS, 0, (GLsizei)(TessVertices.size()/2));
 		}
 	}
 
@@ -1090,7 +1095,7 @@ struct ZL_Polygon_Impl : ZL_Impl
 		ZLGL_TEXCOORDPOINTER(2, GL_SCALAR, 0, TessVerticesTexCoords);
 		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, &TessVertices[0]);
 		i=0; for (ZL_Polygon_Impl::TessElementPair *it = &fill->TessElements[0], *itEnd = it+fill->TessElements.size(); it != itEnd; ++it)
-		{ glDrawElements(it->Mode, it->IdxEnd - i, GL_UNSIGNED_SHORT, &fill->TessVerticeIdx[i]); i=it->IdxEnd; }
+		{ glDrawElementsUnbuffered(it->Mode, it->IdxEnd - i, GL_UNSIGNED_SHORT, &fill->TessVerticeIdx[i]); i=it->IdxEnd; }
 	}
 
 	size_t GetBorders(std::vector<ZL_Polygon::PointList>& out) const

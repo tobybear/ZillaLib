@@ -58,6 +58,9 @@
 		#define glVertexAttrib4v glVertexAttrib4fv
 		#define glUniformMatrix4v glUniformMatrix4fv
 		#define glUniform1 glUniform1f
+		#define glUniform2 glUniform2f
+		#define glUniform3 glUniform3f
+		#define glUniform4 glUniform4f
 	#else
 		#define glVertex2v glVertex2fv
 		#define glVertex2 glVertex2f
@@ -73,6 +76,9 @@
 		#define glVertexAttrib4v glVertexAttrib4dv
 		#define glUniformMatrix4v glUniformMatrix4dv
 		#define glUniform1 glUniform1d
+		#define glUniform2 glUniform2d
+		#define glUniform3 glUniform3d
+		#define glUniform4 glUniform4d
 	#else
 		#define glVertex2v glVertex2dv
 		#define glVertex2 glVertex2d
@@ -88,11 +94,11 @@
 	#define ZLGL_ENABLE_TEXTURE() ZLGLSL::SelectTextureProgram()
 	#define ZLGL_COLOR(x)       glVertexAttrib4v(ZLGLSL::ATTR_COLOR, (GLscalar*)&x)
 	#define ZLGL_COLORA(x,al)   glVertexAttrib4(ZLGLSL::ATTR_COLOR, x.r, x.g, x.b, x.a * al)
-	#define ZLGL_VERTEXTPOINTER(size, type, stride, ptr)     glVertexAttribPointer(ZLGLSL::ATTR_POSITION, size, type, GL_FALSE, stride, ptr)
-	#define ZLGL_TEXCOORDPOINTER(size, type, stride, ptr)    glVertexAttribPointer(ZLGLSL::ATTR_TEXCOORD, size, type, GL_FALSE, stride, ptr)
-	#define ZLGL_COLORARRAY_POINTER(size, type, stride, ptr) glVertexAttribPointer(ZLGLSL::ATTR_COLOR, size, type, GL_FALSE, stride, ptr)
-	#define ZLGL_COLORARRAY_ENABLE()  glEnableVertexAttribArray(ZLGLSL::ATTR_COLOR)
-	#define ZLGL_COLORARRAY_DISABLE() glDisableVertexAttribArray(ZLGLSL::ATTR_COLOR)
+	#define ZLGL_VERTEXTPOINTER(size, type, stride, ptr)     glVertexAttribPointerUnbuffered(ZLGLSL::ATTR_POSITION, size, type, GL_FALSE, stride, ptr)
+	#define ZLGL_TEXCOORDPOINTER(size, type, stride, ptr)    glVertexAttribPointerUnbuffered(ZLGLSL::ATTR_TEXCOORD, size, type, GL_FALSE, stride, ptr)
+	#define ZLGL_COLORARRAY_POINTER(size, type, stride, ptr) glVertexAttribPointerUnbuffered(ZLGLSL::ATTR_COLOR, size, type, GL_FALSE, stride, ptr)
+	#define ZLGL_COLORARRAY_ENABLE()  glEnableVertexAttribArrayUnbuffered(ZLGLSL::ATTR_COLOR)
+	#define ZLGL_COLORARRAY_DISABLE() glDisableVertexAttribArrayUnbuffered(ZLGLSL::ATTR_COLOR)
 	#define GLPUSHMATRIX() ZLGLSL::MatrixPush()
 	#define GLPOPMATRIX() ZLGLSL::MatrixPop()
 	#define GLORTHO(r,l,b,t) ZLGLSL::MatrixOrtho(r,l,b,t)
@@ -126,9 +132,12 @@
 	#define glDeleteFramebuffers glDeleteFramebuffersOES
 #endif
 
-#ifdef __EMSCRIPTEN__ //because IEWebGL does not like glVertexAttrib4fv
-	#undef ZLGL_COLOR
-	#define ZLGL_COLOR(x) glVertexAttrib4f(ZLGLSL::ATTR_COLOR, x.r, x.g, x.b, x.a)
+#ifndef ZL_VIDEO_GL_SEPARATE_UNBUFFERED_CALLS
+	#define glEnableVertexAttribArrayUnbuffered glEnableVertexAttribArray
+	#define glDisableVertexAttribArrayUnbuffered glDisableVertexAttribArray
+	#define glVertexAttribPointerUnbuffered glVertexAttribPointer
+	#define glDrawArraysUnbuffered glDrawArrays
+	#define glDrawElementsUnbuffered glDrawElements
 #endif
 
 #ifdef __cplusplus

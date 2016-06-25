@@ -327,7 +327,7 @@ extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeSetSurfa
 bool ZL_CreateWindow(const char*, int width, int height, int displayflags)
 {
 	if (displayflags & ZL_DISPLAY_ALLOWANYORIENTATION) ZL_ANDROID_WindowFlags |= ZL_WINDOW_ALLOWANYORIENTATION;
-	//if (displayflags & ZL_DISPLAY_DEPTHBUFFER) ZL_ANDROID_WindowFlags |= ZL_WINDOW_DEPTHBUFFER;
+	if (displayflags & ZL_DISPLAY_DEPTHBUFFER) ZL_ANDROID_WindowFlags |= ZL_WINDOW_DEPTHBUFFER;
 
 	ZL_ANDROID_sWantsLandscape = (width > height);
 	pZL_WindowFlags = &ZL_ANDROID_WindowFlags;

@@ -78,6 +78,7 @@ public:
 	ZL_String& str_replace(const ZL_String &from, const ZL_String &to);
 	std::vector<ZL_String> split(const ZL_String &delimiter) const;
 
+	ZL_String(size_t n, chr c)         : str(n, c)   { }
 	ZL_String(const ZL_String &source) : str(source) { }
 	ZL_String(const str &source)       : str(source) { }
 	ZL_String(const chr *source)       : str(source) { }

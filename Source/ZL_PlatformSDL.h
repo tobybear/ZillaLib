@@ -55,20 +55,20 @@ void ZL_MutexDestroy(ZL_MutexHandle mutex);
 
 //GL stuff
 #ifndef __MACOSX__
-extern PFNGLDELETEBUFFERSPROC            glDeleteBuffers;
-extern PFNGLBINDBUFFERPROC               glBindBuffer;
-extern PFNGLBUFFERDATAPROC               glBufferData;
 extern PFNGLCREATESHADERPROC             glCreateShader;
 extern PFNGLSHADERSOURCEPROC             glShaderSource;
 extern PFNGLCOMPILESHADERPROC            glCompileShader;
 extern PFNGLCREATEPROGRAMPROC            glCreateProgram;
 extern PFNGLATTACHSHADERPROC             glAttachShader;
+extern PFNGLDETACHSHADERPROC             glDetachShader;
 extern PFNGLLINKPROGRAMPROC              glLinkProgram;
 extern PFNGLUSEPROGRAMPROC               glUseProgram;
 extern PFNGLGETSHADERIVPROC              glGetShaderiv;
-extern PFNGLGETSHADERINFOLOGPROC         glGetShaderInfoLog;
 extern PFNGLGETPROGRAMIVPROC             glGetProgramiv;
+#ifdef ZILLALOG
+extern PFNGLGETSHADERINFOLOGPROC         glGetShaderInfoLog;
 extern PFNGLGETPROGRAMINFOLOGPROC        glGetProgramInfoLog;
+#endif
 extern PFNGLGETATTRIBLOCATIONPROC        glGetAttribLocation;
 extern PFNGLBINDATTRIBLOCATIONPROC       glBindAttribLocation;
 extern PFNGLVERTEXATTRIBPOINTERPROC      glVertexAttribPointer;
@@ -79,13 +79,11 @@ extern PFNGLUNIFORMMATRIX4FVPROC         glUniformMatrix4fv;
 extern PFNGLVERTEXATTRIB4FVPROC          glVertexAttrib4fv;
 extern PFNGLVERTEXATTRIB4FPROC           glVertexAttrib4f;
 extern PFNGLUNIFORM1FPROC                glUniform1f;
-extern PFNGLUNIFORM2FPROC                glUniform2f;
 #else
 extern PFNGLUNIFORMMATRIX4DVPROC         glUniformMatrix4dv;
 extern PFNGLVERTEXATTRIB4DVPROC          glVertexAttrib4dv;
 extern PFNGLVERTEXATTRIB4DPROC           glVertexAttrib4d;
 extern PFNGLUNIFORM1DPROC                glUniform1d;
-extern PFNGLUNIFORM2DPROC                glUniform2d;
 #endif
 extern PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
 extern PFNGLDELETESHADERPROC             glDeleteShader;
@@ -96,6 +94,33 @@ extern PFNGLBLENDFUNCSEPARATEPROC        glBlendFuncSeparate;
 #ifndef GL_ATI_blend_equation_separate //On linux some OpenGL 2 functions are already defined in the OS GL.h, avoid redefinition
 extern PFNGLBLENDCOLORPROC               glBlendColor;
 extern PFNGLBLENDEQUATIONPROC            glBlendEquation;
+#endif
+#ifndef ZL_DISABLE_DISPLAY3D
+#define ZL_REQUIRE_INIT3DGLEXTENSIONENTRIES
+void ZL_Init3DGLExtensionEntries();
+extern PFNGLGETACTIVEUNIFORMPROC         glGetActiveUniform;
+#ifndef GL_ATI_blend_equation_separate //On linux some OpenGL 2 functions are already defined in the OS GL.h, avoid redefinition
+extern PFNGLACTIVETEXTUREPROC            glActiveTexture;
+#endif
+extern PFNGLGENBUFFERSPROC               glGenBuffers;
+extern PFNGLDELETEBUFFERSPROC            glDeleteBuffers;
+extern PFNGLBINDBUFFERPROC               glBindBuffer;
+extern PFNGLBUFFERDATAPROC               glBufferData;
+#ifdef ZILLALOG
+extern PFNGLGETBUFFERPARAMETERIVPROC     glGetBufferParameteriv;
+extern PFNGLMAPBUFFERPROC                glMapBuffer;
+extern PFNGLUNMAPBUFFERPROC              glUnmapBuffer;
+#endif
+extern PFNGLUNIFORM1IPROC                glUniform1i;
+#if !defined(ZL_DOUBLE_PRECISCION)
+extern PFNGLUNIFORM2FPROC                glUniform2f;
+extern PFNGLUNIFORM3FPROC                glUniform3f;
+extern PFNGLUNIFORM4FPROC                glUniform4f;
+#else
+extern PFNGLUNIFORM2DPROC                glUniform2d;
+extern PFNGLUNIFORM3DPROC                glUniform3d;
+extern PFNGLUNIFORM4DPROC                glUniform4d;
+#endif
 #endif
 #endif
 extern PFNGLGENFRAMEBUFFERSPROC          glGenFramebuffers;

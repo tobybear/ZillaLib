@@ -211,7 +211,7 @@ struct ZL_ParticleEffect_Impl : ZL_Impl
 						vertices[2*v+1] = calcData.pos.y;
 						memcpy(&colors[4*v], &calcData.col.r, sizeof(scalar)*4);
 						sizes[v] = calcData.scalew*t->w*1.1;
-						if (++v==VBSIZE) { glDrawArrays(GL_POINTS, 0, VBSIZE); v = 0; }
+						if (++v==VBSIZE) { glDrawArraysUnbuffered(GL_POINTS, 0, VBSIZE); v = 0; }
 					}
 					else
 				#endif
@@ -232,20 +232,20 @@ struct ZL_ParticleEffect_Impl : ZL_Impl
 					memcpy(&colors[24*v +4], &colors[24*v+0], sizeof(scalar)*4);
 					memcpy(&colors[24*v+ 8], &colors[24*v+0], sizeof(scalar)*4);
 					memcpy(&colors[24*v+12], &colors[24*v+0], sizeof(scalar)*12);
-					if (++v==VBSIZE) { glDrawArrays(GL_TRIANGLES, 0, 6*VBSIZE); v = 0; }
+					if (++v==VBSIZE) { glDrawArraysUnbuffered(GL_TRIANGLES, 0, 6*VBSIZE); v = 0; }
 				}
 			}
 			#ifdef ZL_VIDEO_OPENGL_ES1
 				if (bDoPointSprite)
 				{
-					if (v) glDrawArrays(GL_POINTS, 0, v);
+					if (v) glDrawArraysUnbuffered(GL_POINTS, 0, v);
 					glDisableClientState(GL_POINT_SIZE_ARRAY_OES);
 					glDisable(GL_POINT_SPRITE_OES);
 				}
 				else
 			#endif
 			{
-				if (v) glDrawArrays(GL_TRIANGLES, 0, 6*v);
+				if (v) glDrawArraysUnbuffered(GL_TRIANGLES, 0, 6*v);
 			}
 		}
 		ZLGL_COLORARRAY_DISABLE();
@@ -429,7 +429,7 @@ void ZL_ParticleBehavior_LinearMove::Calculate(ZL_ParticleEffect_CalcData& d)
 unsigned int ZL_ParticleBehavior_LinearMove::GetSpawnSeed(ZL_ParticleEffect_CalcData& d)
 {
 	scalar speed = spawningSpeed + RAND_VARIATION(spawningSpeedSpread*HALF) ;
-	scalar angle = spawningAngle + RAND_VARIATION(spawningAngleSpread*HALF);
+	scalar angle = ZL_Math::AngleSpread(spawningAngle + RAND_VARIATION(spawningAngleSpread*HALF));
 	if (speed < behaviorSpeed-behaviorSpeedSpread/2) speed = behaviorSpeed-behaviorSpeedSpread/2;
 	if (speed > behaviorSpeed+behaviorSpeedSpread/2) speed = behaviorSpeed+behaviorSpeedSpread/2;
 	if (angle < behaviorAngle-behaviorAngleSpread/2) angle = behaviorAngle-behaviorAngleSpread/2;

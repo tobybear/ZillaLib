@@ -58,6 +58,7 @@ protected:
 struct ZL_DemoUIMessage : public ZL_DemoUIItem
 {
 	ZL_DemoUIMessage();
+	~ZL_DemoUIMessage();
 	ZL_DemoUIMessage(const char* txt, scalar x = ZLHALFW, scalar y = ZLHALFH);
 	ZL_DemoUIMessage(const ZL_Surface& srf, scalar x = ZLHALFW, scalar y = ZLHALFH);
 	ZL_DemoUIMessage(const ZL_Surface& srf, const char* txt, scalar x = ZLHALFW, scalar y = ZLHALFH, bool useSurfaceWidth = true);
@@ -71,6 +72,7 @@ struct ZL_DemoUIMessage : public ZL_DemoUIItem
 struct ZL_DemoUIButton : public ZL_DemoUIMessage
 {
 	ZL_DemoUIButton();
+	~ZL_DemoUIButton();
 	ZL_DemoUIButton(const char* txt, scalar x = ZLHALFW, scalar y = ZLHALFH);
 	ZL_DemoUIButton(const ZL_Surface& srf, scalar x = ZLHALFW, scalar y = ZLHALFH);
 	ZL_DemoUIButton(const ZL_Surface& srf, const char* txt, scalar x = ZLHALFW, scalar y = ZLHALFH, bool useSurfaceWidth = true);
@@ -346,8 +348,7 @@ scalar& ZL_DemoUIItem::rotate() const { assert(impl); return impl->rotate; }
 
 // --------------------------------------------------------------------------------------------
 
-
-ZL_DemoUIMessage::ZL_DemoUIMessage() : ZL_DemoUIItem() { }
+ZL_IMPL_OWNER_INHERITED_IMPLEMENTATIONS(ZL_DemoUIMessage)
 ZL_DemoUIMessage::ZL_DemoUIMessage(const char* txt, scalar x, scalar y)  { impl = new ZL_DemoUIMessage_Impl(x, y); setText(txt, true); }
 ZL_DemoUIMessage::ZL_DemoUIMessage(const ZL_Surface& srf, scalar x, scalar y) { impl = new ZL_DemoUIMessage_Impl(x, y); setSurface(srf, true); }
 ZL_DemoUIMessage::ZL_DemoUIMessage(const ZL_Surface& srf, const char* txt, scalar x, scalar y, bool useSurfaceWidth)
@@ -356,8 +357,6 @@ ZL_DemoUIMessage::ZL_DemoUIMessage(const ZL_Surface& srf, const char* txt, scala
 	setText(txt, !useSurfaceWidth);
 	setSurface(srf, useSurfaceWidth);
 }
-ZL_DemoUIMessage::ZL_DemoUIMessage(const ZL_DemoUIMessage &source) : ZL_DemoUIItem(source) { }
-ZL_DemoUIMessage& ZL_DemoUIMessage::operator=(const ZL_DemoUIMessage &source) { ZL_Impl::CopyRef((ZL_Impl**)&source.impl, (ZL_Impl**)&impl); return *this; }
 
 const ZL_DemoUIMessage& ZL_DemoUIMessage::setText(const char* txt, bool resizeTo) const
 {
@@ -405,7 +404,7 @@ bool ZL_DemoUIMessage_Impl::Draw()
 	return true;
 }
 
-ZL_DemoUIButton::ZL_DemoUIButton() : ZL_DemoUIMessage() { }
+ZL_IMPL_OWNER_INHERITED_IMPLEMENTATIONS(ZL_DemoUIButton)
 ZL_DemoUIButton::ZL_DemoUIButton(const char* txt, scalar x, scalar y)  { impl = new ZL_DemoUIButton_Impl(x, y); setText(txt, true); }
 ZL_DemoUIButton::ZL_DemoUIButton(const ZL_Surface& srf, scalar x, scalar y) { impl = new ZL_DemoUIButton_Impl(x, y); setSurface(srf, true); }
 ZL_DemoUIButton::ZL_DemoUIButton(const ZL_Surface& srf, const char* txt, scalar x, scalar y, bool useSurfaceWidth)
@@ -415,8 +414,6 @@ ZL_DemoUIButton::ZL_DemoUIButton(const ZL_Surface& srf, const char* txt, scalar 
 	setText(txt, !useSurfaceWidth);
 	setSurface(srf, useSurfaceWidth);
 }
-ZL_DemoUIButton::ZL_DemoUIButton(const ZL_DemoUIButton &source) : ZL_DemoUIMessage(source) { }
-ZL_DemoUIButton& ZL_DemoUIButton::operator=(const ZL_DemoUIButton &source) { ZL_Impl::CopyRef((ZL_Impl**)&source.impl, (ZL_Impl**)&impl); return *this; }
 
 const ZL_DemoUIButton& ZL_DemoUIButton::setId(int id) const
 {

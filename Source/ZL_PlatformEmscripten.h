@@ -19,6 +19,7 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
+#ifdef __EMSCRIPTEN__
 #ifndef __ZL_PLATFORM_EMSCRIPTEN__
 #define __ZL_PLATFORM_EMSCRIPTEN__
 
@@ -27,22 +28,16 @@
 #define EGL_EGLEXT_PROTOTYPES
 #include <GL/gl.h>
 
-#ifndef ZL_PLATFORM_EMSCRIPTEN_NO_GL_OVERRIDE
-#undef glVertexAttribPointer
-#undef glDrawArrays
-#undef glDrawElements
-#define glVertexAttribPointer glVertexAttribPointerEx
-#define glDrawArrays glDrawArraysEx
-#define glDrawElements glDrawElementsEx
-void glVertexAttribPointerEx(GLuint indx, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* ptr);
-void glDrawArraysEx(GLenum mode, GLint first, GLsizei count);
-void glDrawElementsEx(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices);
-#endif
-
 #ifdef __cplusplus
 
-//GLSL namespace
 #include "ZL_PlatformGLSL.h"
+extern bool ZLEM_EnabledVertexAttrib[ZLGLSL::_ATTR_MAX];
+inline void glEnableVertexAttribArrayUnbuffered(GLuint i) { ZLEM_EnabledVertexAttrib[i] = true; glEnableVertexAttribArray(i); }
+inline void glDisableVertexAttribArrayUnbuffered(GLuint i) { ZLEM_EnabledVertexAttrib[i] = false; glDisableVertexAttribArray(i); }
+void glVertexAttribPointerUnbuffered(GLuint indx, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* ptr);
+void glDrawArraysUnbuffered(GLenum mode, GLint first, GLsizei count);
+void glDrawElementsUnbuffered(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices);
+#define ZL_VIDEO_GL_SEPARATE_UNBUFFERED_CALLS
 
 //Display
 void ZL_SetFullscreen(bool toFullscreen);
@@ -63,3 +58,4 @@ void ZL_SetPointerLock(bool doLockPointer);
 
 #endif //__cplusplus
 #endif //__ZL_PLATFORM_EMSCRIPTEN__
+#endif //__EMSCRIPTEN__

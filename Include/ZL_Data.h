@@ -170,4 +170,26 @@ struct ZL_Base64
 	static bool IsBase64(const ZL_String& Base64Data);
 };
 
+//Calculate checksum
+struct ZL_Checksum
+{
+	static unsigned int CRC32(const void* Data, size_t DataSize);
+	static unsigned int Fast(const void* Data, size_t DataSize);
+	static unsigned int Fast4(const void* Data, size_t DataSize); //DataSize must be 4 byte aligned
+};
+
+//A name that is a checksum of a string for easy lookups and comparison (does not keep the string itself, just the 4 byte checksum)
+struct ZL_NameID
+{
+	ZL_NameID() : IDValue(0) {}
+	ZL_NameID(const char* str) : IDValue(ZL_Checksum::CRC32(str, strlen(str))) {}
+	ZL_NameID(const char* str, size_t len) : IDValue(ZL_Checksum::CRC32(str, len)) {}
+	ZL_NameID(const ZL_String& str) : IDValue(ZL_Checksum::CRC32(str.c_str(), str.length())) {}
+	bool operator!() const { return (IDValue == 0); }
+	bool operator==(const ZL_NameID &b) const { return (IDValue==b.IDValue); }
+	bool operator!=(const ZL_NameID &b) const { return (IDValue!=b.IDValue); }
+	bool operator<(const ZL_NameID& b) const { return (IDValue<b.IDValue); }
+	unsigned int IDValue;
+};
+
 #endif //__ZL_DATA__

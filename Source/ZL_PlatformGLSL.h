@@ -23,18 +23,31 @@
 #define __ZL_PLATFORM_GLSL__
 #ifdef __cplusplus
 
+#ifndef ZL_VIDEO_USE_GLSL
+#error ZL_VIDEO_USE_GLSL needs to be defined
+#endif
+
+#ifdef ZL_VIDEO_OPENGL_ES2
+#define ZLGLSL_LIST_HIGH_PRECISION_HEADER "precision highp float;",
+#define ZLGLSL_LIST_MEDIUM_PRECISION_HEADER "precision mediump float;",
+#define ZLGLSL_LIST_LOW_PRECISION_HEADER "precision lowp float;",
+#else
+#define ZLGLSL_LIST_HIGH_PRECISION_HEADER
+#define ZLGLSL_LIST_MEDIUM_PRECISION_HEADER
+#define ZLGLSL_LIST_LOW_PRECISION_HEADER
+#endif
+
 namespace ZLGLSL
 {
 	typedef float GLSLscalar;
 
-	enum eActiveProgram { NONE, COLOR, TEXTURE, CUSTOM };
+	enum eActiveProgram { NONE, COLOR, TEXTURE, CUSTOM, DISPLAY3D };
 	extern eActiveProgram ActiveProgram;
+
+	enum eAttributes { ATTR_POSITION, ATTR_COLOR, ATTR_TEXCOORD, _ATTR_MAX };
 
 	extern GLuint UNI_MVP;
 	extern GLuint UNI_TEXTURE;
-	extern GLuint ATTR_POSITION;
-	extern GLuint ATTR_COLOR;
-	extern GLuint ATTR_TEXCOORD;
 
 	void _COLOR_PROGRAM_ACTIVATE();
 	void _TEXTURE_PROGRAM_ACTIVATE();
@@ -57,6 +70,7 @@ namespace ZLGLSL
 	void Unproject(GLSLscalar& x, GLSLscalar& y);
 
 	#ifndef ZL_VIDEO_DIRECT3D
+	GLuint CreateProgramFromVertexAndFragmentShaders(GLsizei vertex_shader_srcs_count, const char **vertex_shader_srcs, GLsizei fragment_shader_srcs_count, const char **fragment_shader_srcs, GLsizei bind_attribs_count, const char **bind_attribs);
 	bool CreateShaders();
 	#endif
 }

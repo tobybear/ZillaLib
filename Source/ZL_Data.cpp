@@ -374,7 +374,7 @@ void ZL_Json::SetNull()
 
 void ZL_Json::SetReference(const ZL_Json &source)
 {
-	if (!impl || impl->IsRoot) { ZL_Impl::CopyRef((ZL_Impl**)&source.impl, (ZL_Impl**)&impl); return; }
+	if (!impl || impl->IsRoot) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); return; }
 	if (source.impl->CheckIfHasChild(impl)) { SetNull(); return; }
 	impl->ResetValue(ZL_JSON_Impl::TYPE_PROXY);
 	impl->DataProxy = source.impl;
@@ -846,4 +846,31 @@ bool ZL_Base64::IsBase64(const ZL_String& Base64Data)
 		if ((TestMatrix[pText[i]] == 64) && (i < Base64Data.size() - 3)) return false; //bad padding
 	}
 	return true;
+}
+
+#include "zlib/zlib.h"
+unsigned int ZL_Checksum::CRC32(const void* Data, size_t DataSize)
+{
+	return crc32(0, (unsigned char*)Data, DataSize);
+	//if (!Data) return 0;
+	//unsigned int crcu32 = ~(unsigned int)0;
+	//unsigned char b, *p = (unsigned char*)Data;
+	//// Karl Malbrain's compact CRC-32. See "A compact CCITT crc16 and crc32 C implementation that balances processor cache usage against speed": http://www.geocities.com/malbrain/
+	//static const unsigned int s_crc32[16] = { 0, 0x1db71064, 0x3b6e20c8, 0x26d930ac, 0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c, 0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c, 0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c };
+	//while (DataSize--) { b = *p++; crcu32 = (crcu32 >> 4) ^ s_crc32[(crcu32 & 0xF) ^ (b & 0xF)]; crcu32 = (crcu32 >> 4) ^ s_crc32[(crcu32 & 0xF) ^ (b >> 4)]; }
+	//return ~crcu32;
+}
+
+unsigned int ZL_Checksum::Fast(const void* Data, size_t DataSize)
+{
+	unsigned int res = 0, *p = (unsigned int*)Data, *pMax = (unsigned int*)((char*)p + DataSize - 3);
+	while (p < pMax) res = res*65599 + *(p++);
+	switch (DataSize & 4) { case 0: return res; case 1: return res*65599 + *(char*)p; case 2: return res*65599 + *(short*)p; default: return res*65599 + ((((char*)p)[0]<<16)|(((char*)p)[1]<<8)|((char*)p)[2]); }
+}
+
+unsigned int ZL_Checksum::Fast4(const void* Data, size_t DataSize)
+{
+	unsigned int res = 0, *p = (unsigned int*)Data, *pMax = (unsigned int*)((char*)p + DataSize);
+	while (p != pMax) res = res*65599 + *(p++);
+	return res;
 }

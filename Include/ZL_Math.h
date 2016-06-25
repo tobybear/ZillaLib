@@ -33,6 +33,7 @@
 	#define PI          3.1415926535897932384626433832795f
 	#define PI2         6.2831853071795864769252867665590f
 	#define PIHALF      1.5707963267948966192313216916398f
+	#define PIQUARTER   0.7853981633974483096156608458198f
 	#define PIOVER180   0.0174532925199432957692369076848f
 	#define PIUNDER180 57.2957795130823208767981548141052f
 	#define HALF        0.5f
@@ -42,10 +43,11 @@
 
 	typedef float scalar;
 	#define ssqrt sqrtf
-	#define satan2 atan2f
-	#define scos cosf
 	#define ssin sinf
+	#define scos cosf
+	#define stan tanf
 	#define sacos acosf
+	#define satan2 atan2f
 	#define sabs fabsf
 	#define spow powf
 	#define sexp expf
@@ -57,6 +59,7 @@
 	#define PI          3.1415926535897932384626433832795
 	#define PI2         6.2831853071795864769252867665590
 	#define PIHALF      1.5707963267948966192313216916398
+	#define PIQUARTER   0.7853981633974483096156608458198
 	#define PIOVER180   0.0174532925199432957692369076848
 	#define PIUNDER180 57.2957795130823208767981548141052
 	#define HALF        0.5
@@ -66,10 +69,11 @@
 
 	typedef double scalar;
 	#define ssqrt sqrt
-	#define satan2 atan2
-	#define scos cos
 	#define ssin sin
+	#define scos cos
+	#define stan tan
 	#define sacos acos
+	#define satan2 atan2
 	#define sabs abs
 	#define spow pow
 	#define sexp exp
@@ -126,6 +130,11 @@ template <typename C_ARRAY, size_t N> char (&__COUNT_OF_HELPER(C_ARRAY(&)[N]))[N
 #undef MIN
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))
 
+#define SMALL_NUMBER       ((scalar)(1.e-8f))
+#define KINDA_SMALL_NUMBER ((scalar)(1.e-4f))
+
+enum ZL_NoInitType { ZL_NoInit };
+
 //Integer based 2d point
 struct ZL_Point
 {
@@ -151,6 +160,7 @@ struct ZL_Vector
 
 	//Construction
 	inline ZL_Vector() : x(0), y(0) { }
+	inline ZL_Vector(ZL_NoInitType) { }
 	inline ZL_Vector(scalar x, scalar y) : x(x), y(y) { }
 	inline ZL_Vector(const ZL_Point &p) : x((scalar)p.x), y((scalar)p.y) { }
 	inline ZL_Vector(scalar x1, scalar y1, scalar x2, scalar y2) : x(x2-x1), y(y2-y1) { }
@@ -205,6 +215,8 @@ struct ZL_Vector
 	inline scalar CrossP(const ZL_Vector &v) const { return x * v.y - y * v.x; } //cross product
 	inline bool Near(const ZL_Vector &p, scalar l) const { return (x-p.x)*(x-p.x) + (y-p.y)*(y-p.y) < (l*l); }
 	inline bool Far(const ZL_Vector &p, scalar l) const { return (x-p.x)*(x-p.x) + (y-p.y)*(y-p.y) > (l*l); }
+	inline bool AlmostZero(scalar ErrorTolerance = SMALL_NUMBER) const { return sabs(x)<ErrorTolerance && sabs(y)<ErrorTolerance; }
+	inline bool AlmostEqual(const ZL_Vector &v, scalar ErrorTolerance = SMALL_NUMBER) const { return sabs(x-v.x)<ErrorTolerance && sabs(y-v.y)<ErrorTolerance; }
 
 	//Self modifying operators as functions (non const call)
 	inline ZL_Vector &Set(scalar x, scalar y) { this->x = x; this->y = y; return *this; }
@@ -212,13 +224,14 @@ struct ZL_Vector
 	ZL_Vector &Rotate(const ZL_Vector &hotspot, scalar angle_rad);
 	ZL_Vector &RotateDeg(scalar angle_deg);
 	ZL_Vector &RotateDeg(const ZL_Vector &hotspot, scalar angle_deg);
-	ZL_Vector &Norm();
+	inline ZL_Vector &Norm() { return (x || y ? Div(GetLength()) : Set(1,0)); ; }
+	inline ZL_Vector &NormUnsafe() { return Div(GetLength()); }
 	inline ZL_Vector &Perp() { scalar oldx = x; x = -y; y = oldx; return *this; }
 	inline ZL_Vector &RPerp() { scalar oldx = x; x = y; y = -oldx; return *this; }
 	inline ZL_Vector &Add(const ZL_Vector &p) { x += p.x; y += p.y; return *this; }
 	inline ZL_Vector &Sub(const ZL_Vector &p) { x -= p.x; y -= p.y; return *this; }
-	inline ZL_Vector &Mul(const ZL_Vector &p) { x *= p.x; y *= p.x; return *this; }
-	inline ZL_Vector &Div(const ZL_Vector &p) { x /= p.x; y /= p.x; return *this; }
+	inline ZL_Vector &Mul(const ZL_Vector &p) { x *= p.x; y *= p.y; return *this; }
+	inline ZL_Vector &Div(const ZL_Vector &p) { x /= p.x; y /= p.y; return *this; }
 	inline ZL_Vector &Add(const scalar f)     { x += f;   y += f;   return *this; }
 	inline ZL_Vector &Sub(const scalar f)     { x -= f;   y -= f;   return *this; }
 	inline ZL_Vector &Mul(const scalar f)     { x *= f;   y *= f;   return *this; }
@@ -238,7 +251,8 @@ struct ZL_Vector
 	ZL_Vector VecRotate(const ZL_Vector &hotspot, scalar angle_rad) const;
 	ZL_Vector VecRotateDeg(scalar angle_deg) const;
 	ZL_Vector VecRotateDeg(const ZL_Vector &hotspot, scalar angle_deg) const;
-	ZL_Vector VecNorm() const;
+	inline ZL_Vector VecNorm() const { return (x || y ? *this / GetLength() : ZL_Vector(1,0)); }
+	inline ZL_Vector VecNormUnsafe() const { return *this / GetLength(); }
 	inline ZL_Vector VecPerp() const { return ZL_Vector(-y, x); }
 	inline ZL_Vector VecRPerp() const { return ZL_Vector(y, -x); }
 	inline ZL_Vector VecMod(const ZL_Vector &v) const { return ZL_Vector(smod(x,v.x), smod(y,v.y)); }

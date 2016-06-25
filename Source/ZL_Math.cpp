@@ -91,53 +91,30 @@ ZL_Vector &ZL_Vector::RotateDeg(const ZL_Vector &hotspot, scalar angle_deg)
 	return *this;
 }
 
-ZL_Vector &ZL_Vector::Norm()
-{
-	if (x==0 && y==0) return *this;
-	scalar curlen = GetLength();
-	x /= curlen;
-	y /= curlen;
-	return *this;
-}
-
 ZL_Vector &ZL_Vector::SetLength(scalar setlength)
 {
-	if (x==0 && y==0) { x = setlength; return *this; }
-	setlength /= GetLength();
-	x *= setlength;
-	y *= setlength;
-	return *this;
+	if (!x && !y) { x = setlength; return *this; }
+	return Mul(setlength / GetLength());
 }
 
 ZL_Vector &ZL_Vector::AddLength(scalar addlength)
 {
-	if (x==0 && y==0) { x = addlength; return *this; }
-	addlength /= GetLength(); addlength++;
-	x *= addlength;
-	y *= addlength;
-	return *this;
+	if (!x && !y) { x = addlength; return *this; }
+	return Mul(addlength / GetLength() + 1);
 }
 
 ZL_Vector &ZL_Vector::SetMaxLength(scalar maxlength)
 {
-	if (x==0 && y==0) { if (maxlength < 0) x = maxlength; return *this; }
-	scalar squaredist = x*x+y*y;
-	if (maxlength*maxlength > squaredist) return *this;
-	maxlength /= ssqrt(squaredist);
-	x *= maxlength;
-	y *= maxlength;
-	return *this;
+	if (!x && !y)  { return *this; }
+	scalar lensq = x*x+y*y;
+	return (maxlength*maxlength >= lensq ? *this : Mul(maxlength / ssqrt(lensq)));
 }
 
 ZL_Vector &ZL_Vector::SetMinLength(scalar minlength)
 {
-	if (x==0 && y==0) { if (minlength > 0) x = minlength; return *this; }
-	scalar squaredist = x*x+y*y;
-	if (minlength*minlength < squaredist) return *this;
-	minlength /= ssqrt(squaredist);
-	x *= minlength;
-	y *= minlength;
-	return *this;
+	if (!x && !y) { x = minlength; return *this; }
+	scalar lensq = x*x+y*y;
+	return (minlength*minlength <= lensq ? *this : Mul(minlength / ssqrt(lensq)));
 }
 
 ZL_Vector ZL_Vector::VecRotate(scalar angle_rad) const
@@ -167,43 +144,30 @@ ZL_Vector ZL_Vector::VecRotateDeg(const ZL_Vector &hotspot, scalar angle_deg) co
 	return ZL_Vector(hotspot.x + cosphi*tmpX - sinphi*tmpY, hotspot.y + sinphi*tmpX + cosphi*tmpY);
 }
 
-ZL_Vector ZL_Vector::VecNorm() const
-{
-	if (x==0 && y==0) return Right;
-	scalar curlen = GetLength();
-	return ZL_Vector(x / curlen, y / curlen);
-}
-
 ZL_Vector ZL_Vector::VecWithLength(scalar setlength) const
 {
-	if (x==0 && y==0) return ZL_Vector(setlength, 0);
-	setlength /= GetLength();
-	return ZL_Vector(x * setlength, y * setlength);
+	if (!x && !y) return ZL_Vector(setlength, 0);
+	return *this * (setlength / GetLength());
 }
 
 ZL_Vector ZL_Vector::VecWithAddLength(scalar addlength) const
 {
-	if (x==0 && y==0) return ZL_Vector(addlength, 0);
-	addlength /= GetLength(); addlength++;
-	return ZL_Vector(x * addlength, y * addlength);
+	if (!x && !y) return ZL_Vector(addlength, 0);
+	return *this * (addlength / GetLength() + 1);
 }
 
 ZL_Vector ZL_Vector::VecWithMaxLength(scalar maxlength) const
 {
-	if (x==0 && y==0) return ZL_Vector((maxlength < 0 ? maxlength : 0), 0);
-	scalar squaredist = x*x+y*y;
-	if (maxlength*maxlength > squaredist) return *this;
-	maxlength /= ssqrt(squaredist);
-	return ZL_Vector(x * maxlength, y * maxlength);
+	if (!x && !y) return *this;
+	scalar lensq = x*x+y*y;
+	return (maxlength*maxlength >= lensq ? *this : *this * (maxlength / ssqrt(lensq)));
 }
 
 ZL_Vector ZL_Vector::VecWithMinLength(scalar minlength) const
 {
-	if (x==0 && y==0) return ZL_Vector((minlength > 0 ? minlength : 0), 0);
-	scalar squaredist = x*x+y*y;
-	if (minlength*minlength < squaredist) return *this;
-	minlength /= ssqrt(squaredist);
-	return ZL_Vector(x * minlength, y * minlength);
+	if (!x && !y) return ZL_Vector(minlength, 0);
+	scalar lensq = x*x+y*y;
+	return (minlength*minlength <= lensq ? *this : *this * (minlength / ssqrt(lensq)));
 }
 
 ZL_AABB::ZL_AABB(const ZL_Rectf& rect) : P(rect.Center()), E(rect.Extents()) {}

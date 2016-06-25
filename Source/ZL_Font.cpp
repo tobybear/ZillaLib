@@ -96,78 +96,61 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 	ZL_Texture_Impl* tex;
 	GLscalar CharWidths[0x100 - ' '-1];
 	GLscalar TextureCoordinates[(0x100 - ' '-1)][8];
-	struct ZL_FontCharRect { int x, y, w, h; };
+	struct ZL_FontCharRect { int left, right, top, bottom; };
 
 	ZL_FontBitmap_Impl(const ZL_FileLink& file) : ZL_Font_Impl(false)
 	{
-		ZL_BitmapSurface *pSurface;
-		tex = ZL_Texture_Impl::LoadTextureRef(file, &pSurface);
-		if (!tex->gltexid) { if (pSurface) delete pSurface; tex->DelRef(); tex = NULL; return; }
+		ZL_BitmapSurface Bitmap;
+		tex = ZL_Texture_Impl::LoadTextureRef(file, &Bitmap);
+		if (!tex->gltexid) { free(Bitmap.pixels); tex->DelRef(); tex = NULL; return; }
 
-		int bpp = pSurface->BytesPerPixel, pitch = pSurface->w * pSurface->BytesPerPixel, line = tex->w * pSurface->BytesPerPixel;
-		unsigned char *pStart = (unsigned char*)pSurface->pixels + bpp - 1, *pEnd = pStart + tex->h * pitch;
-
-		std::vector<int> lines;
 		std::vector<ZL_FontCharRect> rects;
-
-		unsigned char *pLineStart = pStart;
-		for (unsigned char *pLine = pStart; pLine <= pEnd; pLine += pitch)
+		int LineCount = 0;
+		int bpp = Bitmap.BytesPerPixel, pitch = Bitmap.w * bpp;
+		for (unsigned char *pStart = Bitmap.pixels + (tex->h-1) * pitch + bpp - 1, *pEnd = pStart - tex->h * pitch, *pLineMin = pStart, *pLineMax = pStart; pLineMax != pEnd; pLineMax -= pitch)
 		{
-			unsigned char *px, *pXEnd;
-			bool issplit = true;
-			for (px = pLine, pXEnd = pLine + line; pLine < pEnd && px < pXEnd; px+=bpp)
-				if (*px) { issplit = false;  break; }
-			if (!issplit) continue;
-			if (pLine <= pLineStart+pitch) { pLineStart = pLine; continue; }
+			bool IsSplitRow = true;
+			if (pLineMax >= Bitmap.pixels) for (unsigned char *p = pLineMax, *pLineEnd = pLineMax + pitch; p != pLineEnd; p += bpp) if (*p) { IsSplitRow = false;  break; }
+			if (!IsSplitRow) continue;
+			if (pLineMin == pLineMax) { pLineMin = pLineMax-pitch; continue; }
 
-			unsigned char *pCharStart = pLineStart;
-			for (px = pLineStart, pXEnd = pLineStart + line; px <= pXEnd; px+=bpp)
+			for (unsigned char *pCharMin = pLineMin, *pCharMax = pLineMin, *pLineEnd = pLineMin + pitch; pCharMax <= pLineEnd; pCharMax += bpp)
 			{
-				issplit = true;
-				for (unsigned char *py = px; px < pXEnd && py < pLine; py += pitch)
-					if (*py) { issplit = false; break; }
-				if (!issplit) continue;
-				if (px <= pCharStart) { pCharStart = px+bpp; continue; }
+				bool IsSplitColumn = true;
+				for (unsigned char *p = pCharMax; pCharMax < pLineEnd && p >= pLineMax; p -= pitch) if (*p) { IsSplitColumn = false; break; }
+				if (!IsSplitColumn) continue;
+				if (pCharMin == pCharMax) { pCharMin = pCharMax+bpp; continue; }
 
-				ZL_FontCharRect r = { (int)(pCharStart - pLineStart)/bpp, (int)(pLineStart - pStart)/pitch, (int)(px - pCharStart)/bpp, (int)(pLine - pLineStart)/pitch };
+				ZL_FontCharRect r = { (int)(pCharMin - pLineMin)/bpp, (int)(pCharMax - pLineMin)/bpp, (int)(pLineMin - Bitmap.pixels) / pitch + 1, (int)(pLineMax - Bitmap.pixels) / pitch + 1 };
 				rects.push_back(r);
-				//printf("Split %d at: X: %d, Y: %d (size: %d, %d)\n", ++chars, (pCharStart - pLineStart)/bpp, (pLineStart - pStart)/line, (px - pCharStart)/bpp, (pLine - pLineStart)/line);
 
-				pCharStart = px+bpp;
+				pCharMin = pCharMax+bpp;
 			}
-			lines.push_back((int)(pLineStart - pStart)/pitch);
-			//if (iHeight < (pLine - pLineStart)/pitch) iHeight = (pLine - pLineStart)/pitch;
-			pLineStart = pLine;
+			LineCount++;
+			pLineMin = pLineMax-pitch;
 		}
 
-		//iLineHeight = (unsigned int)(tex->h / (float)lines.size() + 0.9999f);
-		//fLineSpacing = s((int)(iLineHeight / 7));
-		//unsigned int iMarginTop = iLineHeight;
-		//for (unsigned int l = 0; l < lines.size() && iMarginTop; l++)
-		//	if (iMarginTop > lines[l] - l*iLineHeight)
-		//		iMarginTop = lines[l] - l*iLineHeight;
-		//fCharSpacing = s(((int)(fSpaceWidth/7.0f+0.5f)));
-		int iLineHeight = (int)(tex->h / lines.size());
-		fLineHeight = s(iLineHeight);
+		int LineHeight = (tex->h / (LineCount ? LineCount : 1));
+		fLineHeight = s(LineHeight);
 
-		fSpaceWidth = s(rects[0].w);
+		fSpaceWidth = s(rects[0].right - rects[0].left);
 		GLuint iCharCount = (rects.size() >= 0x7F-' '-1 ? 0x100-' '-1 : (GLuint)(rects.size()-1));
 		memset(CharWidths, 0, sizeof(CharWidths));
 		for (GLuint i = 1; i < rects.size(); i++)
 		{
 			ZL_FontCharRect &rect = rects[i];
+			rect.right++;
 			GLuint iCharIndex = (i >= 0x7F-' '-1 ? iCharCount - (GLuint)(rects.size() - i) : i-1);
-			rect.w++;
-			CharWidths[iCharIndex] = s(rect.w);
-			rect.y = ((int)((rect.y+iLineHeight/2)/iLineHeight))*iLineHeight;
-			rect.h = iLineHeight;
+			CharWidths[iCharIndex] = s(rect.right - rect.left);
+			rect.top = ((rect.top+(LineHeight/2))/LineHeight)*LineHeight;
+			rect.bottom = rect.top - LineHeight;
 			GLscalar *pTexCoord = TextureCoordinates[iCharIndex];
-			pTexCoord[0] = pTexCoord[4] = (GLscalar)(rect.x ? rect.x*2-1 : 0) / (tex->wTex*2);
-			pTexCoord[5] = pTexCoord[7] = (GLscalar)(rect.y ? rect.y*2-1 : 0) / (tex->hTex*2);
-			pTexCoord[2] = pTexCoord[6] = (GLscalar)((rect.x + rect.w)*2-1) / (tex->wTex*2);
-			pTexCoord[1] = pTexCoord[3] = (GLscalar)((rect.y + rect.h)*2-1) / (tex->hTex*2);
+			pTexCoord[0] = pTexCoord[4] = (GLscalar)(rect.left ? rect.left*2-1 : 0)     / (tex->wTex*2);
+			pTexCoord[2] = pTexCoord[6] = (GLscalar)(rect.right*2-1)                    / (tex->wTex*2);
+			pTexCoord[1] = pTexCoord[3] = (GLscalar)(rect.bottom ? rect.bottom*2-1 : 0) / (tex->hTex*2);
+			pTexCoord[5] = pTexCoord[7] = (GLscalar)(rect.top*2-1)                      / (tex->hTex*2);
 		}
-		delete pSurface;
+		free(Bitmap.pixels);
 	}
 
 	~ZL_FontBitmap_Impl()
@@ -202,12 +185,12 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 			memcpy(&vertices[12*v+0], vbox+0, sizeof(texcoords[0])*6);
 			memcpy(&vertices[12*v+6], vbox+2, sizeof(texcoords[0])*6);
 			if (++v==VBSIZE) {
-				glDrawArrays(GL_TRIANGLES, 0, 6*VBSIZE);
+				glDrawArraysUnbuffered(GL_TRIANGLES, 0, 6*VBSIZE);
 				v = 0;
 			}
 			vbox[4] = vbox[0] = vbox[2] + cs;
 		}
-		if (v) glDrawArrays(GL_TRIANGLES, 0, 6*v);
+		if (v) glDrawArraysUnbuffered(GL_TRIANGLES, 0, 6*v);
 	}
 
 	GLsizei CountBuffer(const char *text, std::vector<int>* &vecTTFTexLastIndex)
@@ -249,7 +232,7 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 	void DoDrawBuffer(std::vector<int>* vecTTFTexLastIndex, GLsizei len)
 	{
 		glBindTexture(GL_TEXTURE_2D, tex->gltexid);
-		glDrawArrays(GL_TRIANGLES, 0, len * 6);
+		glDrawArraysUnbuffered(GL_TRIANGLES, 0, len * 6);
 	}
 
 	void GetDimensions(const char *text, scalar* width, scalar* height)
@@ -502,7 +485,7 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 			int last = vecTTFTexLastIndex->operator[](tex);
 			if (last == offset) continue;
 			glBindTexture(GL_TEXTURE_2D, gltexids[tex]);
-			glDrawArrays(GL_TRIANGLES, offset*6, (last-offset)*6);
+			glDrawArraysUnbuffered(GL_TRIANGLES, offset*6, (last-offset)*6);
 			offset = last;
 		}
 	}
@@ -532,7 +515,7 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 			if (c.tex < 0) { x += (scalew * fSpaceWidth) + cs; continue; }
 			if (last_tex != c.tex)
 			{
-				if (v) { glDrawArrays(GL_TRIANGLES, 0, 6*v); v = 0; }
+				if (v) { glDrawArraysUnbuffered(GL_TRIANGLES, 0, 6*v); v = 0; }
 				last_tex = c.tex;
 				glBindTexture(GL_TEXTURE_2D, gltexids[last_tex]);
 			}
@@ -545,9 +528,9 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 			vertices[vv+5] = vertices[vv+9] = vertices[vv+11] = y - (c.offy*scaleh);  //top
 			vertices[vv+1] = vertices[vv+3] = vertices[vv+ 7] = vertices[vv+5] - lh;  //bottom
 			x = vertices[vv+2] + cs - olrs;
-			if (v == VBSIZE) { glDrawArrays(GL_TRIANGLES, 0, 6*VBSIZE); v = 0; }
+			if (v == VBSIZE) { glDrawArraysUnbuffered(GL_TRIANGLES, 0, 6*VBSIZE); v = 0; }
 		}
-		if (v) glDrawArrays(GL_TRIANGLES, 0, 6*v);
+		if (v) glDrawArraysUnbuffered(GL_TRIANGLES, 0, 6*v);
 	}
 
 	void GetDimensions(const char *text, scalar* width, scalar* height)
@@ -794,7 +777,7 @@ struct ZL_TextBuffer_Impl : ZL_Impl
 		if (check_width*fntSettings->scale.x <= max_width) { Render(text); return; }
 
 		std::vector<char> textbuf;
-		textbuf.insert(textbuf.begin(), text, text + strlen(text) + 1);
+		textbuf.assign(text, text + strlen(text) + 1);
 		for (size_t breakIndex = 0; ;)
 		{
 			breakIndex += FindMaxWidthIndex(&textbuf[breakIndex], textbuf.size()-breakIndex, max_width, word_wrap_newline);

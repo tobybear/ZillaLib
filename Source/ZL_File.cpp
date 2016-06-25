@@ -169,9 +169,9 @@ ZL_String ZL_File::GetContents() const
 	if (!impl || !impl->src) return "";
 	size_t size = ZL_RWsize(impl->src);
 	ZL_RWrewind(impl->src);
-	std::vector<char> buffer(size);
-	ZL_RWread(impl->src, &buffer.front(), size, 1);
-	return ZL_String(&buffer.front(), size);
+	ZL_String res(size, '\0');
+	ZL_RWread(impl->src, &(char&)res.operator[](0), size, 1);
+	return res;
 }
 
 size_t ZL_File::GetContents(ZL_String& out) const
@@ -179,7 +179,7 @@ size_t ZL_File::GetContents(ZL_String& out) const
 	if (!impl || !impl->src) return 0;
 	size_t size = ZL_RWsize(impl->src);
 	ZL_RWrewind(impl->src);
-	out.insert(out.end(), size, ' ');
+	out.resize(size);
 	ZL_RWread(impl->src, &(char&)out.operator[](0), size, 1);
 	return size;
 }

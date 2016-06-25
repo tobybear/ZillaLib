@@ -31,11 +31,7 @@
 
 struct ZL_BitmapSurface
 {
-	static ZL_BitmapSurface* Create(int w, int h, int depth, bool zerodata = true);
-	static ZL_BitmapSurface* Load(ZL_RWops* rw);
-	~ZL_BitmapSurface();
-	char BytesPerPixel;
-	int w, h;
+	int BytesPerPixel, w, h;
 	unsigned char* pixels;
 };
 
@@ -56,11 +52,11 @@ struct ZL_Texture_Impl : ZL_Impl
 	GLenum format;  // The color format of the texture
 	int w, h;       // The width and height of the original surface
 	int wTex, hTex; // The actual size of the OpenGL texture (it might differ, power of two etc.)
-	int wRep, hRep; // The size for GL_REPEAT wrap mode before the texture was resized to confirm to power of two textures
+	int wRep, hRep; // The size for GL_REPEAT wrap mode before the texture was resized to conform to power of two textures
 	GLint wraps, wrapt, filtermin, filtermag;
 	ZL_TextureFrameBuffer *pFrameBuffer;
 
-	static ZL_Texture_Impl* LoadTextureRef(const ZL_FileLink& file, ZL_BitmapSurface** surface = NULL);
+	static ZL_Texture_Impl* LoadTextureRef(const ZL_FileLink& file, ZL_BitmapSurface* out_surface = NULL);
 
 	void SetTextureFilter(GLint newfiltermin, GLint newfiltermag);
 	void SetTextureWrap(GLint newwraps, GLint newwrapt);
@@ -68,14 +64,14 @@ struct ZL_Texture_Impl : ZL_Impl
 	void FrameBufferBegin(bool clear);
 	void FrameBufferEnd();
 
-	ZL_BitmapSurface* LoadSurfaceAndTexture(const ZL_File& file);
+	bool LoadSurfaceAndTexture(const ZL_File& file, ZL_BitmapSurface* out_surface = NULL);
 	void SetupFrameBuffer(int width, int height);
 
 	ZL_Texture_Impl(int width, int height, bool use_alpha);
 
 private:
-	ZL_Texture_Impl(const ZL_File& file, ZL_BitmapSurface** out_surface);
-	ZL_BitmapSurface* LoadSurface(const ZL_File& file);
+	ZL_Texture_Impl(const ZL_File& file, ZL_BitmapSurface* out_surface);
+	unsigned char* LoadSurfaceData(const ZL_File& file, ZL_BitmapSurface* out_surface);
 	~ZL_Texture_Impl();
 };
 

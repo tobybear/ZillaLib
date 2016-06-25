@@ -69,7 +69,7 @@ struct ZL_Surface_BatchRenderContext
 		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, vertices_start);
 		if (colors_start) ZLGL_COLORARRAY_POINTER(4, GL_SCALAR, 0, colors_start);
 		ZLGL_TEXCOORDPOINTER(2, GL_SCALAR, 0, texcoordbox_start);
-		glDrawArrays(GL_TRIANGLES, 0, (GLsizei)((vertices_cur-vertices_start)/2));
+		glDrawArraysUnbuffered(GL_TRIANGLES, 0, (GLsizei)((vertices_cur-vertices_start)/2));
 		if (colors_start) ZLGL_COLORARRAY_DISABLE();
 	}
 
@@ -144,14 +144,9 @@ void ZL_Surface_Impl::CalcContentSizes(const scalar scalew, const scalar scaleh)
 
 void ZL_Surface_Impl::CalcUnclippedTexCoordBoxAndContentSize()
 {
-	TexCoordBox[0] = TexCoordBox[4] = TexCoordBox[5] = TexCoordBox[7] = 0;
+	TexCoordBox[0] = TexCoordBox[4] = TexCoordBox[1] = TexCoordBox[3] = 0;
+	TexCoordBox[5] = TexCoordBox[7] = (tex->hTex > tex->h ? tex->h / s(tex->hTex) : s(1));
 	TexCoordBox[2] = TexCoordBox[6] = (tex->wTex > tex->w ? tex->w / s(tex->wTex) : s(1));
-	TexCoordBox[1] = TexCoordBox[3] = (tex->hTex > tex->h ? tex->h / s(tex->hTex) : s(1));
-	if (tex->pFrameBuffer)
-	{
-		//Related to screen space textures are loaded upside down, so our framebuffered textures which were drawn to normally need to be flipped to match.
-		TexCoordBox[1] = TexCoordBox[5]; TexCoordBox[5] = TexCoordBox[7] = TexCoordBox[3]; TexCoordBox[3] = TexCoordBox[1];
-	}
 	fHCW = tex->w * fScaleW / 2;
 	fHCH = tex->h * fScaleH / 2;
 }
@@ -166,7 +161,7 @@ void ZL_Surface_Impl::CalcRotation(const scalar rotate)
 inline void ZL_Surface_Impl::DrawOrBatch(const ZL_Color &color, const GLscalar v1x, const GLscalar v1y, const GLscalar v2x, const GLscalar v2y, const GLscalar v3x, const GLscalar v3y, const GLscalar v4x, const GLscalar v4y, const GLscalar* texcoordbox)
 {
 	const GLscalar VerticesBox[8] = { v1x,v1y,v2x,v2y,v3x,v3y,v4x,v4y };
-	if (pBatchRender && pBatchRender->vertices_start) pBatchRender->Add(VerticesBox, TexCoordBox, &color);
+	if (pBatchRender && pBatchRender->vertices_start) pBatchRender->Add(VerticesBox, texcoordbox, &color);
 	else
 	{
 		glBindTexture(GL_TEXTURE_2D, tex->gltexid);
@@ -174,11 +169,11 @@ inline void ZL_Surface_Impl::DrawOrBatch(const ZL_Color &color, const GLscalar v
 		ZLGL_COLORA(color, fOpacity);
 		ZLGL_TEXCOORDPOINTER(2, GL_SCALAR, 0, texcoordbox);
 		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, VerticesBox);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
 	}
 }
 
-void ZL_Surface_Impl::Draw(scalar x, scalar y, const scalar rotate, const scalar hcw, const scalar hch, /*const*/ scalar rsin, /*const*/ scalar rcos, const ZL_Color &color)
+void ZL_Surface_Impl::Draw(scalar x, scalar y, const scalar rotate, const scalar hcw, const scalar hch, scalar rsin, scalar rcos, const ZL_Color &color)
 {
 	switch (orDraw)
 	{
@@ -239,12 +234,11 @@ void ZL_Surface_Impl::DrawTo(const scalar x1, const scalar y1, const scalar x2, 
 			orY = ((orDraw & ZL_Origin::_MASK_TOP)  ? s(0) : ((orDraw & ZL_Origin::_MASK_BOTTOM) ? s(1) : s(.5)));
 		}
 		scalar w = (x1 - x2)/s(tex->wRep)/scalew, h = (y1 - y2)/s(tex->hRep)/scaleh;
-		if (tex->pFrameBuffer) h *= -1; //textures are loaded upside down, so framebuffer textures which were drawn to normally need to be flipped
 		GLscalar RepeatTexCoordBox[8];
 		RepeatTexCoordBox[0] = RepeatTexCoordBox[4] =  w * orX;
 		RepeatTexCoordBox[2] = RepeatTexCoordBox[6] = -w * (s(1) - orX);
-		RepeatTexCoordBox[5] = RepeatTexCoordBox[7] =  h * orY;
-		RepeatTexCoordBox[1] = RepeatTexCoordBox[3] = -h * (s(1) - orY);
+		RepeatTexCoordBox[5] = RepeatTexCoordBox[7] = -h * orY;
+		RepeatTexCoordBox[1] = RepeatTexCoordBox[3] =  h * (s(1) - orY);
 		DrawOrBatch(color, x1 , y1 , x2 , y1 , x1 , y2, x2 , y2, RepeatTexCoordBox);
 	}
 	else DrawOrBatch(color, x1 , y1 , x2 , y1 , x1 , y2, x2 , y2, TexCoordBox);
@@ -313,18 +307,10 @@ ZL_Surface& ZL_Surface::SetClipping(ZL_Rect clip)
 	if (!impl) return *this;
 	impl->hasClipping = true;
 	const int divisor = (impl->tex->filtermag == GL_NEAREST ? 12 : 2);
-	impl->TexCoordBox[0] = impl->TexCoordBox[4] = s(clip.left  *divisor+1) / (impl->tex->wTex*divisor);
-	impl->TexCoordBox[1] = impl->TexCoordBox[3] = s(clip.bottom*divisor-1) / (impl->tex->hTex*divisor);
-	impl->TexCoordBox[2] = impl->TexCoordBox[6] = s(clip.right *divisor-1) / (impl->tex->wTex*divisor);
-	impl->TexCoordBox[5] = impl->TexCoordBox[7] = s(clip.top   *divisor+1) / (impl->tex->hTex*divisor);
-	if (impl->tex->pFrameBuffer != NULL)
-	{
-		//Related to screen space, textures are loaded upside down. Because top and bottom of ZL_Rect are already upside down (top being zero),
-		//only clipping of a framebuffer texture needs to be flipped, as it was rendered normally to.
-		impl->TexCoordBox[1] = impl->TexCoordBox[3] = 1 - impl->TexCoordBox[1];
-		impl->TexCoordBox[5] = impl->TexCoordBox[7] = 1 - impl->TexCoordBox[5];
-
-	}
+	impl->TexCoordBox[0] = impl->TexCoordBox[4] =        s(clip.left  *divisor+1) / (impl->tex->wTex*divisor);
+	impl->TexCoordBox[1] = impl->TexCoordBox[3] = s(1) - s(clip.bottom*divisor-1) / (impl->tex->hTex*divisor);
+	impl->TexCoordBox[2] = impl->TexCoordBox[6] =        s(clip.right *divisor-1) / (impl->tex->wTex*divisor);
+	impl->TexCoordBox[5] = impl->TexCoordBox[7] = s(1) - s(clip.top   *divisor+1) / (impl->tex->hTex*divisor);
 	impl->fHCW = impl->fScaleW * sabs(s(clip.Width()))  * s(.5);
 	impl->fHCH = impl->fScaleH * sabs(s(clip.Height())) * s(.5);
 	return *this;
@@ -335,12 +321,6 @@ ZL_Surface& ZL_Surface::SetClipping(ZL_Rectf clip)
 	if (!impl) return *this;
 	if (IsTextureRepeatMode()) SetTextureRepeatMode(false);
 	impl->hasClipping = true;
-	if (!impl->tex->pFrameBuffer)
-	{
-		//Related to screen space, textures are loaded upside down. Thus clipping needs to be inverted, too.
-		//Except for a framebuffer texture, because it was already rendered normally to.
-		clip.low = 1 - clip.low; clip.high = 1 - clip.high;
-	}
 	impl->TexCoordBox[0] = impl->TexCoordBox[4] = (impl->tex->wTex > impl->tex->w ? clip.left  * impl->tex->w / impl->tex->wTex : clip.left);
 	impl->TexCoordBox[1] = impl->TexCoordBox[3] = (impl->tex->hTex > impl->tex->h ? clip.low   * impl->tex->h / impl->tex->hTex : clip.low);
 	impl->TexCoordBox[2] = impl->TexCoordBox[6] = (impl->tex->wTex > impl->tex->w ? clip.right * impl->tex->w / impl->tex->wTex : clip.right);
@@ -587,5 +567,5 @@ void ZL_Surface::DrawBox(const scalar* VerticesBox, const scalar* TexCoordBox, c
 	ZLGL_COLOR(color);
 	ZLGL_TEXCOORDPOINTER(2, GL_SCALAR, 0, TexCoordBox);
 	ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, VerticesBox);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
 }

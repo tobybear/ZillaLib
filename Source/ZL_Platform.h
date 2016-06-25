@@ -96,6 +96,7 @@ extern int native_width, native_height, window_viewport[4], window_framebuffer, 
 extern bool native_aspectcorrection;
 extern void ZillaLibInit(int argc, char *argv[]);
 extern void InitGL(int width, int height);
+extern void (*funcInitGL3D)(bool RecreateContext);
 extern void _ZL_Display_KeepAlive();
 extern void ZL_Display_Process_Event(ZL_Event& event);
 extern void (*funcSceneManagerCalculate)(), (*funcSceneManagerDraw)();

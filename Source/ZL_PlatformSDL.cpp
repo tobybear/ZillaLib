@@ -68,8 +68,8 @@ void SDL_ResetMouse(void);
 #include "CoreFoundation/CoreFoundation.h"
 #endif
 
-void initExtensionEntries();
-void processSDLEvents();
+static void InitExtensionEntries();
+static void ProcessSDLEvents();
 
 static SDL_Window* ZL_SDL_Window = NULL;
 static ZL_String jsonConfigFile;
@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
 	ZillaLibInit(argc, argv);
 	while (!(ZL_MainApplicationFlags & ZL_APPLICATION_DONE))
 	{
-		processSDLEvents();
+		ProcessSDLEvents();
 		ZL_MainApplication->Frame();
 		SDL_GL_SwapWindow(ZL_SDL_Window);
 		//#ifdef __WIN32__
@@ -278,12 +278,15 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
 
-	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, (displayflags & ZL_WINDOW_DEPTHBUFFER ? 16 : 0));
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, (displayflags & ZL_DISPLAY_DEPTHBUFFER ? 16 : 0));
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
 	// should enable 4x AA if possible
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
 	ZL_SDL_Window = SDL_CreateWindow(windowtitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, windowflags);
 	if (!ZL_SDL_Window)
@@ -310,7 +313,7 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	//printf("Extensions : %s\n", glGetString(GL_EXTENSIONS));
 	//printf("\n");
 
-	initExtensionEntries();
+	InitExtensionEntries();
 
 	/*
 #ifndef __MACOSX__
@@ -354,7 +357,7 @@ void ZL_UpdateTPFLimit()
 	ZL_MainApplicationFlags = (UseVSync ? ZL_MainApplicationFlags & ~ZL_APPLICATION_NOVSYNC : ZL_MainApplicationFlags | ZL_APPLICATION_NOVSYNC);
 }
 
-void processSDLEvents()
+void ProcessSDLEvents()
 {
 	SDL_Event in;
 	while (SDL_PollEvent(&in))
@@ -589,20 +592,20 @@ void ZL_Semaphore::Post() { SDL_SemPost(impl->sem); }
 
 //gl2 stuff
 #ifndef __MACOSX__
-PFNGLDELETEBUFFERSPROC            glDeleteBuffers;
-PFNGLBINDBUFFERPROC               glBindBuffer;
-PFNGLBUFFERDATAPROC               glBufferData;
 PFNGLCREATESHADERPROC             glCreateShader;
 PFNGLSHADERSOURCEPROC             glShaderSource;
 PFNGLCOMPILESHADERPROC            glCompileShader;
 PFNGLCREATEPROGRAMPROC            glCreateProgram;
 PFNGLATTACHSHADERPROC             glAttachShader;
+PFNGLDETACHSHADERPROC             glDetachShader;
 PFNGLLINKPROGRAMPROC              glLinkProgram;
 PFNGLUSEPROGRAMPROC               glUseProgram;
 PFNGLGETSHADERIVPROC              glGetShaderiv;
-PFNGLGETSHADERINFOLOGPROC         glGetShaderInfoLog;
 PFNGLGETPROGRAMIVPROC             glGetProgramiv;
+#ifdef ZILLALOG
+PFNGLGETSHADERINFOLOGPROC         glGetShaderInfoLog;
 PFNGLGETPROGRAMINFOLOGPROC        glGetProgramInfoLog;
+#endif
 PFNGLGETATTRIBLOCATIONPROC        glGetAttribLocation;
 PFNGLBINDATTRIBLOCATIONPROC       glBindAttribLocation;
 PFNGLVERTEXATTRIBPOINTERPROC      glVertexAttribPointer;
@@ -613,13 +616,11 @@ PFNGLUNIFORMMATRIX4FVPROC         glUniformMatrix4fv;
 PFNGLVERTEXATTRIB4FVPROC          glVertexAttrib4fv;
 PFNGLVERTEXATTRIB4FPROC           glVertexAttrib4f;
 PFNGLUNIFORM1FPROC                glUniform1f;
-PFNGLUNIFORM2FPROC                glUniform2f;
 #else
 PFNGLUNIFORMMATRIX4DVPROC         glUniformMatrix4dv;
 PFNGLVERTEXATTRIB4DVPROC          glVertexAttrib4dv;
 PFNGLVERTEXATTRIB4DPROC           glVertexAttrib4d;
 PFNGLUNIFORM1DPROC                glUniform1d;
-PFNGLUNIFORM2DPROC                glUniform2d;
 #endif
 PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
 PFNGLDELETESHADERPROC             glDeleteShader;
@@ -636,23 +637,23 @@ PFNGLGENFRAMEBUFFERSPROC          glGenFramebuffers;
 PFNGLDELETEFRAMEBUFFERSPROC       glDeleteFramebuffers;
 PFNGLBINDFRAMEBUFFERPROC          glBindFramebuffer;
 PFNGLFRAMEBUFFERTEXTURE2DPROC     glFramebufferTexture2D;
-void initExtensionEntries()
+void InitExtensionEntries()
 {
 #ifndef __MACOSX__
-	glDeleteBuffers =            (PFNGLDELETEBUFFERSPROC           )(size_t)SDL_GL_GetProcAddress("glDeleteBuffers");
-	glBindBuffer =               (PFNGLBINDBUFFERPROC              )(size_t)SDL_GL_GetProcAddress("glBindBuffer");
-	glBufferData =               (PFNGLBUFFERDATAPROC              )(size_t)SDL_GL_GetProcAddress("glBufferData");
 	glCreateShader =             (PFNGLCREATESHADERPROC            )(size_t)SDL_GL_GetProcAddress("glCreateShader");
 	glShaderSource =             (PFNGLSHADERSOURCEPROC            )(size_t)SDL_GL_GetProcAddress("glShaderSource");
 	glCompileShader =            (PFNGLCOMPILESHADERPROC           )(size_t)SDL_GL_GetProcAddress("glCompileShader");
 	glCreateProgram =            (PFNGLCREATEPROGRAMPROC           )(size_t)SDL_GL_GetProcAddress("glCreateProgram");
 	glAttachShader =             (PFNGLATTACHSHADERPROC            )(size_t)SDL_GL_GetProcAddress("glAttachShader");
+	glDetachShader =             (PFNGLDETACHSHADERPROC            )(size_t)SDL_GL_GetProcAddress("glDetachShader");
 	glLinkProgram =              (PFNGLLINKPROGRAMPROC             )(size_t)SDL_GL_GetProcAddress("glLinkProgram");
 	glUseProgram =               (PFNGLUSEPROGRAMPROC              )(size_t)SDL_GL_GetProcAddress("glUseProgram");
 	glGetShaderiv =              (PFNGLGETSHADERIVPROC             )(size_t)SDL_GL_GetProcAddress("glGetShaderiv");
-	glGetShaderInfoLog =         (PFNGLGETSHADERINFOLOGPROC        )(size_t)SDL_GL_GetProcAddress("glGetShaderInfoLog");
 	glGetProgramiv =             (PFNGLGETPROGRAMIVPROC            )(size_t)SDL_GL_GetProcAddress("glGetProgramiv");
+#ifdef ZILLALOG
+	glGetShaderInfoLog =         (PFNGLGETSHADERINFOLOGPROC        )(size_t)SDL_GL_GetProcAddress("glGetShaderInfoLog");
 	glGetProgramInfoLog =        (PFNGLGETPROGRAMINFOLOGPROC       )(size_t)SDL_GL_GetProcAddress("glGetProgramInfoLog");
+#endif
 	glGetAttribLocation =        (PFNGLGETATTRIBLOCATIONPROC       )(size_t)SDL_GL_GetProcAddress("glGetAttribLocation");
 	glBindAttribLocation =       (PFNGLBINDATTRIBLOCATIONPROC      )(size_t)SDL_GL_GetProcAddress("glBindAttribLocation");
 	glVertexAttribPointer =      (PFNGLVERTEXATTRIBPOINTERPROC     )(size_t)SDL_GL_GetProcAddress("glVertexAttribPointer");
@@ -663,13 +664,11 @@ void initExtensionEntries()
 	glVertexAttrib4fv =          (PFNGLVERTEXATTRIB4FVPROC         )(size_t)SDL_GL_GetProcAddress("glVertexAttrib4fv");
 	glVertexAttrib4f =           (PFNGLVERTEXATTRIB4FPROC          )(size_t)SDL_GL_GetProcAddress("glVertexAttrib4f");
 	glUniform1f =                (PFNGLUNIFORM1FPROC               )(size_t)SDL_GL_GetProcAddress("glUniform1f");
-	glUniform2f =                (PFNGLUNIFORM2FPROC               )(size_t)SDL_GL_GetProcAddress("glUniform2f");
 #else
 	glUniformMatrix4dv =         (PFNGLUNIFORMMATRIX4DVPROC        )(size_t)SDL_GL_GetProcAddress("glUniformMatrix4dv");
 	glVertexAttrib4dv =          (PFNGLVERTEXATTRIB4DVPROC         )(size_t)SDL_GL_GetProcAddress("glVertexAttrib4dv");
 	glVertexAttrib4d =           (PFNGLVERTEXATTRIB4DPROC          )(size_t)SDL_GL_GetProcAddress("glVertexAttrib4d");
 	glUniform1d =                (PFNGLUNIFORM1DPROC               )(size_t)SDL_GL_GetProcAddress("glUniform1d");
-	glUniform2d =                (PFNGLUNIFORM2DPROC               )(size_t)SDL_GL_GetProcAddress("glUniform2d");
 #endif
 	glDisableVertexAttribArray = (PFNGLDISABLEVERTEXATTRIBARRAYPROC)(size_t)SDL_GL_GetProcAddress("glDisableVertexAttribArray");
 	glDeleteShader =             (PFNGLDELETESHADERPROC            )(size_t)SDL_GL_GetProcAddress("glDeleteShader");
@@ -687,6 +686,58 @@ void initExtensionEntries()
 	glBindFramebuffer =          (PFNGLBINDFRAMEBUFFERPROC         )(size_t)SDL_GL_GetProcAddress("glBindFramebuffer");
 	glFramebufferTexture2D =     (PFNGLFRAMEBUFFERTEXTURE2DPROC    )(size_t)SDL_GL_GetProcAddress("glFramebufferTexture2D");
 }
+
+#ifdef ZL_REQUIRE_INIT3DGLEXTENSIONENTRIES
+PFNGLGETACTIVEUNIFORMPROC         glGetActiveUniform;
+#ifndef GL_ATI_blend_equation_separate
+PFNGLACTIVETEXTUREPROC            glActiveTexture;
+#endif
+PFNGLGENBUFFERSPROC               glGenBuffers;
+PFNGLDELETEBUFFERSPROC            glDeleteBuffers;
+PFNGLBINDBUFFERPROC               glBindBuffer;
+PFNGLBUFFERDATAPROC               glBufferData;
+#ifdef ZILLALOG
+PFNGLGETBUFFERPARAMETERIVPROC     glGetBufferParameteriv;
+PFNGLMAPBUFFERPROC                glMapBuffer;
+PFNGLUNMAPBUFFERPROC              glUnmapBuffer;
+#endif
+PFNGLUNIFORM1IPROC                glUniform1i;
+#if !defined(ZL_DOUBLE_PRECISCION)
+PFNGLUNIFORM2FPROC                glUniform2f;
+PFNGLUNIFORM3FPROC                glUniform3f;
+PFNGLUNIFORM4FPROC                glUniform4f;
+#else
+PFNGLUNIFORM2DPROC                glUniform2d;
+PFNGLUNIFORM3DPROC                glUniform3d;
+PFNGLUNIFORM4DPROC                glUniform4d;
+#endif
+void ZL_Init3DGLExtensionEntries()
+{
+#ifndef GL_ATI_blend_equation_separate
+	glActiveTexture =            (PFNGLACTIVETEXTUREPROC           )(size_t)SDL_GL_GetProcAddress("glActiveTexture");
+#endif
+	glGetActiveUniform =         (PFNGLGETACTIVEUNIFORMPROC        )(size_t)SDL_GL_GetProcAddress("glGetActiveUniform");
+	glGenBuffers =               (PFNGLGENBUFFERSPROC              )(size_t)SDL_GL_GetProcAddress("glGenBuffers");
+	glDeleteBuffers =            (PFNGLDELETEBUFFERSPROC           )(size_t)SDL_GL_GetProcAddress("glDeleteBuffers");
+	glBindBuffer =               (PFNGLBINDBUFFERPROC              )(size_t)SDL_GL_GetProcAddress("glBindBuffer");
+	glBufferData =               (PFNGLBUFFERDATAPROC              )(size_t)SDL_GL_GetProcAddress("glBufferData");
+#ifdef ZILLALOG
+	glGetBufferParameteriv =     (PFNGLGETBUFFERPARAMETERIVPROC    )(size_t)SDL_GL_GetProcAddress("glGetBufferParameteriv");
+	glMapBuffer =                (PFNGLMAPBUFFERPROC               )(size_t)SDL_GL_GetProcAddress("glMapBuffer");
+	glUnmapBuffer =              (PFNGLUNMAPBUFFERPROC             )(size_t)SDL_GL_GetProcAddress("glUnmapBuffer");
+#endif
+	glUniform1i =                (PFNGLUNIFORM1IPROC               )(size_t)SDL_GL_GetProcAddress("glUniform1i");
+#if !defined(ZL_DOUBLE_PRECISCION)
+	glUniform2f =                (PFNGLUNIFORM2FPROC               )(size_t)SDL_GL_GetProcAddress("glUniform2f");
+	glUniform3f =                (PFNGLUNIFORM3FPROC               )(size_t)SDL_GL_GetProcAddress("glUniform3f");
+	glUniform4f =                (PFNGLUNIFORM4FPROC               )(size_t)SDL_GL_GetProcAddress("glUniform4f");
+#else
+	glUniform2d =                (PFNGLUNIFORM2DPROC               )(size_t)SDL_GL_GetProcAddress("glUniform2d");
+	glUniform3d =                (PFNGLUNIFORM3DPROC               )(size_t)SDL_GL_GetProcAddress("glUniform3d");
+	glUniform4d =                (PFNGLUNIFORM4DPROC               )(size_t)SDL_GL_GetProcAddress("glUniform4d");
+#endif
+}
+#endif
 
 #define ZL_SDL_DO_OVERRIDE_IMPLEMENTATIONS
 #include <SDL_config_zillalib.h>

@@ -136,7 +136,7 @@ $(ASSET_ZIP) : $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)
 $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE) : $(APPOBJS) $(ZLOUTDIR)/ZillaLib_$(CPUTYPE).a
 	$(info Linking $@ ...)
 	@$(CXX) -o $@ $^ $(GCCMFLAG) $(LDFLAGS)
-	@-$(if $(findstring RELEASE,$(BUILD)),$(if $(STRIP),$(STRIP) -R .comment $@))
+	@-$(if $(filter RELEASE,$(BUILD)),$(if $(STRIP),$(STRIP) -R .comment $@))
 
 $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE)_WithData : $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE) $(ASSET_ZIP)
 	$(info packing data assets into $@ ...)

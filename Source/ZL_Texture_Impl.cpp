@@ -34,36 +34,6 @@ static std::map<ZL_FileLink, ZL_Texture_Impl*>* pLoadedTextures = NULL;
 static std::vector<ZL_Texture_Impl*> *pLoadedFrameBufferTextures = NULL;
 #endif
 
-ZL_BitmapSurface* ZL_BitmapSurface::Create(int w, int h, int depth, bool zerodata)
-{
-	if (depth%8) return NULL;
-	unsigned char* data = (unsigned char*)malloc(w*h*(depth/8));
-	ZL_BitmapSurface* srf = new ZL_BitmapSurface();
-	srf->BytesPerPixel = depth/8;
-	srf->pixels = data;
-	srf->w = w;
-	srf->h = h;
-	if (zerodata) memset(srf->pixels, 0, w*h*srf->BytesPerPixel);
-	return srf;
-}
-
-ZL_BitmapSurface* ZL_BitmapSurface::Load(ZL_RWops* rw)
-{
-	int w, h, comp;
-	unsigned char* pixels = stbi_load_from_callbacks(&stbi_zlrwops_callbacks, rw, &w, &h, &comp, 0);
-	if (!pixels) return NULL;
-	ZL_BitmapSurface* srf = new ZL_BitmapSurface();
-	srf->BytesPerPixel = comp;
-	srf->pixels = pixels;
-	srf->w = w;
-	srf->h = h;
-	return srf;
-}
-ZL_BitmapSurface::~ZL_BitmapSurface()
-{
-	if (pixels) free(pixels);
-}
-
 // Returns the smallest power-of-two value in which 'val' fits, with a max size of 'max'
 static GLint OGL_GetPOT(GLint val, GLint max)
 {
@@ -90,99 +60,103 @@ static bool OGL_ProbeTexture(GLint w, GLint h, GLint maxSize, GLint, GLenum)
 {
 	return OGL_IsPOT(w) && OGL_IsPOT(h);
 }
-//#elif defined(__ANDROID__)
-//static bool OGL_ProbeTexture(GLint w, GLint h, GLint maxSize, GLint, GLenum)
-//{
-//	return OGL_IsPOT(w) && OGL_IsPOT(h);
-//}
 #else
 #define OGL_ProbeTexture(a,b,c,d,e) true
 #endif
 
-ZL_Texture_Impl* ZL_Texture_Impl::LoadTextureRef(const ZL_FileLink& file, ZL_BitmapSurface** surface)
+ZL_Texture_Impl* ZL_Texture_Impl::LoadTextureRef(const ZL_FileLink& file, ZL_BitmapSurface* out_surface)
 {
 	if (!pLoadedTextures) pLoadedTextures = new std::map<ZL_FileLink, ZL_Texture_Impl*>();
 	std::map<ZL_FileLink, ZL_Texture_Impl*>::iterator it = pLoadedTextures->find(file);
 	if (it != pLoadedTextures->end())
 	{
 		it->second->AddRef();
-		if (surface) *surface = it->second->LoadSurface(file.Open());
+		if (out_surface) it->second->LoadSurfaceData(file.Open(), out_surface);
 		return it->second;
 	}
-	ZL_Texture_Impl* t = new ZL_Texture_Impl(file.Open(), surface);
+	ZL_Texture_Impl* t = new ZL_Texture_Impl(file.Open(), out_surface);
 	pLoadedTextures->operator[](file) = t;
 	return t;
 }
 
-ZL_Texture_Impl::ZL_Texture_Impl(const ZL_File& file, ZL_BitmapSurface** out_surface) : gltexid(0), wraps(GL_CLAMP_TO_EDGE), wrapt(GL_CLAMP_TO_EDGE), filtermin(GL_LINEAR), filtermag(GL_LINEAR), pFrameBuffer(NULL)
+ZL_Texture_Impl::ZL_Texture_Impl(const ZL_File& file, ZL_BitmapSurface* out_surface) : gltexid(0), wraps(GL_CLAMP_TO_EDGE), wrapt(GL_CLAMP_TO_EDGE), filtermin(GL_LINEAR), filtermag(GL_LINEAR), pFrameBuffer(NULL)
 {
-	ZL_BitmapSurface* pSurface = LoadSurfaceAndTexture(file);
-	if (out_surface) *out_surface = pSurface;
-	else delete pSurface;
+	LoadSurfaceAndTexture(file, out_surface);
 }
 
-ZL_BitmapSurface* ZL_Texture_Impl::LoadSurface(const ZL_File& file)
+unsigned char* ZL_Texture_Impl::LoadSurfaceData(const ZL_File& file, ZL_BitmapSurface* out_surface)
 {
 	ZL_File_Impl* fileimpl = ZL_ImplFromOwner<ZL_File_Impl>(file);
-	if (!fileimpl) { wTex = hTex = 0; return NULL; }
-	ZL_BitmapSurface* surface = ZL_BitmapSurface::Load(fileimpl->src);
-	if (!surface) { ZL_LOG2("SURFACE", "Cannot load image file: %s (err: %s)", fileimpl->filename.c_str(), stbi_failure_reason()); wTex = hTex = 0; return NULL; }
+	if (!fileimpl) { return NULL; }
+
+	int BytesPerPixel;
+	unsigned char* pixels = stbi_load_from_callbacks(&stbi_zlrwops_callbacks, fileimpl->src, &w, &h, &BytesPerPixel, 0);
+	if (!pixels || !w || !h) { ZL_LOG2("SURFACE", "Cannot load image file: %s (err: %s)", fileimpl->filename.c_str(), stbi_failure_reason()); return NULL; }
 	//ZL_LOG4("SURFACE", "Loaded bitmap: %s - x: %d - y: %d - bpp: %d", fileimpl->filename.c_str(), surface->w, surface->h, surface->BytesPerPixel);
-	wRep = w = wTex = surface->w;
-	hRep = h = hTex = surface->h;
+
+	size_t pitch = w * BytesPerPixel;
+	unsigned char StackTempRow[1024], *TempRow = (pitch > 1024 ? (unsigned char*)malloc(pitch) : StackTempRow);
+	for (unsigned char *rowTop = pixels, *rowTopEnd = rowTop + (h/2)*pitch, *rowBottom = rowTop + (h-1)*pitch; rowTop != rowTopEnd; rowTop += pitch, rowBottom -= pitch)
+	{
+		memcpy(TempRow, rowTop, pitch);
+		memcpy(rowTop, rowBottom, pitch);
+		memcpy(rowBottom, TempRow, pitch);
+	}
+	if (pitch > 1024) free(TempRow);
+
+	wRep = wTex = w;
+	hRep = hTex = h;
 
 	/* Get the color format of the surface */
-	if      (surface->BytesPerPixel==4) format = GL_RGBA;
-	else if (surface->BytesPerPixel==3) format = GL_RGB;
-	else if (surface->BytesPerPixel==2) format = GL_LUMINANCE_ALPHA;
-	else if (surface->BytesPerPixel==1) format = GL_LUMINANCE;
-	else { ZL_LOG1("SURFACE", "Cannot load image file with %d bytes per pixel", surface->BytesPerPixel); delete surface; return NULL; }
+	if      (BytesPerPixel==4) format = GL_RGBA;
+	else if (BytesPerPixel==3) format = GL_RGB;
+	else if (BytesPerPixel==2) format = GL_LUMINANCE_ALPHA;
+	else if (BytesPerPixel==1) format = GL_LUMINANCE;
+	else { ZL_LOG2("SURFACE", "Cannot load image file %s with unsupported %d bytes per pixel", fileimpl->filename.c_str(), BytesPerPixel); free(pixels); return NULL; }
 
-	bool reBlit = false;
 	static GLint maxSize = 0;
 	if (!maxSize) glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
-	if(wTex > maxSize || hTex > maxSize)
+	if (wTex > maxSize || hTex > maxSize)
 	{
-		wTex = (wTex < maxSize ? wTex : maxSize);
-		hTex = (hTex < maxSize ? hTex : maxSize);
-		reBlit = true;
+		if (wTex > maxSize) wTex = maxSize;
+		if (hTex > maxSize) hTex = maxSize;
 	}
 	else if (!OGL_ProbeTexture(wTex, hTex, maxSize, surface->BytesPerPixel, format))
 	{
 		wTex = OGL_GetPOT(wTex, maxSize);
 		hTex = OGL_GetPOT(hTex, maxSize);
-		reBlit = true;
-		if(!OGL_ProbeTexture(wTex, hTex, maxSize, 4, GL_RGBA)) wTex = hTex = 0;
+		if(!OGL_ProbeTexture(wTex, hTex, maxSize, 4, GL_RGBA)) { ZL_LOG3("SURFACE", "Cannot load image file %s with size %d x %d due to being unsupported by GPU", fileimpl->filename.c_str(), wTex, hTex); free(pixels); return NULL; }
 	}
+
+	bool reBlit = false;
 	#ifdef ZL_VIDEO_DIRECT3D
-	else if (format != GL_RGBA)
+	if (format != GL_RGBA)
 	{
 		//Direct3D only supports RGBA format
 		reBlit = true;
 	}
 	#elif !defined(ZL_VIDEO_OPENGL_ES1)
-	else if (format != GL_RGBA && ((wTex&1)||(hTex&1)||(wTex&2)||(hTex&2)))
+	if (format != GL_RGBA && ((wTex&1)||(hTex&1)||(wTex&2)||(hTex&2)))
 	{
 		//somehow non RGBA textures need to be dividable by 4 sizes or RGBA on PC OpenGL and GLES2
 		reBlit = true; //reblit to RGBA format
 	}
 	#endif
 
-	if (wTex == 0 || hTex == 0) { delete surface; return NULL; }
-
 	if (reBlit)
 	{
-		//ZL_LOG2("SURFACE", "                 Reblit with x: %d - y: %d - bpp: 4", wTex, hTex);
-		format = GL_RGBA;
-		if (w > wTex) w = wTex;
-		if (h > hTex) h = hTex;
-		ZL_BitmapSurface* tmp = surface;
 		// The original surface size and/or color format wasn't ok for direct conversion. Do an RGBA-copy of it with the suggested size
-		surface = ZL_BitmapSurface::Create(wTex, hTex, 32);
-		int srcbpp = tmp->BytesPerPixel;
-		unsigned char *src = (unsigned char *)tmp->pixels;
-		unsigned int *dst = (unsigned int *)surface->pixels;
-		for (int height = h, dstskip = (wTex>w?wTex-w:0), srcskip = (w>wTex?w-wTex:0); height--; dst+=dstskip, src+=srcskip)
+		ZL_LOG3("SURFACE", (w > wTex || h > hTex ? "Sizing image from file %s down to %d x %d due to being over maximum GPU supported size - Image should be scaled down" : (w < wTex || h < hTex ? "Adding borders to texture from file %s to increase size to %d x %d due to unsupported format - Image should be stored in this size to avoid slow loading" : "Converting texture from file %s to RGBA due to its size %d x %d not being dividable by 4 - Image should be stored in such a size or as RGBA to avoid slow loading")), fileimpl->filename.c_str(), wTex, hTex);
+		format = GL_RGBA;
+		int srcbpp = BytesPerPixel, srcw = w;
+		unsigned char * const srcpixels = pixels;
+		if (wTex < w) w = wTex;
+		if (hTex < h) h = hTex;
+		BytesPerPixel = 4;
+		pixels = (unsigned char*)malloc(w*h*4);
+		unsigned char *src = (unsigned char *)srcpixels;
+		unsigned int *dst = (unsigned int *)pixels;
+		for (int height = h, srcskip = (srcw>w?(srcw-w)*srcbpp:0); height--; src+=srcskip)
 		{
 			int c = w;
 			switch (srcbpp)
@@ -196,13 +170,12 @@ ZL_BitmapSurface* ZL_Texture_Impl::LoadSurface(const ZL_File& file)
 						*dst++ = src[0] + (src[0] << 8) + (src[0] << 16) + (src[1] << 24);
 					break;
 				case 3:
-					#ifndef ZL_USE_BIGENDIAN
-						for (; c--; src += srcbpp)
-							*dst++ = src[0] + (src[1] << 8) + (src[2] << 16) + (0xFF << 24);
-					#else
-						for (; c--; src += srcbpp)
-							*dst++ = (src[0] << 16) + (src[1] << 8) + src[2] + (0xFF << 24);
-					#endif
+					for (; c--; src += srcbpp)
+						#ifndef ZL_USE_BIGENDIAN
+						*dst++ = src[0] + (src[1] << 8) + (src[2] << 16) + (0xFF << 24);
+						#else
+						*dst++ = (src[0] << 16) + (src[1] << 8) + src[2] + (0xFF << 24);
+						#endif
 					break;
 				case 4:
 					memcpy(dst, src, 4*w);
@@ -211,30 +184,39 @@ ZL_BitmapSurface* ZL_Texture_Impl::LoadSurface(const ZL_File& file)
 					break;
 			}
 		}
-		delete tmp;
+		free(srcpixels);
 	}
-	return surface;
+
+	if (out_surface)
+	{
+		out_surface->BytesPerPixel = BytesPerPixel;
+		out_surface->w = wTex;
+		out_surface->h = hTex;
+		out_surface->pixels = pixels;
+	}
+	return pixels;
 }
 
-ZL_BitmapSurface* ZL_Texture_Impl::LoadSurfaceAndTexture(const ZL_File& file)
+bool ZL_Texture_Impl::LoadSurfaceAndTexture(const ZL_File& file, ZL_BitmapSurface* out_surface)
 {
-	ZL_BitmapSurface* surface = LoadSurface(file);
-	if (!surface) return NULL;
+	unsigned char* pixels = LoadSurfaceData(file, out_surface);
+	if (!pixels) return false;
 	glGenTextures(1, &gltexid);
 	glBindTexture(GL_TEXTURE_2D, gltexid);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtermin);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtermag);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, (!(surface->w&7) ? 8 : (!(surface->w&3) ? 4 : (!(surface->w&1) ? 2 : 1))));
-	if (wTex != surface->w || hTex != surface->h)
+	glPixelStorei(GL_UNPACK_ALIGNMENT, (!(w&7) ? 8 : (!(w&3) ? 4 : (!(w&1) ? 2 : 1))));
+	if (wTex != w || hTex != h)
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, format, wTex, hTex, 0, format, GL_UNSIGNED_BYTE, NULL);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, surface->w, surface->h, format, GL_UNSIGNED_BYTE, surface->pixels);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, format, GL_UNSIGNED_BYTE, pixels);
 	}
 	else
-		glTexImage2D(GL_TEXTURE_2D, 0, format, wTex, hTex, 0, format, GL_UNSIGNED_BYTE, surface->pixels);
-	return surface;
+		glTexImage2D(GL_TEXTURE_2D, 0, format, wTex, hTex, 0, format, GL_UNSIGNED_BYTE, pixels);
+	if (!out_surface) free(pixels);
+	return true;
 }
 
 void ZL_Texture_Impl::SetTextureFilter(GLint newfiltermin, GLint newfiltermag)
@@ -293,7 +275,7 @@ void ZL_Texture_Impl::SetTextureWrap(GLint newwraps, GLint newwrapt)
 		glColor4(1,1,1,1);
 		glTexCoordPointer(2, GL_SCALAR, 0, texcoordbox);
 		glVertexPointer(2, GL_SCALAR, 0, verticesbox);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
 		glMatrixMode(GL_PROJECTION);
 		glPopMatrix();
 		glMatrixMode(GL_MODELVIEW);
@@ -307,9 +289,9 @@ void ZL_Texture_Impl::SetTextureWrap(GLint newwraps, GLint newwrapt)
 		ZLGLSL::_TEXTURE_PROGRAM_ACTIVATE();
 		glVertexAttrib4(ZLGLSL::ATTR_COLOR, 1, 1, 1, 1);
 		glUniformMatrix4v(ZLGLSL::UNI_MVP, 1, GL_FALSE, matrix);
-		glVertexAttribPointer(ZLGLSL::ATTR_POSITION, 2, GL_SCALAR, GL_FALSE, 0, fullbox);
-		glVertexAttribPointer(ZLGLSL::ATTR_TEXCOORD, 2, GL_SCALAR, GL_FALSE, 0, fullbox);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, fullbox);
+		ZLGL_TEXCOORDPOINTER(2, GL_SCALAR, 0, fullbox);
+		glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
 		ZLGLSL::ActiveProgram = ZLGLSL::NONE; //reset matrix on next draw
 		#endif
 		//#ifdef GL_VIEWPORT_BIT
@@ -428,7 +410,7 @@ void ZL_Texture_Impl::FrameBufferEnd()
 		GLLOADIDENTITY();
 		GLscalar vtx[8] = { -1 , 1 , 1 , 1 , -1 , -1 , 1 , -1 };
 		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, vtx);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
 		GLPOPMATRIX();
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	}
@@ -456,10 +438,8 @@ void RecreateAllTexturesOnContextLost()
 		for (std::map<ZL_FileLink, ZL_Texture_Impl*>::iterator it = pLoadedTextures->begin(); it != pLoadedTextures->end(); ++it)
 		{
 			ZL_LOG2("TEXTURE", "   Reload Tex ID: %d (%s)", it->second->gltexid, it->first.Name().c_str());
-			ZL_BitmapSurface* pSurface = it->second->LoadSurfaceAndTexture(it->first.Open());
-			if (!pSurface) continue;
+			if (!it->second->LoadSurfaceAndTexture(it->first.Open())) continue;
 			it->second->SetTextureWrap(it->second->wraps, it->second->wrapt);
-			delete pSurface;
 		}
 	}
 	if (pLoadedFrameBufferTextures)

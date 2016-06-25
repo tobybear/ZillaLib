@@ -21,7 +21,6 @@
 
 #ifdef __EMSCRIPTEN__
 
-#define ZL_PLATFORM_EMSCRIPTEN_NO_GL_OVERRIDE
 #include "ZL_Platform.h"
 #include "ZL_Display.h"
 #include "ZL_Display_Impl.h"
@@ -280,11 +279,8 @@ void ZL_SettingsSynchronize() { }
 #error The emscripten WebGL wrapper for memory buffers to GPU buffers only works with float preciscion
 #endif
 
-static       GLuint  ATTR_POSITION_vbo   = 0,     ATTR_COLOR_vbo   = 0,     ATTR_TEXCOORD_vbo   = 0;
-static      GLsizei  ATTR_POSITION_bufsz = 0,     ATTR_COLOR_bufsz = 0,     ATTR_TEXCOORD_bufsz = 0;
-static const GLvoid *ATTR_POSITION_ptr   = NULL, *ATTR_COLOR_ptr   = NULL, *ATTR_TEXCOORD_ptr   = NULL;
-static       GLint   ATTR_POSITION_size  = 0,     ATTR_COLOR_size  = 0,     ATTR_TEXCOORD_size  = 0;
-static GLsizei INDEX_BUFFER_APPLIED = 0;
+static GLuint ATTR_vbo[ZLGLSL::_ATTR_MAX];
+static GLuint ATTR_ibo;
 
 // WINDOW
 bool ZL_CreateWindow(const char*, int w, int h, int displayflags)
@@ -293,12 +289,8 @@ bool ZL_CreateWindow(const char*, int w, int h, int displayflags)
 	ZL_TPF_Limit = 0;
 	ZLJS_CreateWindow(w, h, tpf_limit);
 
-	GLuint IndexBufferObject;
-	glGenBuffers(1, &IndexBufferObject);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBufferObject);
-	glGenBuffers(1, &ATTR_POSITION_vbo);
-	glGenBuffers(1, &ATTR_COLOR_vbo);
-	glGenBuffers(1, &ATTR_TEXCOORD_vbo);
+	glGenBuffers(1, &ATTR_ibo);
+	glGenBuffers(ZLGLSL::_ATTR_MAX, ATTR_vbo);
 	glClearColor(0, 0, 0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -323,55 +315,48 @@ void ZL_SetPointerLock(bool doLockPointer)
 	ZLJS_SetPointerLock((int)doLockPointer);
 }
 
-void glVertexAttribPointerEx(GLuint indx, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* ptr)
+bool ZLEM_EnabledVertexAttrib[ZLGLSL::_ATTR_MAX];
+static       GLsizei   ATTR_bufsz[ZLGLSL::_ATTR_MAX];
+static const GLvoid*   ATTR_ptr[ZLGLSL::_ATTR_MAX];
+static       GLint     ATTR_size[ZLGLSL::_ATTR_MAX];
+static       GLsizei   ATTR_sizebyte[ZLGLSL::_ATTR_MAX];
+static       GLsizei   ATTR_stride[ZLGLSL::_ATTR_MAX];
+static       GLenum    ATTR_type[ZLGLSL::_ATTR_MAX];
+static       GLboolean ATTR_normalized[ZLGLSL::_ATTR_MAX];
+static GLsizei INDEX_BUFFER_APPLIED = 0;
+
+void glVertexAttribPointerUnbuffered(GLuint indx, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* ptr)
 {
 	INDEX_BUFFER_APPLIED = 0;
-	if (indx == ZLGLSL::ATTR_POSITION)      { ATTR_POSITION_ptr = ptr; ATTR_POSITION_size = size; }
-	else if (indx == ZLGLSL::ATTR_COLOR)    { ATTR_COLOR_ptr    = ptr; ATTR_COLOR_size    = size; }
-	else if (indx == ZLGLSL::ATTR_TEXCOORD) { ATTR_TEXCOORD_ptr = ptr; ATTR_TEXCOORD_size = size; }
+	ATTR_ptr[indx] = ptr;
+	ATTR_size[indx] = size;
+	ATTR_sizebyte[indx] = size * (type == GL_UNSIGNED_BYTE ? 1 : 4);
+	ATTR_stride[indx] = (stride ? stride : ATTR_sizebyte[indx]);
+	ATTR_type[indx] = type;
+	ATTR_normalized[indx] = normalized;
 }
 
-void glDrawArrayPrepare(GLint first, GLsizei count)
+static void glDrawArrayPrepare(GLint first, GLsizei count)
 {
-	GLsizei total = sizeof(GLfloat)*(ATTR_POSITION_size+ATTR_COLOR_size+ATTR_TEXCOORD_size)*count;
-
-	glBindBuffer(GL_ARRAY_BUFFER, ATTR_POSITION_vbo);
-	GLsizei stridePosition = sizeof(GLfloat)*ATTR_POSITION_size;
-	GLsizei totalPosition = stridePosition*count;
-	if (totalPosition > ATTR_POSITION_bufsz) glBufferData(GL_ARRAY_BUFFER, (ATTR_POSITION_bufsz = totalPosition), NULL, GL_DYNAMIC_DRAW);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, totalPosition, (char*)ATTR_POSITION_ptr+(stridePosition*(GLsizei)first));
-	glVertexAttribPointer(ZLGLSL::ATTR_POSITION, ATTR_POSITION_size, GL_FLOAT, 0, 0, 0);
-
-	GLint color_enabled;
-	glGetVertexAttribiv(ZLGLSL::ATTR_COLOR, GL_VERTEX_ATTRIB_ARRAY_ENABLED, &color_enabled);
-	if (color_enabled)
+	for (int i = 0; i < ZLGLSL::_ATTR_MAX; i++)
 	{
-		glBindBuffer(GL_ARRAY_BUFFER, ATTR_COLOR_vbo);
-		GLsizei strideColor = sizeof(GLfloat)*ATTR_COLOR_size;
-		GLsizei totalColor = strideColor*count;
-		if (totalColor > ATTR_COLOR_bufsz) glBufferData(GL_ARRAY_BUFFER, (ATTR_COLOR_bufsz = totalColor), NULL, GL_DYNAMIC_DRAW);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, totalColor, (char*)ATTR_COLOR_ptr+(strideColor*(GLsizei)first));
-		glVertexAttribPointer(ZLGLSL::ATTR_COLOR, ATTR_COLOR_size, GL_FLOAT, 0, 0, 0);
-	}
-
-	if (ZLGLSL::ATTR_TEXCOORD)
-	{
-		glBindBuffer(GL_ARRAY_BUFFER, ATTR_TEXCOORD_vbo);
-		GLsizei strideTexCoord = sizeof(GLfloat)*ATTR_TEXCOORD_size;
-		GLsizei totalTexCoord = strideTexCoord*count;
-		if (totalTexCoord > ATTR_TEXCOORD_bufsz) glBufferData(GL_ARRAY_BUFFER, (ATTR_TEXCOORD_bufsz = totalTexCoord), NULL, GL_DYNAMIC_DRAW);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, totalTexCoord, (char*)ATTR_TEXCOORD_ptr+(strideTexCoord*(GLsizei)first));
-		glVertexAttribPointer(ZLGLSL::ATTR_TEXCOORD, ATTR_TEXCOORD_size, GL_FLOAT, 0, 0, 0);
+		if (!ZLEM_EnabledVertexAttrib[i]) continue;
+		GLsizei total = ATTR_stride[i] * count - (ATTR_stride[i] - ATTR_sizebyte[i]);
+		GLvoid* datastart = (char*)ATTR_ptr[i] + (ATTR_stride[i] * (GLsizei)first);
+		glBindBuffer(GL_ARRAY_BUFFER, ATTR_vbo[i]);
+		if (total > ATTR_bufsz[i]) glBufferData(GL_ARRAY_BUFFER, (ATTR_bufsz[i] = total), datastart, GL_DYNAMIC_DRAW);
+		else glBufferSubData(GL_ARRAY_BUFFER, 0, total, datastart);
+		glVertexAttribPointer(i, ATTR_size[i], ATTR_type[i], ATTR_normalized[i], ATTR_stride[i], 0);
 	}
 }
 
-void glDrawArraysEx(GLenum mode, GLint first, GLsizei count)
+void glDrawArraysUnbuffered(GLenum mode, GLint first, GLsizei count)
 {
 	glDrawArrayPrepare(first, count);
 	glDrawArrays(mode, 0, count);
 }
 
-void glDrawElementsEx(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices)
+void glDrawElementsUnbuffered(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices)
 {
 	assert(type == GL_UNSIGNED_SHORT);
 
@@ -383,6 +368,7 @@ void glDrawElementsEx(GLenum mode, GLsizei count, GLenum type, const GLvoid* ind
 		glDrawArrayPrepare(0, max+1);
 	}
 
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ATTR_ibo);
 	static GLsizei IndexBufferSize = 0;
 	if (count > IndexBufferSize)
 	{
