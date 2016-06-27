@@ -280,7 +280,7 @@ namespace ZLGLSL
 				glGetShaderInfoLog(shader, info_len, NULL, info_log);
 				ZL_LOG1("ZLGLSL", "Error compiling shader: %s", info_log);
 				ZL_LOG0("ZLGLSL", "Shader Source:");
-				for (GLsizei i = 0; i < count; i++) { ZL_LOG2("ZLGLSL", "%d: %s", i, shader_src[i]); }
+				int i = 1; for (const char *lb = src.c_str(), *le; (le = strchr(lb, '\n')); lb = le+1) { ZL_LOG3("ZLGLSL", "%3d: %.*s", i++, le-lb, lb); }
 				free(info_log);
 				assert(false);
 			}

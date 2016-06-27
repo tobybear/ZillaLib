@@ -96,7 +96,7 @@ static PP_Resource context3d = 0;
 static bool gl_tpf_flush_pending = false;
 static PP_Resource pp_audio = NULL;
 static PP_Instance instance_ = NULL;
-static bool has_focus_ = false, inited_ = false, running_ = false;
+static bool has_focus_ = false, inited_ = false, running_ = false, rdysent_ = false;
 static PP_Rect recView;
 static int NACL_Width = -1, NACL_Height = -1;
 static unsigned int NACL_WindowFlags = ZL_WINDOW_INPUT_FOCUS | ZL_WINDOW_MOUSE_FOCUS;
@@ -255,12 +255,11 @@ void PackageLoader_Open_Callback(void* urlloader, int32_t result)
 static void HandleMessage(PP_Instance instance, PP_Var msg)
 {
 	instance_ = instance;
-	if (!context3d) return;
 	uint32_t utf8len;
 	const char* utf8msg = ppb_var_interface->VarToUtf8(msg, &utf8len);
 	if (utf8len < 3) return;
 	//ZL_LOG3("NACL", "Got Message: [%*s] (GRAPHICS: %d)", utf8len, utf8msg, (context3d!=0));
-	if (!memcmp(utf8msg, "PKG", 3) && utf8len > 3)
+	if (!memcmp(utf8msg, "PKG", 3) && utf8len > 3 && !inited_)
 	{
 		ZL_String url(utf8msg+3, utf8len-3);
 		ZL_LOG1("PKG", "Requesting package: [%s]", url.c_str());
@@ -272,11 +271,11 @@ static void HandleMessage(PP_Instance instance, PP_Var msg)
 		const PP_CompletionCallback cc = { &PackageLoader_Open_Callback, (void*)urlloader, 0 };
 		if (ppb_urlloader_interface->Open(urlloader, urlrequestinfo, cc) != PP_OK_COMPLETIONPENDING) PackageLoader_Open_Callback(cc.user_data, -1);
 	}
-	else if (!memcmp(utf8msg, "SZX", 3) && utf8len > 3)
+	else if (!memcmp(utf8msg, "SZX", 3) && utf8len > 3 && !inited_)
 	{
 		NACL_Width = atoi(utf8msg+3);
 	}
-	else if (!memcmp(utf8msg, "SZY", 3) && utf8len > 3)
+	else if (!memcmp(utf8msg, "SZY", 3) && utf8len > 3 && !inited_)
 	{
 		NACL_Height = atoi(utf8msg+3);
 	}
@@ -325,55 +324,34 @@ static void Instance_DidDestroy(PP_Instance instance)
 static void Instance_DidChangeView(PP_Instance instance, PP_Resource view_resource)
 {
 	instance_ = instance;
-	bool firstrun = (!context3d);
 
-	PP_Rect recChangeView;
-	ppb_view_interface->GetRect(view_resource, &recChangeView);
-	//ZL_LOG("NACL", "Instance_DidChangeView: x = %d -> %d - y = %d -> %d - w = %d -> %d - h = %d -> %d - fs: %d -> %d", recView.point.x, recChangeView.point.x, recView.point.y, recChangeView.point.y, recView.size.width, recChangeView.size.width, recView.size.height, recChangeView.size.height, (NACL_WindowFlags&ZL_WINDOW_FULLSCREEN?1:0), ppb_fullscreen_interface->IsFullscreen(instance));
+	PP_Rect recViewOld = recView;
+	ppb_view_interface->GetRect(view_resource, &recView);
+	//ZL_LOG("NACL", "Instance_DidChangeView: x = %d -> %d - y = %d -> %d - w = %d -> %d - h = %d -> %d - fs: %d -> %d", recViewOld.point.x, recView.point.x, recViewOld.point.y, recView.point.y, recViewOld.size.width, recView.size.width, recViewOld.size.height, recView.size.height, (NACL_WindowFlags&ZL_WINDOW_FULLSCREEN?1:0), ppb_fullscreen_interface->IsFullscreen(instance));
 
-	if (!context3d)
-	{
-		//Create context
-		int32_t attribs[] = { PP_GRAPHICS3DATTRIB_ALPHA_SIZE, 0, PP_GRAPHICS3DATTRIB_DEPTH_SIZE,      0, PP_GRAPHICS3DATTRIB_STENCIL_SIZE, 0,
-		                      PP_GRAPHICS3DATTRIB_SAMPLES,    4, PP_GRAPHICS3DATTRIB_SAMPLE_BUFFERS,  1,
-			                  PP_GRAPHICS3DATTRIB_WIDTH, MAX(0,recChangeView.size.width), PP_GRAPHICS3DATTRIB_HEIGHT, MAX(0,recChangeView.size.height),
-			                  PP_GRAPHICS3DATTRIB_NONE };
-		if (!(context3d = ppb_graphics3d_interface->Create(instance, NULL, attribs)) ||
-		    !ppb_instance_interface->BindGraphics(instance, context3d))
-		{
-			ppb_messaging_interface->PostMessage(instance, CStrToVar("NOG"));
-			ZL_LOG0("NACL", "Failed to start graphics - No OpenGL available");
-			return;
-		}
-	}
-	else if (recChangeView.size.width <= 1 && recChangeView.size.height <= 1)
+	if (!context3d && !rdysent_)
 	{
 		//during startup
-		return;
+		ppb_messaging_interface->PostMessage(instance, CStrToVar("RDY"));
+		rdysent_ = true;
 	}
-	else if (recChangeView.size.width == recView.size.width && recChangeView.size.height == recView.size.height)
-	{
-		//no resize happened
-		 if ((NACL_WindowFlags&ZL_WINDOW_FULLSCREEN?1:0) == ppb_fullscreen_interface->IsFullscreen(instance)) return;
-	}
-	else
+	else if (recView.size.width != recViewOld.size.width || recView.size.height != recViewOld.size.height)
 	{
 		//ResizeContext
-		ppb_graphics3d_interface->ResizeBuffers(context3d, recChangeView.size.width, recChangeView.size.height);
+		ppb_graphics3d_interface->ResizeBuffers(context3d, recView.size.width, recView.size.height);
 	}
-	recView = recChangeView;
-
-	//MakeContextCurrent
-	glSetCurrentContextPPAPI(context3d);
+	else if ((NACL_WindowFlags&ZL_WINDOW_FULLSCREEN?1:0) == ppb_fullscreen_interface->IsFullscreen(instance))
+	{
+		//no resize or full-screen change happened
+		return;
+	}
 
 	//read fullscreen status
 	NACL_WindowFlags = (ppb_fullscreen_interface->IsFullscreen(instance) ? (NACL_WindowFlags|ZL_WINDOW_FULLSCREEN) : (NACL_WindowFlags&~ZL_WINDOW_FULLSCREEN));
 
-	//PP_Size screensize;
-	//ZL_LOG("NACL", "Is fullscreen: %d - Is fullscreen: %d - got size: %d - size: %d x %d - recview: %d x %d", ppb_fullscreen_interface->IsFullscreen(instance), (NACL_WindowFlags & ZL_WINDOW_FULLSCREEN), ppb_fullscreen_interface->GetScreenSize(instance, &screensize), screensize.width, screensize.height, recView.size.width, recView.size.height);
+	//PP_Size screensize;ZL_LOG("NACL", "Is fullscreen: %d - Is fullscreen: %d - got size: %d - size: %d x %d - recview: %d x %d", ppb_fullscreen_interface->IsFullscreen(instance), (NACL_WindowFlags & ZL_WINDOW_FULLSCREEN), ppb_fullscreen_interface->GetScreenSize(instance, &screensize), screensize.width, screensize.height, recView.size.width, recView.size.height);
 
-	if (firstrun) ppb_messaging_interface->PostMessage(instance, CStrToVar("RDY"));
-	else if (inited_)
+	if (inited_)
 	{
 		NACL_Width = recView.size.width;
 		NACL_Height = recView.size.height;
@@ -652,10 +630,25 @@ bool ZL_CreateWindow(const char*, int width, int height, int displayflags)
 	else if (NACL_Height > 0) NACL_Width = NACL_Height*width/height;
 	else if (recView.size.width < 2 && recView.size.height < 2) NACL_Width = width, NACL_Height = height;
 	else NACL_Height = recView.size.width, NACL_Height = recView.size.height;
+	recView.size.width = NACL_Width, recView.size.height = NACL_Height;
+
+	if (!context3d)
+	{
+		//Create context
+		int32_t attribs[] = { PP_GRAPHICS3DATTRIB_ALPHA_SIZE, 0, PP_GRAPHICS3DATTRIB_DEPTH_SIZE, (displayflags & ZL_DISPLAY_DEPTHBUFFER ? 16 : 0), PP_GRAPHICS3DATTRIB_STENCIL_SIZE, 0,
+		                      PP_GRAPHICS3DATTRIB_SAMPLES, 4, PP_GRAPHICS3DATTRIB_SAMPLE_BUFFERS, 1, PP_GRAPHICS3DATTRIB_WIDTH, NACL_Width, PP_GRAPHICS3DATTRIB_HEIGHT, NACL_Height, PP_GRAPHICS3DATTRIB_NONE };
+		if (!(context3d = ppb_graphics3d_interface->Create(instance_, NULL, attribs)) || !ppb_instance_interface->BindGraphics(instance_, context3d))
+		{
+			ZL_LOG0("NACL", "Failed to start graphics - No OpenGL available");
+			if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar("NOG"));
+			return false;
+		}
+		glSetCurrentContextPPAPI(context3d);
+	}
 
 	//WIN = Window created
 	char msgmsg[1024];
-	sprintf(msgmsg, "WIN%d,%d", (int)NACL_Width, (int)NACL_Height);
+	sprintf(msgmsg, "WIN%d,%d", NACL_Width, NACL_Height);
 	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar(msgmsg));
 
 	//PrepareOpenGL
