@@ -48,9 +48,9 @@
 #define _SDL_stdinc_h //set so compile fails without our customized SDL_stdinc.h
 
 #ifdef _MSC_VER
-#define SDL_SetError(errstr) 1
+#define SDL_SetError(errstr) -1
 #else
-#define SDL_SetError(errstr,...) 1
+#define SDL_SetError(errstr,...) -1
 #endif
 //#define SDL_SetError printf
 #define SDL_assert(a)
