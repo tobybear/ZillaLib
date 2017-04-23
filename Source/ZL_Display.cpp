@@ -1088,7 +1088,7 @@ struct ZL_Polygon_Impl : ZL_Impl
 
 	void Draw(ZL_Surface_Impl* pSurfaceImpl)
 	{
-		if (!pSurfaceImpl || !fill || !TessVerticesTexCoords) return;
+		if (!pSurfaceImpl || !fill || TessVertices.empty()) return;
 		GLushort i;
 		ZLGL_ENABLE_TEXTURE();
 		glBindTexture(GL_TEXTURE_2D, pSurfaceImpl->tex->gltexid);
@@ -1165,7 +1165,7 @@ void ZL_Polygon::Draw() const
 
 void ZL_Polygon::Draw(const ZL_Surface& surface) const
 {
-	if (impl && impl->pSurfaceImpl) impl->Draw(ZL_ImplFromOwner<ZL_Surface_Impl>(surface));
+	if (impl) impl->Draw(ZL_ImplFromOwner<ZL_Surface_Impl>(surface));
 }
 
 ZL_Surface ZL_Polygon::GetSurface() const
