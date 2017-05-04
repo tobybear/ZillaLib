@@ -44,6 +44,7 @@ struct ZL_Connection_Impl : ZL_Impl
 
 static void OpenConnectionsAdd(ZL_Connection_Impl* c)
 {
+	assert(OpenConnections || (ZL_Application::Log("NETWORK", "*** ERROR: ZL_Network::Init has not been run!"), 0));
 	ZL_MutexLock(ZL_OpenConnectionsMutex);
 	for (std::vector<ZL_Connection_Impl*>::iterator it = OpenConnections->begin(); it != OpenConnections->end(); ++it)
 		if (*it == c) goto skipadd;
@@ -596,21 +597,14 @@ ZL_Signal_v1<ZL_Packet&>& ZL_RawSocket::sigReceived() const
 
 //----------------------------------------------------------------------------------------------------------------------------------------------
 
-struct ZL_HttpConnection_Impl : ZL_Connection_Impl
+struct ZL_BasicTCPConnection_Impl : ZL_Connection_Impl
 {
 	ENetSocket socket;
-	ZL_String url;
-	std::vector<char> post_data;
-	ZL_Signal_v2<int, const ZL_String&> sigReceivedString;
-	ZL_Signal_v3<int, const char*, size_t> sigReceivedData;
-	std::vector<char> data;
-	unsigned int timeout_tick, timeout_msec;
-	bool started, first_keep_alive, cancel, dostream;
-	int http_status;
+	bool started, first_keep_alive, cancel;
 
-	ZL_HttpConnection_Impl() : socket(0), timeout_msec(10000), started(false), first_keep_alive(true), cancel(false), dostream(false), http_status(0) { }
+	ZL_BasicTCPConnection_Impl() : socket(0), started(false), first_keep_alive(true), cancel(false) { }
 
-	~ZL_HttpConnection_Impl()
+	~ZL_BasicTCPConnection_Impl()
 	{
 		ShutDown();
 		if (started && !first_keep_alive) OpenConnectionsDel(this);
@@ -624,33 +618,23 @@ struct ZL_HttpConnection_Impl : ZL_Connection_Impl
 		socket = 0;
 	}
 
+	void Connect()
+	{
+		if (started) return;
+		started = true;
+		AddRef();
+		ZL_CreateThread(&ConnectRunThread, (void*)this);
+	}
+
+	virtual bool GetHost(ZL_String& host, int& port) = 0;
+	
 	static void* ConnectRunThread(void* vimpl)
 	{
-		ZL_HttpConnection_Impl* impl = (ZL_HttpConnection_Impl*)vimpl;
-		ZL_String header, path, host;
+		ZL_BasicTCPConnection_Impl* impl = (ZL_BasicTCPConnection_Impl*)vimpl;
 		ENetSocket tmpsocket = 0;
-
-		ZL_String::size_type host_begin = impl->url.find("://");
-		if (host_begin == ZL_String::npos) host_begin = 0;
-		else if (host_begin != 4) goto done; //only support "http"
-		else host_begin += 3;
-
-		ZL_String::size_type host_end, auth_split, port_split;
-		host_end = impl->url.find("/", host_begin);
-		if (host_end == ZL_String::npos) host_end = impl->url.length();
-
-		auth_split = impl->url.find("@", host_begin);
-		if (auth_split != ZL_String::npos && auth_split < host_end) goto done; //http authentication not supported
-
-		int port;
-		port_split = impl->url.find(":", host_begin);
-		if (port_split != ZL_String::npos && port_split > host_end) port_split = ZL_String::npos;
-		port = (port_split != ZL_String::npos ? (int)ZL_String(impl->url.substr(port_split+1, host_end - port_split - 1)) : 80);
-		if (port <= 0) goto done; //port supplied was error
-
-		host = impl->url.substr(host_begin, (port_split == ZL_String::npos ? host_end : port_split) - host_begin).c_str();
-
 		ENetAddress address;
+		ZL_String host; int port; if (!impl->GetHost(host, port)) goto done;
+
 		//ZL_LOG2("NET", "Connect to host: %s - Port: %d", host.c_str(), port);
 		if (impl->cancel || impl->GetRefCount() == 1 || enet_address_set_host(&address, host.c_str()) != 0) goto done;
 
@@ -661,26 +645,6 @@ struct ZL_HttpConnection_Impl : ZL_Connection_Impl
 		//ZL_LOG0("NET", "    Socket created");
 		if (impl->cancel || impl->GetRefCount() == 1 || enet_socket_connect(tmpsocket, &address) != 0) goto done;
 
-		//ZL_LOG0("NET", "    Connected");
-		path = (host_end == impl->url.length() ? "/" : impl->url.substr(host_end));
-		ENetBuffer bs;
-		//header << "GET " << path << " HTTP/1.1\nHost: " << host << "\nUser-Agent: ZillaLib/1.0\nConnection: close\n\n";
-		header << (impl->post_data.size() ? "POST " : "GET ") << path << " HTTP/1.0\nHost: " << host << "\nUser-Agent: ZillaLib/1.0\n";
-		if (impl->post_data.size())
-		{
-			header << "Content-Length: " << ((unsigned int)impl->post_data.size()) << "\n\n";
-			size_t header_postdata_offset = header.size();
-			header.resize(header_postdata_offset + impl->post_data.size());
-			memcpy(((char*)header.c_str())+header_postdata_offset, &impl->post_data[0], impl->post_data.size());
-			bs.data = (void*)header.c_str();
-			bs.dataLength = header.size();
-		}
-		else { header << "\n"; bs.data = (void*)header.c_str(); bs.dataLength = header.size(); }
-
-		if (impl->cancel || impl->GetRefCount() == 1 || enet_socket_send(tmpsocket, NULL, &bs, 1) <= 0) goto done;
-
-		impl->timeout_tick = (impl->timeout_msec ? ZL_Application::Ticks + impl->timeout_msec : 0);
-		impl->data.clear();
 		impl->socket = tmpsocket;
 		tmpsocket = 0;
 
@@ -690,13 +654,55 @@ struct ZL_HttpConnection_Impl : ZL_Connection_Impl
 		else { OpenConnectionsAdd(impl); return NULL; }
 	}
 
-	void Connect()
+	static bool SplitUrl(const ZL_String& url, ZL_String::size_type protocol_name_length, ZL_String* out_path = NULL, ZL_String* out_host = NULL, int* out_port = NULL)
 	{
-		if (started) return;
-		if (!url.length()) return;
-		started = true;
-		AddRef();
-		ZL_CreateThread(&ConnectRunThread, (void*)this);
+		ZL_String::size_type host_begin = url.find("://");
+		if (host_begin == ZL_String::npos || host_begin != protocol_name_length) return false;
+		host_begin += 3;
+
+		ZL_String::size_type host_end = url.find("/", host_begin);
+		if (host_end == ZL_String::npos) host_end = url.length();
+
+		ZL_String::size_type auth_split = url.find("@", host_begin);
+		if (auth_split != ZL_String::npos && auth_split < host_end) { assert(false); return false; } //http authentication not supported
+
+		int port;
+		ZL_String::size_type port_split = url.find(":", host_begin);
+		if (port_split != ZL_String::npos && port_split > host_end) port_split = ZL_String::npos;
+		port = (port_split != ZL_String::npos ? atoi(url.c_str()+port_split+1) : 80);
+		if (port <= 0) return false; //port supplied was error
+
+		if (out_port) *out_port = port;
+		if (out_host) *out_host = url.substr(host_begin, (port_split == ZL_String::npos ? host_end : port_split) - host_begin);
+		if (out_path) *out_path = (host_end == url.length() ? "/" : url.substr(host_end));
+		return true;
+	}
+
+	char* GetHTTPContentStart(char* buffer, size_t length)
+	{
+		for (char *content = buffer, *end = buffer + length; content < end-2; content++)
+			if ((content[0]=='\n'&&content[1]=='\n') || (content < end-4 && content[0]=='\r'&&content[1]=='\n'&&content[2]=='\r'&&content[3]=='\n'))
+				return content + (content[0]=='\n' ? 2 : 4);
+		return NULL;
+	}
+};
+
+struct ZL_HttpConnection_Impl : ZL_BasicTCPConnection_Impl
+{
+	ZL_String url;
+	std::vector<char> post_data;
+	ZL_Signal_v2<int, const ZL_String&> sigReceivedString;
+	ZL_Signal_v3<int, const char*, size_t> sigReceivedData;
+	std::vector<char> data;
+	unsigned int timeout_tick, timeout_msec;
+	bool dostream;
+	int http_status;
+
+	ZL_HttpConnection_Impl() : timeout_msec(10000), dostream(false), http_status(0) { }
+
+	virtual bool GetHost(ZL_String& host, int& port)
+	{
+		return SplitUrl(url, 4, NULL, &host, &port); //only support "http" protocol
 	}
 
 	bool KeepAlive()
@@ -705,8 +711,30 @@ struct ZL_HttpConnection_Impl : ZL_Connection_Impl
 		{
 			bool done = (GetRefCount() == 1);
 			DelRef();
-			if (done) return false;
-			first_keep_alive = false;
+			if (socket)
+			{
+				ZL_String header, path, host;
+				if (done || !SplitUrl(url, 4, &path, &host)) return false; //only support "http" protocol
+				first_keep_alive = false;
+
+				ENetBuffer bs;
+				header << (post_data.size() ? "POST " : "GET ") << path << " HTTP/1.0\nHost: " << host << "\nUser-Agent: ZillaLib/1.0\n";
+				if (post_data.size())
+				{
+					header << "Content-Length: " << ((unsigned int)post_data.size()) << "\n\n";
+					size_t header_postdata_offset = header.size();
+					header.resize(header_postdata_offset + post_data.size());
+					memcpy(((char*)header.c_str())+header_postdata_offset, &post_data[0], post_data.size());
+					bs.data = (void*)header.c_str();
+					bs.dataLength = header.size();
+				}
+				else { header << "\n"; bs.data = (void*)header.c_str(); bs.dataLength = header.size(); }
+
+				if (enet_socket_send(socket, NULL, &bs, 1) <= 0) return false;
+
+				timeout_tick = (timeout_msec ? ZL_Application::Ticks + timeout_msec : 0);
+				data.clear();
+			}
 		}
 		if (!socket)
 		{
@@ -733,8 +761,9 @@ struct ZL_HttpConnection_Impl : ZL_Connection_Impl
 				for (status = (char*)buffer; status < (char*)buffer+rec-2; status++) if (*status == ' ') break;
 				http_status = (status < (char*)buffer+rec-2 ? atoi(status+1) : 0);
 			}
-			if (rec>0) //store data until finished
+			if (rec > 0)
 			{
+				if (timeout_msec) timeout_tick = ZL_Application::Ticks + timeout_msec; //got data, update timeout tick
 				if (dostream)
 				{
 					if (sigReceivedString.HasConnections())
@@ -744,6 +773,7 @@ struct ZL_HttpConnection_Impl : ZL_Connection_Impl
 				}
 				else
 				{
+					//store data until finished
 					data.resize(data.size()+rec);
 					memcpy(&data[data.size()-rec], buffer, rec);
 				}
@@ -753,10 +783,7 @@ struct ZL_HttpConnection_Impl : ZL_Connection_Impl
 				char* content = NULL, *end = (data.empty() ? NULL : &data[0]+data.size()), *status = NULL;
 				if (!dostream && data.size())
 				{
-					for (content = &data[0]; content < end-2; content++)
-						if ((content[0]=='\n'&&content[1]=='\n') || (content < end-4 && content[0]=='\r'&&content[1]=='\n'&&content[2]=='\r'&&content[3]=='\n'))
-						{ content += (content[0]=='\n' ? 2 : 4); break; }
-					if (content >= end) content = NULL;
+					content = GetHTTPContentStart(&data[0], data.size());
 					for (status = &data[0]; status < end-2; status++) if (*status == ' ') break;
 					http_status = atoi(status+1);
 				}
@@ -775,74 +802,176 @@ struct ZL_HttpConnection_Impl : ZL_Connection_Impl
 	}
 };
 
+struct ZL_WebSocketConnection_Impl : ZL_BasicTCPConnection_Impl
+{
+	ZL_String url;
+	bool websocket_active;
+	ZL_Signal_v1<const ZL_String&> sigReceivedText;
+	ZL_Signal_v2<const char*, size_t> sigReceivedBinary;
+	ZL_Signal_v0 sigConnected;
+	ZL_Signal_v0 sigDisconnected;
+
+	ZL_WebSocketConnection_Impl() : websocket_active(false) { }
+	
+	virtual bool GetHost(ZL_String& host, int& port)
+	{
+		return SplitUrl(url, 2, NULL, &host, &port); //only support "ws" protocol
+	}
+
+	void Disconnect(unsigned short code, const char* buf, size_t len)
+	{
+		code = ENET_HOST_TO_NET_16(code);
+		if (socket && len)
+		{
+			unsigned short* sendbuf = (unsigned short*)malloc(2 + len); sendbuf[0] = code; memcpy(sendbuf+1, buf, len);
+			Send(OPCODE_CONNECTIONCLOSE, sendbuf, 2 + len);
+			free(sendbuf);
+		}
+		else if (socket) Send(OPCODE_CONNECTIONCLOSE, &code, 2);
+		ShutDown();
+	}
+
+	bool KeepAlive()
+	{
+		if (first_keep_alive)
+		{
+			bool done = (GetRefCount() == 1);
+			DelRef();
+			if (socket)
+			{
+				ZL_String header, path, host;
+				if (done || !SplitUrl(url, 2, &path, &host)) return false; //only support "ws" protocol
+				first_keep_alive = false;
+
+				ENetBuffer bs;
+				header << "GET " << path << " HTTP/1.1\r\nHost: " << host << "\r\nUser-Agent: ZillaLib/1.0\r\nSec-WebSocket-Version: 13\r\n"
+					"Origin: null\r\nSec-WebSocket-Key: YPersQl07qSADJGSpuu5jw==\r\nConnection: keep-alive, Upgrade\r\nPragma: no-cache\r\nCache-Control: no-cache\r\nUpgrade: websocket\r\n\r\n";
+				bs.data = (void*)header.c_str(); bs.dataLength = header.size();
+				if (enet_socket_send(socket, NULL, &bs, 1) <= 0) return false;
+			}
+		}
+		if (!socket)
+		{
+			sigDisconnected.call();
+			ShutDown();
+			return false;
+		}
+		while (1)
+		{
+			unsigned int waitCondition = ENET_SOCKET_WAIT_RECEIVE | ENET_SOCKET_WAIT_SEND;
+			if (enet_socket_wait(socket, &waitCondition, 0) != 0) return true;
+			if (!(waitCondition & ENET_SOCKET_WAIT_RECEIVE)) return true;
+
+			char bufferstack[1024], *bufferheap = NULL, *buffer = bufferstack;
+			ENetBuffer br;
+			br.data = buffer;
+			br.dataLength = 1024;
+			size_t rec = 0;
+			for (int r; (r = enet_socket_receive(socket, NULL, &br, 1)) > 0;)
+			{
+				rec += r;
+				if (r != 1024) break;
+				buffer = bufferheap = (char*)realloc(bufferheap, rec + 1024);
+				if (rec == 1024) memcpy(bufferheap, bufferstack, 1024);
+				br.data = bufferheap + rec;
+			}
+			if (rec < 2) websocket_active = false;
+			else
+			{
+				if (!websocket_active)
+				{
+					char *status = NULL;
+					for (status = (char*)buffer; status < (char*)buffer+rec-2; status++) if (*status == ' ') break;
+					int http_status = (status < (char*)buffer+rec-2 ? atoi(status+1) : 0);
+					if (http_status == 101)
+					{
+						websocket_active = true;
+						sigConnected.call();
+						if ((status = GetHTTPContentStart(buffer, rec)) != NULL) { rec -= status - buffer; buffer = status; }
+						else rec = 2; //ignore rest
+					}
+				}
+				while (websocket_active && rec >= 2)
+				{
+					unsigned char opcode = (buffer[0] & _OPCODE_BITMASK);
+					size_t headerlen = 2 + ((buffer[1]&127)==127 ? 8 : ((buffer[1]&127)==126 ? 2 : 0));
+					if (rec < headerlen) break;
+					size_t len = (headerlen == 2 ? buffer[1]&127 : (headerlen == 4 ? ENET_NET_TO_HOST_16(*(const short*)(buffer+2)) : ENET_NET_TO_HOST_32(*(unsigned int*)(buffer+6))));
+					if (rec < headerlen+len) break;
+					switch (opcode)
+					{
+						case OPCODE_TEXT:   if (sigReceivedText.HasConnections()) sigReceivedText.call(ZL_String((char*)buffer+headerlen, len)); break;
+						case OPCODE_BINARY: if (sigReceivedBinary.HasConnections()) sigReceivedBinary.call((char*)buffer+headerlen, len); break;
+						case OPCODE_PING:   Send(OPCODE_PONG, buffer+headerlen, len); break;
+						case OPCODE_CONNECTIONCLOSE: websocket_active = false; break;
+					}
+					rec -= headerlen+len;
+					buffer += headerlen+len;
+				}
+			}
+			if (bufferheap) free(bufferheap);
+			if (!websocket_active) { ShutDown(); return KeepAlive(); } //abort
+		}
+	}
+
+	enum { OPCODE_CONTINUATION = 0, OPCODE_TEXT = 1, OPCODE_BINARY = 2, OPCODE_CONNECTIONCLOSE = 8, OPCODE_PING = 9, OPCODE_PONG = 10, _OPCODE_BITMASK = 0xF };
+
+	void Send(unsigned char opcode, const void* buf, size_t len)
+	{
+		if (!socket) return;
+		unsigned char header[2 + 8 + 4] = { (unsigned char)(0x80 | opcode), 0x80 }, headerlen = 2;
+		if      (len > 0xFFFF) { headerlen += 8; header[1] |= 127; ((unsigned int*)(header+2))[0] = 0; ((unsigned int*)(header+2))[1] = ENET_HOST_TO_NET_32((unsigned int)len); }
+		else if (len >    125) { headerlen += 2; header[1] |= 126; ((unsigned short*)header)[1] = ENET_HOST_TO_NET_16((unsigned short)len); }
+		else header[1] |= len;
+		*(unsigned int*)(header+headerlen) = 0; headerlen += 4; //mask
+		ENetBuffer bs;
+		bs.data = malloc(bs.dataLength = headerlen + len);
+		memcpy(bs.data, header, headerlen);
+		memcpy((unsigned char*)bs.data+headerlen, buf, len);
+		enet_socket_send(socket, NULL, &bs, 1);
+		free(bs.data);
+	}
+
+	void SendText(const char* buf, size_t len) { Send(ZL_WebSocketConnection_Impl::OPCODE_TEXT, buf, len); }
+	void SendBinary(const void* buf, size_t len) { Send(ZL_WebSocketConnection_Impl::OPCODE_BINARY, buf, len); }
+};
+
 #else //ZL_USE_ENET
 
 bool ZL_Network::Init() { return true; }
 void ZL_Network::DeInit() { }
 
 ZL_HTTPCONNECTION_IMPL_INTERFACE
+ZL_WEBSOCKETCONNECTION_IMPL_INTERFACE
 
 #endif //ZL_USE_ENET
 
-ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_HttpConnection)
-
-ZL_HttpConnection::ZL_HttpConnection(const char *url) : impl(new ZL_HttpConnection_Impl())
-{
-	impl->url = url;
-}
-
-ZL_HttpConnection& ZL_HttpConnection::SetURL(const char *url)
-{
-	if (!impl) impl = new ZL_HttpConnection_Impl();
-	impl->url = url;
-	return *this;
-}
-
-ZL_HttpConnection& ZL_HttpConnection::SetPostData(const char *data)
-{
-	if (!impl) impl = new ZL_HttpConnection_Impl();
-	return SetPostData(data, strlen(data));
-}
-
-ZL_HttpConnection& ZL_HttpConnection::SetPostData(const void* data, size_t length)
-{
-	if (!impl) impl = new ZL_HttpConnection_Impl();
-	ZL_LOG2("HTTP", "Setting Post data to: %d bytes (currently %d bytes)", length, impl->post_data.size());
-	impl->post_data.resize(length);
-	memcpy(&impl->post_data[0], data, length);
-	return *this;
-}
-
+ZL_IMPL_OWNER_NONULLCON_IMPLEMENTATIONS(ZL_HttpConnection)
+ZL_HttpConnection::ZL_HttpConnection() : impl(new ZL_HttpConnection_Impl()) { }
+ZL_HttpConnection::ZL_HttpConnection(const char *url) : impl(new ZL_HttpConnection_Impl()) { SetURL(url); }
+ZL_HttpConnection& ZL_HttpConnection::SetURL(const char *url) { impl->url = url; return *this; }
+ZL_HttpConnection& ZL_HttpConnection::SetPostData(const char *data) { return SetPostData(data, strlen(data)); }
+ZL_HttpConnection& ZL_HttpConnection::SetPostData(const void* data, size_t length) { impl->post_data.resize(length); memcpy(&impl->post_data[0], data, length); return *this; }
 #ifndef ZL_NO_SOCKETS
-ZL_HttpConnection& ZL_HttpConnection::SetTimeout(unsigned int timeout_msec)
-{
-	if (!impl) impl = new ZL_HttpConnection_Impl();
-	impl->timeout_msec = timeout_msec;
-	return *this;
-}
+ZL_HttpConnection& ZL_HttpConnection::SetTimeout(unsigned int timeout_msec) { impl->timeout_msec = timeout_msec; return *this; }
 #endif
+ZL_HttpConnection& ZL_HttpConnection::SetDoStreamData(bool DoStreamData) { impl->dostream = DoStreamData; return *this; }
+void ZL_HttpConnection::Connect() const { if (impl->url.length()) impl->Connect(); }
+ZL_Signal_v2<int, const ZL_String&>& ZL_HttpConnection::sigReceivedString() { return impl->sigReceivedString; }
+ZL_Signal_v3<int, const char*, size_t>& ZL_HttpConnection::sigReceivedData() { return impl->sigReceivedData; }
 
-ZL_HttpConnection& ZL_HttpConnection::SetDoStreamData(bool DoStreamData)
-{
-	if (!impl) impl = new ZL_HttpConnection_Impl();
-	impl->dostream = DoStreamData;
-	return *this;
-}
-
-void ZL_HttpConnection::Connect() const
-{
-	if (!impl || !impl->url.length()) return;
-	impl->Connect();
-}
-
-ZL_Signal_v2<int, const ZL_String&>& ZL_HttpConnection::sigReceivedString()
-{
-	if (!impl) impl = new ZL_HttpConnection_Impl();
-	return impl->sigReceivedString;
-}
-
-ZL_Signal_v3<int, const char*, size_t>& ZL_HttpConnection::sigReceivedData()
-{
-	if (!impl) impl = new ZL_HttpConnection_Impl();
-	return impl->sigReceivedData;
-}
+ZL_IMPL_OWNER_NONULLCON_IMPLEMENTATIONS(ZL_WebSocketConnection)
+ZL_WebSocketConnection::ZL_WebSocketConnection() : impl(new ZL_WebSocketConnection_Impl) { }
+ZL_WebSocketConnection::ZL_WebSocketConnection(const char *url) : impl(new ZL_WebSocketConnection_Impl()) { SetURL(url); }
+ZL_WebSocketConnection& ZL_WebSocketConnection::SetURL(const char *url) { impl->url = url; return *this; }
+ZL_WebSocketConnection& ZL_WebSocketConnection::SendText(const char *data) { impl->SendText(data, strlen(data)); return *this; }
+ZL_WebSocketConnection& ZL_WebSocketConnection::SendText(const char *data, size_t length) { impl->SendText(data, length); return *this; }
+ZL_WebSocketConnection& ZL_WebSocketConnection::SendText(const ZL_String& str) { impl->SendText(str.c_str(), str.length()); return *this; }
+ZL_WebSocketConnection& ZL_WebSocketConnection::SendBinary(const void* data, size_t length) { impl->SendBinary(data, length); return *this; }
+void ZL_WebSocketConnection::Connect() const { if (impl->url.length()) impl->Connect(); }
+void ZL_WebSocketConnection::Disconnect(unsigned short code, const char *reason, size_t reason_length) const { impl->Disconnect(code, reason, reason_length); }
+bool ZL_WebSocketConnection::IsConnected() const { return impl->websocket_active; }
+ZL_Signal_v1<const ZL_String&>& ZL_WebSocketConnection::sigReceivedText() { return impl->sigReceivedText; }
+ZL_Signal_v2<const char*, size_t>& ZL_WebSocketConnection::sigReceivedBinary() { return impl->sigReceivedBinary; }
+ZL_Signal_v0& ZL_WebSocketConnection::sigConnected() { return impl->sigConnected; }
+ZL_Signal_v0& ZL_WebSocketConnection::sigDisconnected() { return impl->sigDisconnected; }

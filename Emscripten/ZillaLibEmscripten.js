@@ -25,15 +25,14 @@ var LibraryZLJS =
 	{
 		initTime: null,
 		settings_prefix: 'ZL',
-		fromutf8: function(v)
+		malloc_string: function(s)
 		{
-			var s = '';
-			for (var i = 0, sz = 1, len = v.length; i < len && v[i]; i+=sz)
-				s += String.fromCharCode(v[i] < 0xc2 ? (sz=1,v[i]) :
-					(v[i] > 0xdf && v[i] < 0xf0 ? (sz=(v[i+1] && v[i+2] ? 3 : 1),((v[i]&0x1f)<<12) + ((v[i+1]&0x7f)<<6) + (v[i+2]&0x7f)) :
-					(v[i] > 0xc1 && v[i] < 0xe0 ? (sz=(v[i+1] ? 2 : 1),((v[i]&0x3f)<<6) + (v[i+1]&0x7f)) : (sz=4,0))));
-			return s;
-		},
+			var i, s = unescape(encodeURIComponent(s));
+			var buf = _malloc(s.length+1);
+			for (i = 0; i < s.length; ++i) HEAP8[buf+i] = (s.charCodeAt(i) & 0xFF);
+			HEAP8[buf+i] = 0;
+			return buf;
+		}
 	},
 
 	ZLJS_CreateWindow__deps: ['$Browser', '$ZLJS'],
@@ -121,6 +120,9 @@ var LibraryZLJS =
 		cnvs.addEventListener('DOMMouseScroll', function(e) { _ZLFNWheel(-e.detail*40); if (mousfocs) cancelEvent(e); }, true);
 		cnvs.addEventListener('mouseover',      function(e) { if (pointerlock||fullscreen) return; mousfocs = true;  _ZLFNWindow(1,0,0); }, true);
 		cnvs.addEventListener('mouseout',       function(e) { if (pointerlock||fullscreen) return; mousfocs = false; mouse_lastx = mouse_lasty = -1; _ZLFNWindow(2,0,0); }, true);
+		cnvs.addEventListener('touchstart',     function(e) { _ZLFNMouse(0, true, mouse_lastx = mx(e.touches[0]), mouse_lasty = my(e.touches[0])); if (mousfocs) cancelEvent(e); }, true);
+		cnvs.addEventListener('touchmove',      function(e) { var x = mx(e.touches[0]), y = my(e.touches[0]); _ZLFNMove(x, y, x-mouse_lastx, y-mouse_lasty); mouse_lastx = x; mouse_lasty = y; if (mousfocs) cancelEvent(e); }, true);
+		cnvs.addEventListener('touchend',       function(e) { _ZLFNMouse(0, false, mouse_lastx, mouse_lasty); if (mousfocs) cancelEvent(e); }, true);
 		window.addEventListener('focus',        function(e) { if (e.target == window) _ZLFNWindow(3,0,0); }, true);
 		window.addEventListener('blur',         function(e) { if (e.target == window) _ZLFNWindow(4,0,0); }, true);
 
@@ -193,27 +195,44 @@ var LibraryZLJS =
 
 	ZLJS_AsyncLoad: function(url, impl, postdata, postlength)
 	{
-		url = Pointer_stringify(url);
 		var xhr = new XMLHttpRequest();
-		xhr.open((postlength ? 'POST' : 'GET'), url, true);
+		xhr.open((postlength ? 'POST' : 'GET'), Pointer_stringify(url), true);
 		xhr.responseType = 'arraybuffer';
 		xhr.onload = function()
 		{
 			if (xhr.status == 200)
 			{
-				_ZLFNHTTPLoad(impl, allocate(new Uint8Array(xhr.response), 'i8', ALLOC_STACK), xhr.response.byteLength);
+				var b = allocate(new Uint8Array(xhr.response), 'i8', ALLOC_NORMAL)
+				_ZLFNHTTP(impl, 200, b, xhr.response.byteLength);
+				_free(b);
 			}
-			else
-			{
-				_ZLFNHTTPError(impl, xhr.status);
-			}
+			else _ZLFNHTTP(impl, xhr.status, 0, 0);
 		};
 		xhr.onerror = function(event)
 		{
-			_ZLFNHTTPError(impl, xhr.status);
+			_ZLFNHTTP(impl, xhr.status, 0, 0);
 		};
 		if (postlength) try { xhr.send(HEAPU8.subarray(postdata, postdata+postlength)); } catch (e) { xhr.send(HEAPU8.buffer.slice(postdata, postdata+postlength)); }
 		else xhr.send(null);
+	},
+
+	ZLJS_Websocket__deps: ['$ZLJS'],
+	ZLJS_Websocket: function(impl, cmd, param, len)
+	{
+		if (cmd == 1) { if (ZLJS.ws) ZLJS.ws.send(Pointer_stringify(param,len)); return; }
+		if (cmd == 2) { if (ZLJS.ws) ZLJS.ws.send(HEAPU8.subarray(param, param+len)); return; }
+		if (cmd >= 3) { ZLJS.ws.close(cmd-3, len?Pointer_stringify(param,len):undefined); ZLJS.ws = undefined; return; }
+		var w = new WebSocket(Pointer_stringify(param));
+		w.binaryType = 'arraybuffer';
+		w.onopen = function() { _ZLFNWebSocket(impl, 1); }
+		w.onmessage = function (evt)
+		{
+			var s = typeof evt.data === 'string', v = s ? evt.data : new Uint8Array(evt.data), b = s ? ZLJS.malloc_string(v) : allocate(v, 'i8', ALLOC_NORMAL);
+			_ZLFNWebSocket(impl, s ? 2 : 3, b, v.length);
+			_free(b);
+		}
+		w.onclose = function() { _ZLFNWebSocket(impl, 0); ZLJS.ws = undefined; }
+		ZLJS.ws = w;
 	},
 
 	ZLJS_StartAudio: function()
@@ -287,51 +306,43 @@ var LibraryZLJS =
 	},
 
 	ZLJS_OpenExternalUrl__deps: ['$ZLJS'],
-	ZLJS_OpenExternalUrl: function(url, urllen)
+	ZLJS_OpenExternalUrl: function(url)
 	{
-		url = ZLJS.fromutf8(HEAPU8.subarray(url, url+urllen));
+		url = Pointer_stringify(url);
 		if (Module['openUrl']) Module['openUrl'](url);
 		else window.open(url, '_newtab');
 	},
 
 	ZLJS_SettingsInit__deps: ['$ZLJS'],
-	ZLJS_SettingsInit: function(prefix, prefixlen)
+	ZLJS_SettingsInit: function(prefix)
 	{
-		ZLJS.settings_prefix = (Module['settingsPrefix'] ? Module['settingsPrefix'] : ZLJS.fromutf8(HEAPU8.subarray(prefix, prefix+prefixlen)));
+		ZLJS.settings_prefix = (Module['settingsPrefix'] ? Module['settingsPrefix'] : Pointer_stringify(prefix));
 	},
 
 	ZLJS_SettingsSet__deps: ['$ZLJS'],
-	ZLJS_SettingsSet: function(key, keylen, val, vallen)
+	ZLJS_SettingsSet: function(key, val)
 	{
-		key = ZLJS.fromutf8(HEAPU8.subarray(key, key+keylen));
-		val = ZLJS.fromutf8(HEAPU8.subarray(val, val+vallen));
-		if (localStorage) localStorage[ZLJS.settings_prefix +' '+key] = val;
+		if (localStorage) localStorage[ZLJS.settings_prefix +' '+Pointer_stringify(key)] = Pointer_stringify(val);
 	},
 
 	ZLJS_SettingsDel__deps: ['$ZLJS'],
-	ZLJS_SettingsDel: function(key, keylen)
+	ZLJS_SettingsDel: function(key)
 	{
-		key = ZLJS.fromutf8(HEAPU8.subarray(key, key+keylen));
-		if (localStorage) localStorage.removeItem(ZLJS.settings_prefix +' '+key);
+		if (localStorage) localStorage.removeItem(ZLJS.settings_prefix +' '+Pointer_stringify(key));
 	},
 
 	ZLJS_SettingsHas__deps: ['$ZLJS'],
-	ZLJS_SettingsHas: function(key, keylen)
+	ZLJS_SettingsHas: function(key)
 	{
-		key = ZLJS.fromutf8(HEAPU8.subarray(key, key+keylen));
-		return (localStorage && localStorage[ZLJS.settings_prefix +' '+key] !== undefined);
+		return (localStorage && localStorage[ZLJS.settings_prefix +' '+Pointer_stringify(key)] !== undefined);
 	},
 
 	ZLJS_SettingsGetMalloc__deps: ['$ZLJS'],
-	ZLJS_SettingsGetMalloc: function(key, keylen)
+	ZLJS_SettingsGetMalloc: function(key)
 	{
-		key = ZLJS.fromutf8(HEAPU8.subarray(key, key+keylen));
+		key = Pointer_stringify(key);
 		if (!localStorage || localStorage[ZLJS.settings_prefix +' '+key] === undefined) { return 0; }
-		var i, s = unescape(encodeURIComponent(localStorage[ZLJS.settings_prefix +' '+key]));
-		var buf = _malloc(s.length+1);
-		for (i = 0; i < s.length; ++i) HEAP8[buf+i] = (s.charCodeAt(i) & 0xFF);
-		HEAP8[buf+i] = 0;
-		return buf;
+		return ZLJS.malloc_string(localStorage[ZLJS.settings_prefix +' '+key]);
 	},
 };
 

@@ -46,7 +46,6 @@
 
 #include "ppapi/c/pp_errors.h"
 #include "ppapi/c/pp_module.h"
-#include "ppapi/c/pp_var.h"
 #include "ppapi/c/pp_graphics_3d.h"
 
 #include "ppapi/c/ppp.h"
@@ -59,6 +58,7 @@
 #include "ppapi/c/ppb_instance.h"
 #include "ppapi/c/ppb_messaging.h"
 #include "ppapi/c/ppb_var.h"
+#include "ppapi/c/ppb_var_array_buffer.h"
 #include "ppapi/c/ppb_core.h"
 #include "ppapi/c/ppb_audio.h"
 #include "ppapi/c/ppb_audio_config.h"
@@ -70,6 +70,7 @@
 #include <ppapi/c/ppb_input_event.h>
 #include <ppapi/c/ppb_fullscreen.h>
 #include <ppapi/c/ppb_mouse_lock.h>
+#include <ppapi/c/ppb_websocket.h>
 
 #include <GLES2/gl2.h>
 #include <ppapi/gles2/gl2ext_ppapi.h>
@@ -91,6 +92,8 @@ static PPB_WheelInputEvent*    ppb_wheelinputevent_interface = NULL;
 static PPB_KeyboardInputEvent* ppb_keyboardinputevent_interface = NULL;
 static PPB_Fullscreen*         ppb_fullscreen_interface = NULL;
 static PPB_MouseLock*          ppb_mouselock_interface = NULL;
+static PPB_WebSocket*          ppb_websocket_interface = NULL;
+static PPB_VarArrayBuffer*     ppb_vararraybuffer_interface = NULL;
 
 static PP_Resource context3d = 0;
 static bool gl_tpf_flush_pending = false;
@@ -107,11 +110,7 @@ static std::vector<char> vecUrlLoaderBuf;
 
 static void ZL_WindowEvent(unsigned char event, int data1 = 0, int data2 = 0);
 
-static struct PP_Var CStrToVar(const char* str)
-{
-	if (ppb_var_interface != NULL) { return ppb_var_interface->VarFromUtf8(str, strlen(str)); }
-	return PP_MakeUndefined();
-}
+static struct PP_Var ZLStrToVar(const ZL_String& str) { return ppb_var_interface->VarFromUtf8(str, str.length()); }
 
 void swapbuffer_tpf_callback(void*, int32_t)
 {
@@ -153,8 +152,8 @@ void PacketLoader_Read_Callback(void* urlloader, int32_t result)
 		{
 			//PKP = Package Progress
 			char msgmsg[1024];
-			sprintf(msgmsg, "PKP%d/%d", (int)bytes_received, (int)total_bytes_to_be_received);
-			if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar(msgmsg));
+			uint32_t msgmsglen = sprintf(msgmsg, "PKP%d/%d", (int)bytes_received, (int)total_bytes_to_be_received);
+			if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, ppb_var_interface->VarFromUtf8(msgmsg, msgmsglen));
 		}
 
 		vecUrlLoaderBuf.resize(vecUrlLoaderBuf.size() + URLLOAD_BUFSIZE);
@@ -224,14 +223,14 @@ void PacketLoader_Read_Callback(void* urlloader, int32_t result)
 	if (status != 200)
 	{
 		//PKE = Package Error
-		if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar("PKE"));
+		if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, ppb_var_interface->VarFromUtf8("PKE", 3));
 		return;
 	}
 
 	ZL_File::DefaultReadFileContainer = ZL_FileContainer_ZIP(ZL_File((void*)(vecUrlLoaderBuf.empty() ? NULL : &vecUrlLoaderBuf[0]), vecUrlLoaderBuf.size()));
 
 	//PKP = Package Done
-	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar("PKD"));
+	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, ppb_var_interface->VarFromUtf8("PKD", 3));
 }
 
 void PackageLoader_Open_Callback(void* urlloader, int32_t result)
@@ -239,7 +238,7 @@ void PackageLoader_Open_Callback(void* urlloader, int32_t result)
 	if (result != PP_OK)
 	{
 		//PKE = Package Error
-		if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar("PKE"));
+		if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, ppb_var_interface->VarFromUtf8("PKE", 3));
 		ppb_urlloader_interface->Close((PP_Resource)urlloader);
 		return;
 	}
@@ -265,7 +264,7 @@ static void HandleMessage(PP_Instance instance, PP_Var msg)
 		ZL_LOG1("PKG", "Requesting package: [%s]", url.c_str());
 		PP_Resource urlloader = ppb_urlloader_interface->Create(instance);
 		PP_Resource urlrequestinfo = ppb_urlrequestinfo_interface->Create(instance);
-		ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_URL, CStrToVar(url.c_str()));
+		ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_URL, ZLStrToVar(url));
 		ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_RECORDDOWNLOADPROGRESS, PP_MakeBool(PP_TRUE));
 
 		const PP_CompletionCallback cc = { &PackageLoader_Open_Callback, (void*)urlloader, 0 };
@@ -332,7 +331,7 @@ static void Instance_DidChangeView(PP_Instance instance, PP_Resource view_resour
 	if (!context3d && !rdysent_)
 	{
 		//during startup
-		ppb_messaging_interface->PostMessage(instance, CStrToVar("RDY"));
+		ppb_messaging_interface->PostMessage(instance, ppb_var_interface->VarFromUtf8("RDY", 3));
 		rdysent_ = true;
 	}
 	else if (recView.size.width != recViewOld.size.width || recView.size.height != recViewOld.size.height)
@@ -530,6 +529,8 @@ PP_EXPORT int32_t PPP_InitializeModule(PP_Module /*a_module_id*/, PPB_GetInterfa
 	ppb_keyboardinputevent_interface = (PPB_KeyboardInputEvent*)(get_browser(PPB_KEYBOARD_INPUT_EVENT_INTERFACE));
 	ppb_fullscreen_interface =                 (PPB_Fullscreen*)(get_browser(PPB_FULLSCREEN_INTERFACE));
 	ppb_mouselock_interface =                   (PPB_MouseLock*)(get_browser(PPB_MOUSELOCK_INTERFACE));
+	ppb_websocket_interface =                   (PPB_WebSocket*)(get_browser(PPB_WEBSOCKET_INTERFACE));
+	ppb_vararraybuffer_interface =         (PPB_VarArrayBuffer*)(get_browser(PPB_VAR_ARRAY_BUFFER_INTERFACE));
 	if (glInitializePPAPI(get_browser) != GL_TRUE) return PP_ERROR_NOTSUPPORTED;
 	return PP_OK;
 }
@@ -594,8 +595,8 @@ void __nacl_log(const char* logtag, const char* logtext)
 {
 	if (!ppb_core_interface || !ppb_messaging_interface) return;
 	char loglog[1024];
-	sprintf(loglog, "LOG[%s] %s", logtag, logtext);
-	PP_Var ppmsg = CStrToVar(loglog);
+	uint32_t logloglen = snprintf(loglog, 1024, "LOG[%s] %s", logtag, logtext);
+	PP_Var ppmsg = ppb_var_interface->VarFromUtf8(loglog, logloglen);
 	if (ppb_core_interface->IsMainThread())
 	{
 		ppb_messaging_interface->PostMessage(instance_, ppmsg);
@@ -640,7 +641,7 @@ bool ZL_CreateWindow(const char*, int width, int height, int displayflags)
 		if (!(context3d = ppb_graphics3d_interface->Create(instance_, NULL, attribs)) || !ppb_instance_interface->BindGraphics(instance_, context3d))
 		{
 			ZL_LOG0("NACL", "Failed to start graphics - No OpenGL available");
-			if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar("NOG"));
+			if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, ppb_var_interface->VarFromUtf8("NOG", 3));
 			return false;
 		}
 		glSetCurrentContextPPAPI(context3d);
@@ -648,8 +649,8 @@ bool ZL_CreateWindow(const char*, int width, int height, int displayflags)
 
 	//WIN = Window created
 	char msgmsg[1024];
-	sprintf(msgmsg, "WIN%d,%d", NACL_Width, NACL_Height);
-	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar(msgmsg));
+	uint32_t msgmsglen = sprintf(msgmsg, "WIN%d,%d", NACL_Width, NACL_Height);
+	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, ppb_var_interface->VarFromUtf8(msgmsg, msgmsglen));
 
 	//PrepareOpenGL
 	ZLGLSL::CreateShaders();
@@ -718,13 +719,13 @@ bool ZL_AudioOpen()
 
 void ZL_OpenExternalUrl(const char* url)
 {
-	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar((ZL_String("URL") << url).c_str()));
+	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, ZLStrToVar(ZL_String("URL") << url));
 }
 
 //settings
 void ZL_SettingsInit(const char* FallbackConfigFilePrefix)
 {
-	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar((ZL_String("GET") << FallbackConfigFilePrefix).c_str()));
+	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, ZLStrToVar(ZL_String("GET") << FallbackConfigFilePrefix));
 }
 
 const ZL_String ZL_SettingsGet(const char* Key)
@@ -736,14 +737,14 @@ const ZL_String ZL_SettingsGet(const char* Key)
 void ZL_SettingsSet(const char* Key, const ZL_String& Value)
 {
 	ZL_String strKey(Key);
-	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar((ZL_String("SET") << strKey.length() << ' ' << strKey << Value).c_str()));
+	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, ZLStrToVar(ZL_String("SET") << strKey.length() << ' ' << strKey << Value));
 	settings[strKey] = Value;
 }
 
 void ZL_SettingsDel(const char* Key)
 {
 	if (!settings.count(Key)) return;
-	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, CStrToVar((ZL_String("DEL") << Key).c_str()));
+	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, ZLStrToVar(ZL_String("DEL") << Key));
 	settings.erase(Key);
 }
 
@@ -758,98 +759,156 @@ void ZL_SettingsSynchronize()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct ZL_HttpConnection_Handle
-{
-	int nacl_handle; std::vector<char> data;
-};
-
 ZL_HTTPCONNECTION_IMPL_INTERFACE
 
-ZL_HttpConnection_Impl::ZL_HttpConnection_Impl() : handle(NULL), dostream(false) { }
-void ZL_HttpConnection_Impl::Disconnect()
+ZL_HttpConnection_Impl::ZL_HttpConnection_Impl() : dostream(false), urlloader(0) { }
+void ZL_HttpConnection_Disconnect(ZL_HttpConnection_Impl *impl)
 {
-	if (!handle || ! ((ZL_HttpConnection_Handle*)handle)->nacl_handle) return;
-	ppb_urlloader_interface->Close((PP_Resource)((ZL_HttpConnection_Handle*)handle)->nacl_handle);
-	delete (ZL_HttpConnection_Handle*)handle;
-	handle = NULL;
-	DelRef();
+	if (!impl->urlloader) return;
+	ppb_urlloader_interface->Close(impl->urlloader);
+	impl->urlloader = 0;
+	impl->DelRef();
 }
 void ZL_HttpConnection_Read_Callback(void* vimpl, int32_t result)
 {
 	ZL_HttpConnection_Impl *impl = (ZL_HttpConnection_Impl*)vimpl;
-	if (!impl || !impl->handle) return;
-	ZL_HttpConnection_Handle *implh = (ZL_HttpConnection_Handle*)impl->handle;
+	if (!impl || !impl->urlloader) return;
 	//ZL_LOG2("NACL", "ZL_HttpConnection_Read_Callback: %d - dostream: %d", result, impl->dostream);
 
-	int32_t status = ppb_urlresponseinfo_interface->GetProperty(ppb_urlloader_interface->GetResponseInfo((PP_Resource)implh->nacl_handle), PP_URLRESPONSEPROPERTY_STATUSCODE).value.as_int;
+	int32_t status = ppb_urlresponseinfo_interface->GetProperty(ppb_urlloader_interface->GetResponseInfo(impl->urlloader), PP_URLRESPONSEPROPERTY_STATUSCODE).value.as_int;
 
 	if (!impl->dostream)
 	{
 		int64_t bytes_received, total_bytes_to_be_received;
-		ppb_urlloader_interface->GetDownloadProgress((PP_Resource)implh->nacl_handle, &bytes_received, &total_bytes_to_be_received);
-		if (total_bytes_to_be_received > 0 && implh->data.capacity() < (size_t)total_bytes_to_be_received) implh->data.reserve((size_t)total_bytes_to_be_received);
+		ppb_urlloader_interface->GetDownloadProgress(impl->urlloader, &bytes_received, &total_bytes_to_be_received);
+		if (total_bytes_to_be_received > 0 && impl->data.capacity() < (size_t)total_bytes_to_be_received) impl->data.reserve((size_t)total_bytes_to_be_received);
 
-		if (result != URLLOAD_BUFSIZE) implh->data.resize(implh->data.size() - URLLOAD_BUFSIZE + (result > 0 ? result : 0));
+		if (result != URLLOAD_BUFSIZE) impl->data.resize(impl->data.size() - URLLOAD_BUFSIZE + (result > 0 ? result : 0));
 	}
 
 	if (impl->dostream && result > 0)
 	{
-		if (impl->sigReceivedString.HasConnections()) impl->sigReceivedString.call(status, ZL_String(&implh->data[0], (size_t)result));
-		if (impl->sigReceivedData.HasConnections())   impl->sigReceivedData.call(status, &implh->data[0], (size_t)result);
+		if (impl->sigReceivedString.HasConnections()) impl->sigReceivedString.call(status, ZL_String(&impl->data[0], (size_t)result));
+		if (impl->sigReceivedData.HasConnections())   impl->sigReceivedData.call(status, &impl->data[0], (size_t)result);
 	}
 
 	if (result > 0)
 	{
-		if (!impl->dostream) implh->data.resize(implh->data.size() + URLLOAD_BUFSIZE);
+		if (!impl->dostream) impl->data.resize(impl->data.size() + URLLOAD_BUFSIZE);
 		const PP_CompletionCallback cc = { &ZL_HttpConnection_Read_Callback, vimpl, 0 };
-		ppb_urlloader_interface->ReadResponseBody((PP_Resource)implh->nacl_handle, &implh->data[implh->data.size() - URLLOAD_BUFSIZE], URLLOAD_BUFSIZE, cc);
+		ppb_urlloader_interface->ReadResponseBody(impl->urlloader, &impl->data[impl->data.size() - URLLOAD_BUFSIZE], URLLOAD_BUFSIZE, cc);
 		return;
 	}
 
-	if (impl->dostream) implh->data.clear(); //just send a 0 byte length final termination packet
+	if (impl->dostream) impl->data.clear(); //just send a 0 byte length final termination packet
 
-	if (impl->sigReceivedString.HasConnections()) impl->sigReceivedString.call(status, (implh->data.empty() ? ZL_String::EmptyString : ZL_String(&implh->data[0], implh->data.size())));
-	if (impl->sigReceivedData.HasConnections())   impl->sigReceivedData.call(status, (implh->data.empty() ? NULL : &implh->data[0]), implh->data.size());
-	impl->Disconnect();
+	if (impl->sigReceivedString.HasConnections()) impl->sigReceivedString.call(status, (impl->data.empty() ? ZL_String::EmptyString : ZL_String(&impl->data[0], impl->data.size())));
+	if (impl->sigReceivedData.HasConnections())   impl->sigReceivedData.call(status, (impl->data.empty() ? NULL : &impl->data[0]), impl->data.size());
+	ZL_HttpConnection_Disconnect(impl);
 }
 void ZL_HttpConnection_Open_Callback(void* vimpl, int32_t result)
 {
 	ZL_HttpConnection_Impl *impl = (ZL_HttpConnection_Impl*)vimpl;
-	ZL_HttpConnection_Handle *implh = (ZL_HttpConnection_Handle*)impl->handle;
 	//ZL_LOG1("NACL", "ZL_HttpConnection_Open_Callback: %d", result);
 	if (result != PP_OK)
 	{
 		impl->sigReceivedString.call(result, ZL_String::EmptyString);
 		impl->sigReceivedData.call(result, NULL, 0);
-		impl->Disconnect();
+		ZL_HttpConnection_Disconnect(impl);
 		return;
 	}
 	int64_t bytes_received, total_bytes_to_be_received;
-	ppb_urlloader_interface->GetDownloadProgress((PP_Resource)implh->nacl_handle, &bytes_received, &total_bytes_to_be_received);
-	if (total_bytes_to_be_received > 0) implh->data.reserve((size_t)total_bytes_to_be_received);
-	implh->data.resize(URLLOAD_BUFSIZE);
+	ppb_urlloader_interface->GetDownloadProgress(impl->urlloader, &bytes_received, &total_bytes_to_be_received);
+	if (total_bytes_to_be_received > 0) impl->data.reserve((size_t)total_bytes_to_be_received);
+	impl->data.resize(URLLOAD_BUFSIZE);
 	const PP_CompletionCallback cc = { &ZL_HttpConnection_Read_Callback, vimpl, 0 };
-	ppb_urlloader_interface->ReadResponseBody((PP_Resource)implh->nacl_handle, &implh->data[0], URLLOAD_BUFSIZE, cc);
+	ppb_urlloader_interface->ReadResponseBody(impl->urlloader, &impl->data[0], URLLOAD_BUFSIZE, cc);
 }
 void ZL_HttpConnection_Impl::Connect()
 {
 	if (!url.length()) return;
-	PP_Resource urlloader = ppb_urlloader_interface->Create(instance_);
+	urlloader = ppb_urlloader_interface->Create(instance_);
 	PP_Resource urlrequestinfo = ppb_urlrequestinfo_interface->Create(instance_);
-	ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_URL, CStrToVar(url.c_str()));
+	ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_URL, ZLStrToVar(url));
 	ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_ALLOWCROSSORIGINREQUESTS, PP_MakeBool(PP_TRUE));
 	ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_RECORDDOWNLOADPROGRESS, PP_MakeBool(PP_TRUE));
 	if (post_data.size())
 	{
-		ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_METHOD, CStrToVar("POST"));
+		ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_METHOD, ppb_var_interface->VarFromUtf8("POST", 4));
 		ppb_urlrequestinfo_interface->AppendDataToBody(urlrequestinfo, &post_data[0], post_data.size());
 	}
-	ZL_LOG3("NACL", "Loading URL: %s (DoStream: %d - Post data: %d bytes)", url.c_str(), dostream, post_data.size());
+	//ZL_LOG3("NACL", "Loading URL: %s (DoStream: %d - Post data: %d bytes)", url.c_str(), dostream, post_data.size());
 	AddRef();
-	handle = new ZL_HttpConnection_Handle();
-	((ZL_HttpConnection_Handle*)handle)->nacl_handle = urlloader;
 	const PP_CompletionCallback cc = { &ZL_HttpConnection_Open_Callback, (void*)this, 0 };
 	if (ppb_urlloader_interface->Open(urlloader, urlrequestinfo, cc) != PP_OK_COMPLETIONPENDING) ZL_HttpConnection_Open_Callback(cc.user_data, -1);
+}
+
+ZL_WEBSOCKETCONNECTION_IMPL_INTERFACE
+ZL_WebSocketConnection_Impl::ZL_WebSocketConnection_Impl() : websocket_active(false) { }
+void ZL_WebSocketConnection_Impl::Connect()
+{
+	struct ZL_WebSocket_Callbacks
+	{
+		static void OnConnect(ZL_WebSocketConnection_Impl* impl, int32_t result)
+		{
+			//ZL_LOG("NACLWSC", "ONCONNECT - WS: %d - RESULT: %d - READYSTATE: %d", impl->websocket, result, (int32_t)ppb_websocket_interface->GetReadyState(impl->websocket));
+			if (result < 0) { impl->Disconnect(PP_WEBSOCKETSTATUSCODE_ABNORMAL_CLOSURE, NULL, 0); return; }
+			impl->websocket_active = true;
+			impl->sigConnected.call();
+			if (ppb_websocket_interface->ReceiveMessage(impl->websocket, &impl->data, PP_MakeCompletionCallback((PP_CompletionCallback_Func)&OnReceiveMessage, impl)) == PP_OK)
+				OnReceiveMessage(impl, PP_OK);
+		}
+		static void OnReceiveMessage(ZL_WebSocketConnection_Impl* impl, int32_t result)
+		{
+			//ZL_LOG("NACLWSC", "ONRECEIVE - WS: %d - RESULT: %d - READYSTATE: %d - BUFFER: %d", impl->websocket, result, (int32_t)ppb_websocket_interface->GetReadyState(impl->websocket), (int32_t)ppb_websocket_interface->GetBufferedAmount(impl->websocket));
+			if (result < 0) { impl->Disconnect(PP_WEBSOCKETSTATUSCODE_ABNORMAL_CLOSURE, NULL, 0); return; }
+			HandleMessage(impl);
+			const PP_CompletionCallback cc = PP_MakeCompletionCallback((PP_CompletionCallback_Func)&OnReceiveMessage, (void*)impl);
+			while (ppb_websocket_interface->ReceiveMessage(impl->websocket, &impl->data, cc) == PP_OK) HandleMessage(impl);
+		}
+		static void HandleMessage(ZL_WebSocketConnection_Impl* impl)
+		{
+			//ZL_LOG("NACLWSC", "HANDLEMESSAGE - WS: %d - VALUE_ID: %d - READYSTATE: %d", impl->websocket, (int32_t)impl->data.value.as_id, (int32_t)ppb_websocket_interface->GetReadyState(impl->websocket));
+			if (!impl->data.value.as_id) return;
+			if (impl->data.type == PP_VARTYPE_STRING) 
+			{
+				uint32_t length;
+				const char* data = ppb_var_interface->VarToUtf8(impl->data, &length);
+				impl->sigReceivedText.call(ZL_String(data, length));
+			}
+			else if (impl->data.type == PP_VARTYPE_ARRAY_BUFFER)
+			{
+				uint32_t length;
+				ppb_vararraybuffer_interface->ByteLength(impl->data, &length);
+				const char* data = (const char*)ppb_vararraybuffer_interface->Map(impl->data);
+				impl->sigReceivedBinary.call(data, length);
+			}
+			ppb_var_interface->Release(impl->data);
+		}
+	};
+	websocket = ppb_websocket_interface->Create(instance_);
+	ppb_websocket_interface->Connect(websocket, ZLStrToVar(url), NULL, 0, PP_MakeCompletionCallback((PP_CompletionCallback_Func)&ZL_WebSocket_Callbacks::OnConnect, this));
+}
+void ZL_WebSocketConnection_Impl::SendText(const char* buf, size_t len)
+{
+	if (!websocket) return;
+	ppb_websocket_interface->SendMessage(websocket, ppb_var_interface->VarFromUtf8(buf, len));
+}
+void ZL_WebSocketConnection_Impl::SendBinary(const void* buf, size_t len)
+{
+	if (!websocket) return;
+	PP_Var v = ppb_vararraybuffer_interface->Create(len);
+	memcpy(ppb_vararraybuffer_interface->Map(v), buf, len);
+	ppb_websocket_interface->SendMessage(websocket, v);
+}
+void ZL_WebSocketConnection_Impl::Disconnect(unsigned short code, const char* buf, size_t len)
+{
+	if (!websocket) return;
+	struct ZL_WebSocket_Callbacks { static void OnDisconnect(void*, int32_t) {} };
+	ppb_websocket_interface->Close(websocket, code, (buf ? ppb_var_interface->VarFromUtf8(buf, len) : PP_MakeUndefined()), PP_MakeCompletionCallback(&ZL_WebSocket_Callbacks::OnDisconnect, NULL));
+	websocket = 0;
+	websocket_active = false;
+	sigDisconnected.call();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////

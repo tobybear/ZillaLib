@@ -24,6 +24,8 @@
 
 #include "ZL_PlatformPosix.h"
 #include <GLES2/gl2.h>
+#include "ppapi/c/pp_resource.h"
+#include "ppapi/c/pp_var.h"
 
 #ifdef __cplusplus
 
@@ -33,6 +35,10 @@
 //Display
 void ZL_SetFullscreen(bool toFullscreen);
 void ZL_SetPointerLock(bool doLockPointer);
+
+//web network interfaces some platforms without sockets have to implement
+#define ZL_HTTPCONNECTION_PLATFORM PP_Resource urlloader; std::vector<char> data;
+#define ZL_WEBSOCKETCONNECTION_PLATFORM PP_Resource websocket; PP_Var data;
 
 //platform specific
 #define vsnprintf __builtin_vsnprintf

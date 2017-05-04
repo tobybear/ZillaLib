@@ -74,12 +74,23 @@ void ZL_JoystickHandleClose(ZL_JoystickData* joystick);
 //Audio
 bool ZL_AudioOpen();
 
-//HTTP network Interface some platforms without sockets have to implement
+//web network interfaces some platforms without sockets have to implement
+#ifndef ZL_HTTPCONNECTION_PLATFORM
+#define ZL_HTTPCONNECTION_PLATFORM
+#endif
 #define ZL_HTTPCONNECTION_IMPL_INTERFACE struct ZL_HttpConnection_Impl : ZL_Impl { \
-	ZL_String url; std::vector<char> post_data; void* handle; unsigned int timeout_msec; bool dostream; \
+	ZL_String url; std::vector<char> post_data; unsigned int timeout_msec; bool dostream; \
 	ZL_Signal_v2<int, const ZL_String&> sigReceivedString; \
 	ZL_Signal_v3<int, const char*, size_t> sigReceivedData; \
-	ZL_HttpConnection_Impl(); void Disconnect(); void Connect(); };
+	ZL_HttpConnection_Impl(); void Connect(); ZL_HTTPCONNECTION_PLATFORM };
+#ifndef ZL_WEBSOCKETCONNECTION_PLATFORM
+#define ZL_WEBSOCKETCONNECTION_PLATFORM
+#endif
+#define ZL_WEBSOCKETCONNECTION_IMPL_INTERFACE struct ZL_WebSocketConnection_Impl : ZL_Impl { ZL_String url; bool websocket_active; \
+	ZL_Signal_v1<const ZL_String&> sigReceivedText; \
+	ZL_Signal_v2<const char*, size_t> sigReceivedBinary; \
+	ZL_Signal_v0 sigConnected; ZL_Signal_v0 sigDisconnected; \
+	ZL_WebSocketConnection_Impl(); void Connect(); void SendText(const char* buf, size_t len); void SendBinary(const void* buf, size_t len); void Disconnect(unsigned short code, const char* buf, size_t len); ZL_WEBSOCKETCONNECTION_PLATFORM };
 
 //forward declaration of stuff that is used globally around the library code
 struct ZL_File_Impl;

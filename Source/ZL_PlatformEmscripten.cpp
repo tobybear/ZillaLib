@@ -35,7 +35,6 @@
 #include <unistd.h>
 #include <assert.h>
 
-struct ZL_HttpConnection_Impl;
 extern "C" {
 extern void ZLJS_CreateWindow(int width, int height, unsigned int tpf_limit);
 extern int ZLJS_GetWidth();
@@ -43,14 +42,15 @@ extern int ZLJS_GetHeight();
 extern void ZLJS_SetFullscreen(int flag);
 extern void ZLJS_SetPointerLock(int flag);
 extern unsigned int ZLJS_GetTime();
-extern void ZLJS_AsyncLoad(const char* url, ZL_HttpConnection_Impl*, char* postdata, size_t postlength);
+extern void ZLJS_AsyncLoad(const char* url, struct ZL_HttpConnection_Impl*, char* postdata, size_t postlength);
 extern void ZLJS_StartAudio();
-extern void ZLJS_OpenExternalUrl(const char* url, size_t urllen);
-extern void ZLJS_SettingsInit(const char* prefix, size_t prefixlen);
-extern void ZLJS_SettingsSet(const char* key, size_t keylen, const char* val, size_t vallen);
-extern void ZLJS_SettingsDel(const char* key, size_t keylen);
-extern bool ZLJS_SettingsHas(const char* key, size_t keylen);
-extern char* ZLJS_SettingsGetMalloc(const char* key, size_t keylen);
+extern void ZLJS_OpenExternalUrl(const char* url);
+extern void ZLJS_SettingsInit(const char* prefix);
+extern void ZLJS_SettingsSet(const char* key, const char* val);
+extern void ZLJS_SettingsDel(const char* key);
+extern bool ZLJS_SettingsHas(const char* key);
+extern char* ZLJS_SettingsGetMalloc(const char* key);
+extern void ZLJS_Websocket(struct ZL_WebSocketConnection_Impl* impl, int cmd, const void* param, size_t len = 0);
 };
 
 static void ZL_WindowEvent(unsigned char event, int data1 = 0, int data2 = 0);
@@ -240,18 +240,18 @@ bool ZL_AudioOpen()
 // MISC
 void ZL_OpenExternalUrl(const char* url)
 {
-	ZLJS_OpenExternalUrl(url, strlen(url));
+	ZLJS_OpenExternalUrl(url);
 }
 
 // SETTINGS
 void ZL_SettingsInit(const char* FallbackConfigFilePrefix)
 {
-	ZLJS_SettingsInit(FallbackConfigFilePrefix, strlen(FallbackConfigFilePrefix));
+	ZLJS_SettingsInit(FallbackConfigFilePrefix);
 }
 
 const ZL_String ZL_SettingsGet(const char* Key)
 {
-	char* buf = ZLJS_SettingsGetMalloc(Key, strlen(Key));
+	char* buf = ZLJS_SettingsGetMalloc(Key);
 	if (!buf) return ZL_String::EmptyString;
 	ZL_String ret(buf);
 	free(buf);
@@ -260,17 +260,17 @@ const ZL_String ZL_SettingsGet(const char* Key)
 
 void ZL_SettingsSet(const char* Key, const ZL_String& Value)
 {
-	ZLJS_SettingsSet(Key, strlen(Key), Value.c_str(), Value.length());
+	ZLJS_SettingsSet(Key, Value.c_str());
 }
 
 void ZL_SettingsDel(const char* Key)
 {
-	ZLJS_SettingsDel(Key, strlen(Key));
+	ZLJS_SettingsDel(Key);
 }
 
 bool ZL_SettingsHas(const char* Key)
 {
-	return ZLJS_SettingsHas(Key, strlen(Key));
+	return ZLJS_SettingsHas(Key);
 }
 
 void ZL_SettingsSynchronize() { }
@@ -383,29 +383,35 @@ void glDrawElementsUnbuffered(GLenum mode, GLsizei count, GLenum type, const GLv
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ZL_HTTPCONNECTION_IMPL_INTERFACE
-
 ZL_HttpConnection_Impl::ZL_HttpConnection_Impl() : timeout_msec(10000), dostream(false) { }
-void ZL_HttpConnection_Impl::Disconnect() { DelRef(); }
-extern "C" void ZLFNHTTPError(ZL_HttpConnection_Impl* impl, int status)
-{
-	impl->sigReceivedString.call(status, ZL_String::EmptyString);
-	impl->sigReceivedData.call(status, NULL, 0);
-	impl->Disconnect();
-}
-extern "C" void ZLFNHTTPLoad(ZL_HttpConnection_Impl* impl, char* data, size_t length)
+extern "C" void ZLFNHTTP(ZL_HttpConnection_Impl* impl, int status, char* data, size_t length)
 {
 	if (impl->sigReceivedString.HasConnections()) impl->sigReceivedString.call(200, (length ? ZL_String(data, length) : ZL_String::EmptyString));
 	if (impl->sigReceivedData.HasConnections()) impl->sigReceivedData.call(200, data, length);
-	if (impl->dostream) { impl->dostream = 0; ZLFNHTTPLoad(impl, NULL, 0); } //send a 0 byte length stream termination packet
-	else impl->Disconnect();
+	if (impl->dostream && length) { impl->dostream = 0; ZLFNHTTP(impl, status, NULL, 0); } //send a 0 byte length stream termination packet
+	else impl->DelRef();
 }
 void ZL_HttpConnection_Impl::Connect()
 {
 	if (!url.length()) return;
-	ZL_LOG2("EMSCRIPTEN", "Loading URL: %s (Post data: %d bytes)", url.c_str(), post_data.size());
+	//ZL_LOG2("EMSCRIPTEN", "Loading URL: %s (Post data: %d bytes)", url.c_str(), post_data.size());
 	if (dostream) { ZL_LOG0("EMSCRIPTEN", "WARNING: Unsupported option dostream is activated for this http request. It will be received as one big packet with an additional terminating zero length packet."); }
 	AddRef();
 	ZLJS_AsyncLoad(url.c_str(), this, &post_data[0], post_data.size());
 }
+
+ZL_WEBSOCKETCONNECTION_IMPL_INTERFACE
+ZL_WebSocketConnection_Impl::ZL_WebSocketConnection_Impl() : websocket_active(false) { }
+extern "C" void ZLFNWebSocket(ZL_WebSocketConnection_Impl* impl, int status, char* data, size_t length)
+{
+	if (!impl->websocket_active && status) { impl->websocket_active = true; impl->sigConnected.call(); }
+	if      (status == 0) { if (impl->websocket_active) { impl->websocket_active = false; impl->sigDisconnected.call(); } }
+	else if (status == 2) { impl->sigReceivedText.call(ZL_String(data, length)); }
+	else if (status == 3) { impl->sigReceivedBinary.call(data, length); }
+}
+void ZL_WebSocketConnection_Impl::Connect() { ZLJS_Websocket(this, 0, url.c_str()); }
+void ZL_WebSocketConnection_Impl::SendText(const char* buf, size_t len) { ZLJS_Websocket(this, 1, buf, len); }
+void ZL_WebSocketConnection_Impl::SendBinary(const void* buf, size_t len) { ZLJS_Websocket(this, 2, buf, len); }
+void ZL_WebSocketConnection_Impl::Disconnect(unsigned short code, const char* buf, size_t len) { ZLFNWebSocket(this, 0, NULL, 0); ZLJS_Websocket(this, 3+code, buf, len); }
 
 #endif //__EMSCRIPTEN__

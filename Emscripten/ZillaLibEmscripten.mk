@@ -79,7 +79,7 @@ CLANGFLAGS += -fno-vectorize -fno-slp-vectorize
 APPFLAGS += $(subst \\\,$(sp),$(foreach F,$(subst \$(sp),\\\,$(D)),"-D$(F)"))
 
 #global LD flags
-LDFLAGS += --memory-init-file 0 -s "EXPORTED_FUNCTIONS=['_main','_ZLFNDraw','_ZLFNText','_ZLFNKey','_ZLFNMove','_ZLFNMouse','_ZLFNWheel','_ZLFNWindow','_ZLFNAudio','_ZLFNHTTPLoad','_ZLFNHTTPError']"
+LDFLAGS += --memory-init-file 0 -s "EXPORTED_FUNCTIONS=['_main','_ZLFNDraw','_ZLFNText','_ZLFNKey','_ZLFNMove','_ZLFNMouse','_ZLFNWheel','_ZLFNWindow','_ZLFNAudio','_ZLFNHTTP','_ZLFNWebSocket']"
 
 # Compute tool paths
 ifeq ($(wildcard $(EMSCRIPTEN_ROOT)/emcc),)

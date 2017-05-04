@@ -182,4 +182,33 @@ struct ZL_HttpConnection
 	private: struct ZL_HttpConnection_Impl* impl;
 };
 
+struct ZL_WebSocketConnection
+{
+	ZL_WebSocketConnection();
+	ZL_WebSocketConnection(const char *url);
+	~ZL_WebSocketConnection();
+	ZL_WebSocketConnection(const ZL_WebSocketConnection &source);
+	ZL_WebSocketConnection &operator =(const ZL_WebSocketConnection &source);
+	operator bool () const { return (impl!=NULL); }
+	bool operator==(const ZL_WebSocketConnection &b) const { return (impl==b.impl); }
+	bool operator!=(const ZL_WebSocketConnection &b) const { return (impl!=b.impl); }
+
+	ZL_WebSocketConnection& SetURL(const char *url);
+	ZL_WebSocketConnection& SendText(const char *data);
+	ZL_WebSocketConnection& SendText(const char *data, size_t length);
+	ZL_WebSocketConnection& SendText(const ZL_String& str);
+	ZL_WebSocketConnection& SendBinary(const void* data, size_t length);
+
+	void Connect() const;
+	void Disconnect(unsigned short code = 1000, const char *reason = NULL, size_t reason_length = 0) const;
+	bool IsConnected() const;
+
+	ZL_Signal_v1<const ZL_String&>& sigReceivedText();
+	ZL_Signal_v2<const char*, size_t>& sigReceivedBinary();
+	ZL_Signal_v0& sigConnected();
+	ZL_Signal_v0& sigDisconnected();
+
+	private: struct ZL_WebSocketConnection_Impl* impl;
+};
+
 #endif //__ZL_NETWORK__
