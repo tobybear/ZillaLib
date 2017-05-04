@@ -20,6 +20,9 @@
 */
 #include "../../SDL_internal.h"
 
+#if !SDL_THREAD_PTHREAD || defined(__MACOSX__) || defined(__IPHONEOS__)
+#if !SDL_THREAD_WINDOWS
+
 /* An implementation of semaphores using mutexes and condition variables */
 
 #include "SDL_timer.h"
@@ -214,4 +217,7 @@ SDL_SemPost(SDL_sem * sem)
 }
 
 #endif /* SDL_THREADS_DISABLED */
+
+#endif /* !SDL_THREAD_WINDOWS */
+#endif /* !SDL_THREAD_PTHREAD || defined(__MACOSX__) || defined(__IPHONEOS__) */
 /* vi: set ts=4 sw=4 expandtab: */

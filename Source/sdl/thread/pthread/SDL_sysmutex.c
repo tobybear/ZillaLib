@@ -20,6 +20,8 @@
 */
 #include "SDL_config.h"
 
+#if SDL_THREAD_PTHREAD
+
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <errno.h>
@@ -189,5 +191,7 @@ SDL_UnlockMutex(SDL_mutex * mutex)
 
     return 0;
 }
+
+#endif /* SDL_THREAD_PTHREAD */
 
 /* vi: set ts=4 sw=4 expandtab: */

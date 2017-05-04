@@ -21,6 +21,8 @@
 
 #include "SDL_config.h"
 
+#if SDL_THREAD_PTHREAD
+
 #include <pthread.h>
 
 #if HAVE_PTHREAD_NP_H
@@ -203,5 +205,7 @@ SDL_SYS_WaitThread(SDL_Thread * thread)
 {
     pthread_join(thread->handle, 0);
 }
+
+#endif /* SDL_THREAD_PTHREAD */
 
 /* vi: set ts=4 sw=4 expandtab: */

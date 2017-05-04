@@ -20,6 +20,8 @@
 */
 #include "SDL_config.h"
 
+#if SDL_THREAD_PTHREAD
+
 #include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -196,4 +198,6 @@ SDL_SemPost(SDL_sem * sem)
 }
 
 #endif /* __MACOSX__ */
+
+#endif /* SDL_THREAD_PTHREAD */
 /* vi: set ts=4 sw=4 expandtab: */

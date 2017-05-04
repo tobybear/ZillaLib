@@ -20,6 +20,8 @@
 */
 #include "SDL_config.h"
 
+#if SDL_THREAD_PTHREAD
+
 #include <sys/time.h>
 #include <unistd.h>
 #include <errno.h>
@@ -144,5 +146,7 @@ SDL_CondWait(SDL_cond * cond, SDL_mutex * mutex)
     }
     return 0;
 }
+
+#endif /* SDL_THREAD_PTHREAD */
 
 /* vi: set ts=4 sw=4 expandtab: */
