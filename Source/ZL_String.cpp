@@ -49,25 +49,16 @@ ZL_String ZL_String::vformat(const char *format, va_list ap)
 ZL_String ZL_String::format(const char *format, ...)
 {
 	size_t size = 1024;
-	char stackbuf[1024];
-	std::vector<char> dynamicbuf;
-	char *buf = &stackbuf[0];
-	va_list ap;
-	va_start(ap, format);
-	while (1)
+	char stackbuf[1024], *buf = stackbuf;
+	ZL_String dynamicbuf;
+	for (va_list ap;;)
 	{
-		int needed = vsnprintf(buf, size, format, ap);
-		if (needed <= (int)size && needed >= 0)
-		{
-			va_end(ap);
-			return ZL_String(buf, (size_t) needed);
-		}
+		va_start(ap, format); int needed = vsnprintf(buf, size, format, ap); va_end(ap);
+		if (needed >= 0 && needed <= (int)size) return (buf == stackbuf ? ZL_String(buf, needed) : dynamicbuf);
 		size = (needed > 0) ? (needed+1) : (size*2);
 		dynamicbuf.resize(size);
-		buf = &dynamicbuf[0];
+		buf = &dynamicbuf.front();
 	}
-	va_end(ap);
-	return ZL_String();
 }
 
 ZL_String& ZL_String::to_upper()
