@@ -1,0 +1,15 @@
+<!--
+***********************************************************************************************
+ZillaLib-vs.props.sample
+Copy this file to ZillaLib-vs.props and modify it if you want to customize the options
+***********************************************************************************************
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="UserMacros">
+    <!-- Enable this to use the XP variation of the platform toolset to support Windows XP with your output files. -->
+    <!-- (see https://docs.microsoft.com/en-us/cpp/build/configuring-programs-for-windows-xp for details) -->
+    <!-- This only affects Visual Studio versions 2015 and newer. Versions before always come with XP support. -->
+    <!-- <UseXPToolset>1</UseXPToolset> -->
+  </PropertyGroup>
+</Project>

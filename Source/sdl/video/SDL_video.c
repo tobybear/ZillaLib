@@ -232,7 +232,7 @@ SDL_CreateWindowTexture(_THIS, SDL_Window * window, Uint32 * format, void ** pix
 {
     SDL_WindowTextureData *data;
     SDL_RendererInfo info;
-    Uint32 i;
+    int i;
 
     data = SDL_GetWindowData(window, SDL_WINDOWTEXTUREDATA);
     if (!data) {

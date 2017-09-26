@@ -129,9 +129,12 @@ Alternatively you could copy the sample project and modify the paths and names i
 ## Platforms and Setup
 
 ### Windows (32 and 64 bit)
-Compiling and debugging is done with Visual Studio. All versions are supported (VC6 until VS2015). If you don't have it installed yet, get either [2013 Community Edition](https://go.microsoft.com/fwlink/?LinkId=532495&clcid=0x409) or [2015 Community Edition](https://go.microsoft.com/fwlink/?LinkId=691978&clcid=0x409). They're both free and fully featured. For 2013, none of the optional features are required. For 2015, we need a customized installation containing both "Common Tools for Visual C++ 2015" and "Windows XP Support for C++" under the "Programming Languages\Visual C++" features.
+Compiling and debugging is done with Visual Studio. All versions are supported (VC6 until VS2017). If you don't have it installed yet, you can [download Visual Studio Community Edition here](https://www.visualstudio.com/vs/community/). Make sure "Visual C++" is selected during the installation. Optionally you can also install "Windows XP Support for C++" under the features/packages list.
 
 Once installed, open your GameProject-vs.sln solution file. On your first start-up, it should have your game project selected as the start up project in the Solution Explorer (project name is bold). It should also default to the build configuration "Debug" and the build platform "Win32" on the top of the Visual Studio window. This is fine for now, you can just build and run the sample code with the menu function "Debug / Start Without Debugging".
+
+#### Windows XP Support
+XP support is enabled for VS2013 and older as it does not require any optional packages to be installed. If you use VS2015 or newer and want your output executable files to run on Windows XP, you need to activate the correct toolset by copying 'ZillaLib-vs.props.sample' to 'ZillaLib-vs.props', edit the file and remove the comment tags around `<UseXPToolset>1</UseXPToolset>`.
 
 ### Android
 See [README.md under Android](Android) for how to setup and build for Android.

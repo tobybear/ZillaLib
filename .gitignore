@@ -5,6 +5,7 @@
 *.sdf
 *.suo
 *.user
+ZillaLib-vs.props
 .vs/
 Debug-vc6/
 Debug-vc9/

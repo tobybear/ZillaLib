@@ -730,12 +730,12 @@ struct ZL_TextBuffer_Impl : ZL_Impl
 	GLscalar *vertices, *texcoords;
 	scalar width, height;
 	std::vector<int>* vecTTFTexLastIndex;
-	GLsizei len;
+	GLsizei len, lenmax;
 	#ifdef ZL_VIDEO_WEAKCONTEXT
 	ZL_String TTFBufferString;
 	#endif
 
-	ZL_TextBuffer_Impl(const ZL_Font& font) : fnt(ZL_ImplFromOwner<ZL_Font_Impl>(font)), fntSettings(fnt), vertices(NULL), texcoords(NULL), vecTTFTexLastIndex(NULL), len(0)
+	ZL_TextBuffer_Impl(const ZL_Font& font) : fnt(ZL_ImplFromOwner<ZL_Font_Impl>(font)), fntSettings(fnt), vertices(NULL), texcoords(NULL), vecTTFTexLastIndex(NULL), len(0), lenmax(0)
 	{
 		if (fnt) fnt->AddRef();
 	}
@@ -796,20 +796,21 @@ struct ZL_TextBuffer_Impl : ZL_Impl
 	void Render(const char *text)
 	{
 		GLsizei newlen = (text && text[0] && fnt ? fnt->CountBuffer(text, vecTTFTexLastIndex) : 0);
-		if (!fnt || len != newlen)
+		if (!fnt || newlen > lenmax)
 		{
 			if (vertices) { delete vertices; vertices = NULL; }
 			if (texcoords) { delete texcoords; texcoords = NULL; }
 		}
 		len = newlen;
+		if (newlen > lenmax) lenmax = newlen;
 		if (!newlen || !fnt)
 		{
 			if (vecTTFTexLastIndex) { delete vecTTFTexLastIndex; vecTTFTexLastIndex = NULL; }
 		}
 		else
 		{
-			if (!vertices) vertices = new GLscalar[12*newlen];
-			if (!texcoords) texcoords = new GLscalar[12*newlen];
+			if (!vertices) vertices = new GLscalar[12*lenmax];
+			if (!texcoords) texcoords = new GLscalar[12*lenmax];
 			fnt->RenderBuffer(text, vertices, texcoords, vecTTFTexLastIndex, len, width, height);
 			//ZL_LOG3("FONT", "Rendered Text Buffer: %s - Len: %d - vec: %d", text, len, (vecTTFTexLastIndex != NULL));
 		}

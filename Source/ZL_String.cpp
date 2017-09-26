@@ -57,7 +57,7 @@ ZL_String ZL_String::format(const char *format, ...)
 		if (needed >= 0 && needed <= (int)size) return (buf == stackbuf ? ZL_String(buf, needed) : dynamicbuf);
 		size = (needed > 0) ? (needed+1) : (size*2);
 		dynamicbuf.resize(size);
-		buf = &dynamicbuf.front();
+		buf = &dynamicbuf.at(0);
 	}
 }
 

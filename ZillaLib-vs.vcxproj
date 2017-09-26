@@ -4,6 +4,7 @@
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '11.0' Or '$(PlatformToolsetVersion)' == '110' Or '$(MSBuildToolsVersion)' ==  '4.0'">2012</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '12.0' Or '$(PlatformToolsetVersion)' == '120' Or '$(MSBuildToolsVersion)' == '12.0'">2013</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '14.0' Or '$(PlatformToolsetVersion)' == '140' Or '$(MSBuildToolsVersion)' == '14.0'">2015</VisualStudioYear>
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '15.0' Or '$(PlatformToolsetVersion)' == '141' Or '$(MSBuildToolsVersion)' == '15.0'">2017</VisualStudioYear>
   </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -53,10 +54,13 @@
     <ProjectGuid>{2177A217-7A21-77A2-177A-2177A2177777}</ProjectGuid>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="ZillaLib-vs.props" Condition="exists('ZillaLib-vs.props')" />
   <PropertyGroup Label="Configuration">
+    <PlatformToolsetPostfix Condition="'$(UseXPToolset)' != ''">_xp</PlatformToolsetPostfix>
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2012'">v110_xp</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2013'">v120_xp</PlatformToolset>
-    <PlatformToolset Condition="'$(VisualStudioYear)' == '2015'">v140_xp</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2015'">v140$(PlatformToolsetPostfix)</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2017'">v141$(PlatformToolsetPostfix)</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>

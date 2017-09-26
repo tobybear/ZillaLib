@@ -47,7 +47,7 @@
 #define _SDL_gesture_c_h //not required
 #define _SDL_stdinc_h //set so compile fails without our customized SDL_stdinc.h
 
-#ifdef _MSC_VER
+#if (defined(_MSC_VER) && !defined(WINAPI_FAMILY))
 #define SDL_SetError(errstr) -1
 #else
 #define SDL_SetError(errstr,...) -1
