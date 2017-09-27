@@ -22,21 +22,21 @@ Or by installing just the necessary parts required for building ZillaLib (or oth
 This is recommended if you plan on using Emscripten for other things besides ZillaLib related projects.
 
 Follow the install guide from the link below to get emscripten, clang, node, python and set up the required configuration.  
-http://kripken.github.io/emscripten-site/docs/getting_started/
+https://kripken.github.io/emscripten-site/docs/getting_started/downloads.html
 
 When done, you should be set up with Emscripten compiling at least its hello_world.cpp example with -O3 optimizations.
 
 ## Installing just the required parts
 
 ### On Windows
-You can get the Emscripten SDK Offline Installer package from the [Emscripten Downloads page](http://kripken.github.io/emscripten-site/docs/getting_started/downloads.html).  
-If the download is slow, you can download it via http instead of https or use a tool that uses multiple connection to speed up downloads.  
-Instead of running the installer, just open it directly with 7-Zip.
+You need these 4 packages from the Emscripten file archive (replace '64bit' with '32bit' if you're running a 32bit OS):
+ - [emscripten-latest.zip](http://s3.amazonaws.com/mozilla-games/emscripten/packages/emscripten/nightly/win/emscripten-latest.zip) (directories 'tests', 'site', 'docs', 'media' and 'cmake' can  be skipped when extracting)
+ - [emscripten-llvm-latest.zip](http://s3.amazonaws.com/mozilla-games/emscripten/packages/llvm/nightly/win_64bit/emscripten-llvm-latest.zip) (or the latest stable release listed [here](http://s3.amazonaws.com/mozilla-games/emscripten/packages/llvm/tag/win_64bit/index.txt))
+ - [node_4.1.1_64bit.zip](http://s3.amazonaws.com/mozilla-games/emscripten/packages/node_4.1.1_64bit.zip) (everything but 'node.exe' can be skipped when extracting)
+ - [python_2.7.5.3_64bit.zip](http://s3.amazonaws.com/mozilla-games/emscripten/packages/python_2.7.5.3_64bit.zip) (everything but 'python.exe', 'python27.dll', 'DLLs' and 'Lib' can be skipped when extracting)
 
-You only need to extract the folders clang, emscripten, node and optionally Python (if you don't have Python 2.7 somewhere on your system already).
-
-For Node, you can leave out everything but "node.exe".  
-For Emscripten, you don't need to extract the directories "tests", "site", "docs", "media" and "cmake".
+To check for newer node or python builds you can consult the [emsdk manifest listing](https://raw.githubusercontent.com/juj/emsdk/master/emsdk_manifest.json).  
+You can also use any Python 2.7 installation if it already exists on your system.
 
 ### On Linux/Mac OS X
 You need a compiler toolchain (gcc or clang on Linux or the included clang from Xcode on OS X), Node.js and Python 2.7 (should already be installed on Mac OS X and most Linux distributions, confirm by running python -V in a terminal).
@@ -54,7 +54,7 @@ Open a terminal to where you extracted the portable SDK, and run the following c
 This should install Emscripten and its custom llvm/clang suite. If there are errors, please refer to the guide on the Emscripten download page.
 
 ## Building the Emscripten Optimizer
-Emscripten comes with C++ source code of its optimizer which needs to be built locally. The source can be found under [emscripten_sdk_root/emscripten/x.y.z/tools/optimizer](https://github.com/kripken/emscripten/tree/master/tools/optimizer).
+Emscripten comes with C++ source code of its optimizer which needs to be built locally. The source can be found under [emscripten_root/tools/optimizer](https://github.com/kripken/emscripten/tree/master/tools/optimizer).
 
 On Windows you can use the Visual Studio project "[Emscripten-Optimizer.vcxproj](Emscripten-Optimizer.vcxproj)" found in the same directory as this README.md file. Just copy it into the directory of the optimizer, open it with Visual Studio and build it to create "optimizer.exe".
 
@@ -66,10 +66,10 @@ g++ -std=c++0x -O3 optimizer.cpp optimizer-main.cpp parser.cpp simple_ast.cpp -o
 ## Setup building ZillaLib
 Create a file inside your local ZillaLib directory under the Emscripten sub-directory called "ZillaAppLocalConfig.mk" with the following definitions:
 ```mk
-EMSCRIPTEN_ROOT = D:/dev/emscripten_sdk/emscripten/1.35.0
-LLVM_ROOT = D:/dev/emscripten_sdk/clang/e1.35.0_64bit
-EMSCRIPTEN_NATIVE_OPTIMIZER = D:/dev/emscripten_sdk/emscripten/1.35.0/tools/optimizer/optimizer.exe
-NODE_JS = D:/dev/emscripten_sdk/node/4.1.1_64bit/bin/node.exe
+EMSCRIPTEN_ROOT = D:/dev/emscripten_sdk/emscripten
+LLVM_ROOT = D:/dev/emscripten_sdk/llvm
+EMSCRIPTEN_NATIVE_OPTIMIZER = D:/dev/emscripten_sdk/emscripten/tools/optimizer/optimizer.exe
+NODE_JS = D:/dev/emscripten_sdk/node/node.exe
 PYTHON = D:/dev/python/python.exe
 7ZIP = D:/dev/7z.exe
 BROWSER = D:/dev/chromium/chrome.exe
@@ -120,8 +120,8 @@ For example, running "make emscripten" builds the release JS file, the the asset
 
 # Deploying
 Depending on the project option 'Embed Assets in Binary', your release build will consist of either one or two files.
-With assets embedded, the only game file you need to upload YOURGAME_WithData.js.gz. Without, there will be the files YOURGAME.js.gz and YOURGAME_Files.js.gz.
-If your webserver does not support sending gz compressed files, you can upload the js file(s) directly.
+With assets embedded, the only game file you need to upload is YOURGAME_WithData.js.gz. Without, there will be 2 files YOURGAME.js.gz and YOURGAME_Files.js.gz.
+If your webserver does not support sending gz compressed files, you can upload the .js file(s) directly.
 
 Now for the actual HTML code that loads the game, the build process creates a sample HTML file which you can reference (or fully copy) to create your own game loading website.  
 Some things to consider when adapting the loader:

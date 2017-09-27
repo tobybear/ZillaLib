@@ -21,7 +21,7 @@
 
 import sys,re,os,string,subprocess,fnmatch,SimpleHTTPServer,SocketServer
 emscripten_dir = os.path.dirname(os.path.realpath(sys.argv.pop(0))).replace('\\', '/')
-def get_makefile_str(param,m='Makefile',d=''): return ((re.findall(param+'\s*=\s*(.*)\s',open(m).read())or[d])[0] if os.path.exists(m) else d)
+def get_makefile_str(param,m='Makefile',d=''): return ((re.findall(param+'\s*=\s*(.*?)\s*(?:\n|\r|$)',open(m).read())or[d])[0] if os.path.exists(m) else d)
 def get_makefile_int(param,m='Makefile',d=0): return (int((re.findall(param+'\s*=\s*(\d+)',open(m).read())or[str(d)])[0]) if os.path.exists(m) else d)
 cmd = ''
 for ln in sys.argv:

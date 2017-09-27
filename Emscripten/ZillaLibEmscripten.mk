@@ -66,13 +66,13 @@ CXX := "$(LLVM_ROOT)/clang++"
 LD  := "$(LLVM_ROOT)/llvm-link"
 
 # Clang flags for emscripten
-CLANGFLAGS := -target asmjs-unknown-emscripten -emit-llvm -D__EMSCRIPTEN__
+CLANGFLAGS := -target asmjs-unknown-emscripten -emit-llvm -D__EMSCRIPTEN__ -D_LIBCPP_ABI_VERSION=2
 CLANGFLAGS += -isystem$(EMSCRIPTEN_ROOT)/system/include/compat
 CLANGFLAGS += -isystem$(EMSCRIPTEN_ROOT)/system/include
 CLANGFLAGS += -isystem$(EMSCRIPTEN_ROOT)/system/include/emscripten
+CLANGFLAGS += -isystem$(EMSCRIPTEN_ROOT)/system/include/libcxx
 CLANGFLAGS += -isystem$(EMSCRIPTEN_ROOT)/system/include/libc
 CLANGFLAGS += -isystem$(EMSCRIPTEN_ROOT)/system/lib/libc/musl/arch/emscripten
-CLANGFLAGS += -isystem$(EMSCRIPTEN_ROOT)/system/include/libcxx
 CLANGFLAGS += -fno-vectorize -fno-slp-vectorize
 
 #add defines from the make command line (e.g. D=MACRO=VALUE)
@@ -124,13 +124,13 @@ LDFLAGS += --closure 0
 EM_CONFIG := --em-config "$(strip \
 		)EMSCRIPTEN_ROOT='$(EMSCRIPTEN_ROOT)';$(strip \
 		)LLVM_ROOT='$(LLVM_ROOT)';$(strip \
-		)PYTHON='$(PYTHON_NOQUOTE)';$(strip \
+		)PYTHON='$(subst \,/,$(PYTHON_NOQUOTE))';$(strip \
 		)EMSCRIPTEN_NATIVE_OPTIMIZER='$(EMSCRIPTEN_NATIVE_OPTIMIZER)';$(strip \
 		)NODE_JS='$(NODE_JS)';$(strip \
 		)TEMP_DIR='$(abspath $(APPOUTDIR))';$(strip \
 		)COMPILER_ENGINE=NODE_JS;$(strip \
 		)JS_ENGINES=[NODE_JS];$(strip \
-		)$(if $(JAVA),JAVA='$(JAVA)';)$(strip \
+		)JAVA='$(JAVA)';$(strip \
 	)" --cache "$(abspath $(ZILLALIB_DIR)Emscripten/cache)"
 
 #surround used commands with double quotes
@@ -140,7 +140,7 @@ PYTHON := "$(PYTHON_NOQUOTE)"
 # Python one liner to delete all .o files when the dependency files were created empty due to compile error
 CMD_DEL_OLD_OBJ := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.path.getsize(a)==0 and os.path.exists(a.rstrip('d')+'o') and os.remove(a.rstrip('d')+'o') for a in sys.argv[1:]]"
 CMD_DEL_FILES := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.remove(a) for a in sys.argv[1:]]"
-CMD_MAKE_EMBED_JS := $(PYTHON) -u -c "import sys,os;sys.stdout.write('try{this['+chr(34)+'Module'+chr(34)+']=Module;}catch(e){this['+chr(34)+'Module'+chr(34)+']=Module={};}Module.preInit = function() {'+chr(10)+''.join([a and 'Module.FS_createPath('+chr(34)+'/'+os.path.dirname(a)+chr(34)+','+chr(34)+os.path.basename(a)+chr(34)+',!0,!0);'+chr(10) for a in sorted(list(set([os.path.dirname(a) for a in sys.argv[1:]])))]+[os.path.exists(a) and 'Module.FS_createDataFile('+chr(34)+'/'+os.path.dirname(a)+chr(34)+','+chr(34)+os.path.basename(a)+chr(34)+',['+','.join([str(ord(x)) for x in open(a,'rb').read()])+'],!0,!0);'+chr(10) for a in sys.argv[1:]])+'};'+chr(10))"
+CMD_MAKE_EMBED_JS := $(PYTHON) -u -c "import sys,os;sys.stdout.write('try{this['+chr(34)+'Module'+chr(34)+']=Module;}catch(e){this['+chr(34)+'Module'+chr(34)+']=Module={};}Module.preInit=function(){try{FS}catch(e){return}'+chr(10)+''.join([a and 'FS.createPath('+chr(34)+'/'+os.path.dirname(a)+chr(34)+','+chr(34)+os.path.basename(a)+chr(34)+',!0,!0);'+chr(10) for a in sorted(list(set([os.path.dirname(a) for a in sys.argv[1:]])))]+[os.path.exists(a) and 'FS.createDataFile('+chr(34)+'/'+os.path.dirname(a)+chr(34)+','+chr(34)+os.path.basename(a)+chr(34)+',['+','.join([str(ord(x)) for x in open(a,'rb').read()])+'],!0,!0);'+chr(10) for a in sys.argv[1:]])+'};'+chr(10))"
 CMD_MERGE_JS_FILES := $(PYTHON) -u -c "import sys,re;b=chr(92);r=b+'r';n=b+'n';[sys.stdout.write(re.sub(n+n+'+',n,re.sub(n+'//.*'+n,n,re.sub(r,n,open(a,'rb').read())))) for a in sys.argv[1:]]"
 
 # Disable DOS PATH warning when using Cygwin based tools Windows
@@ -203,7 +203,7 @@ $(APPOUTDIR)/$(ZillaApp).bc : $(APPOBJS)
 $(APPOUTDIR)/$(ZillaApp).js : $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js
 	$(info Linking $@ ...)
 	@$(PYTHON) "$(EMSCRIPTEN_ROOT)/emcc" -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(LDFLAGS) --js-library $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js $(EM_CONFIG)
-#	$(if $(ISWIN),set ,)EMCC_DEBUG=1$(if $(ISWIN), &&,) $(PYTHON) "$(EMSCRIPTEN_ROOT)/emcc" -v -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(LDFLAGS) --js-library $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js $(EM_CONFIG)
+#	$(if $(ISWIN),set ,)EMCC_DEBUG=1$(if $(ISWIN), &&,) $(PYTHON) "$(EMSCRIPTEN_ROOT)/emcc" -s VERBOSE=1 -v -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(LDFLAGS) --js-library $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js $(EM_CONFIG)
 
 $(ASSET_JS) : $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)))
 	$(info Building $@ with $(words $(ASSET_ALL_STARS)) assets ...)
