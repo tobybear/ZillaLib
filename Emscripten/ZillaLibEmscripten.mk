@@ -120,6 +120,10 @@ LDFLAGS += --closure 0
 #  LDFLAGS += --closure 0
 #endif
 
+#set EM_CACHE environment variable because setting only --cache commandline parameter is not enough
+EM_CACHE := $(abspath $(ZILLALIB_DIR)Emscripten/cache)
+export EM_CACHE
+
 #setup em-config parameter (Emscripten configuration file replacement)
 EM_CONFIG := --em-config "$(strip \
 		)EMSCRIPTEN_ROOT='$(EMSCRIPTEN_ROOT)';$(strip \
@@ -131,7 +135,7 @@ EM_CONFIG := --em-config "$(strip \
 		)COMPILER_ENGINE=NODE_JS;$(strip \
 		)JS_ENGINES=[NODE_JS];$(strip \
 		)JAVA='$(JAVA)';$(strip \
-	)" --cache "$(abspath $(ZILLALIB_DIR)Emscripten/cache)"
+	)" --cache "$(EM_CACHE)"
 
 #surround used commands with double quotes
 PYTHON := "$(PYTHON_NOQUOTE)"
@@ -203,7 +207,7 @@ $(APPOUTDIR)/$(ZillaApp).bc : $(APPOBJS)
 $(APPOUTDIR)/$(ZillaApp).js : $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js
 	$(info Linking $@ ...)
 	@$(PYTHON) "$(EMSCRIPTEN_ROOT)/emcc" -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(LDFLAGS) --js-library $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js $(EM_CONFIG)
-#	$(if $(ISWIN),set ,)EMCC_DEBUG=1$(if $(ISWIN), &&,) $(PYTHON) "$(EMSCRIPTEN_ROOT)/emcc" -s VERBOSE=1 -v -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(LDFLAGS) --js-library $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js $(EM_CONFIG)
+#	$(if $(ISWIN),set ,)EMCC_DEBUG=1$(if $(ISWIN),&&, )$(PYTHON) "$(EMSCRIPTEN_ROOT)/emcc" -s VERBOSE=1 -v -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(LDFLAGS) --js-library $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js $(EM_CONFIG)
 
 $(ASSET_JS) : $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)))
 	$(info Building $@ with $(words $(ASSET_ALL_STARS)) assets ...)
