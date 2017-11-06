@@ -57,6 +57,7 @@ struct ZL_Texture_Impl : ZL_Impl
 	ZL_TextureFrameBuffer *pFrameBuffer;
 
 	static ZL_Texture_Impl* LoadTextureRef(const ZL_FileLink& file, ZL_BitmapSurface* out_surface = NULL);
+	static bool LoadPixelsRGBA(const ZL_File& file, unsigned char** pixels, int *w, int *h);
 
 	void SetTextureFilter(GLint newfiltermin, GLint newfiltermag);
 	void SetTextureWrap(GLint newwraps, GLint newwrapt);

@@ -60,6 +60,7 @@
 		#define glUniform1 glUniform1f
 		#define glUniform2 glUniform2f
 		#define glUniform3 glUniform3f
+		#define glUniform3v glUniform3fv
 		#define glUniform4 glUniform4f
 	#else
 		#define glVertex2v glVertex2fv
@@ -78,6 +79,7 @@
 		#define glUniform1 glUniform1d
 		#define glUniform2 glUniform2d
 		#define glUniform3 glUniform3d
+		#define glUniform3v glUniform3dv
 		#define glUniform4 glUniform4d
 	#else
 		#define glVertex2v glVertex2dv

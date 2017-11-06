@@ -292,7 +292,7 @@ namespace ZLGLSL
 		return shader;
 	}
 
-	GLuint CreateProgramFromVertexAndFragmentShaders(GLsizei vertex_shader_srcs_count, const char **vertex_shader_srcs, GLsizei fragment_shader_srcs_count, const char **fragment_shader_srcs, GLsizei bind_attribs_count, const char **bind_attribs)
+	GLuint CreateProgramFromVertexAndFragmentShaders(GLsizei vertex_shader_srcs_count, const char **vertex_shader_srcs, GLsizei fragment_shader_srcs_count, const char **fragment_shader_srcs, GLsizei bind_attribs_count, const char *const*bind_attribs)
 	{
 		GLuint vertex_shader;
 		GLuint fragment_shader;
@@ -346,14 +346,14 @@ namespace ZLGLSL
 	bool CreateShaders()
 	{
 		// Load the shaders and get a linked program object
-		const char *srcs_color_vertex[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER baseattribs_vertex_shader_src, color_vertex_shader_src };
-		const char *srcs_color_fragment[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER baseattribs_fragment_shader_src, color_fragment_shader_src };
-		const char *attr_color[] = { "a_position", "a_color" };
+		const char * srcs_color_vertex[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER baseattribs_vertex_shader_src, color_vertex_shader_src };
+		const char * srcs_color_fragment[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER baseattribs_fragment_shader_src, color_fragment_shader_src };
+		const char * const attr_color[] = { "a_position", "a_color" };
 		if (!(_COLOR_PROGRAM = CreateProgramFromVertexAndFragmentShaders(COUNT_OF(srcs_color_vertex), srcs_color_vertex, COUNT_OF(srcs_color_fragment), srcs_color_fragment, COUNT_OF(attr_color), attr_color))) return false;
 		COLOR_UNI_MVP       = (GLuint)glGetUniformLocation(_COLOR_PROGRAM, "u_mvpMatrix");
 
 		// Load the shaders and get a linked program object
-		const char *attr_texture[] = { "a_position", "a_color", "a_texcoord" };
+		const char * const attr_texture[] = { "a_position", "a_color", "a_texcoord" };
 		if (!(_TEXTURE_PROGRAM = CreateProgramFromVertexAndFragmentShaders(COUNT_OF(srcs_texture_vertex), srcs_texture_vertex, COUNT_OF(srcs_texture_fragment), srcs_texture_fragment, COUNT_OF(attr_texture), attr_texture))) return false;
 		TEXTURE_UNI_MVP       = (GLuint)glGetUniformLocation(_TEXTURE_PROGRAM, "u_mvpMatrix");
 

@@ -20,6 +20,7 @@
 */
 
 #include "ZL_Math.h"
+#include "ZL_Math3D.h"
 #include <stdlib.h>
 #include <ZL_Display.h>
 #undef _MSC_EXTENSIONS
@@ -53,8 +54,6 @@
 //	else if (x != abs_y)       { float r = ((x + abs_y) / (abs_y - x)); angle = 0.1963f*r*r*r - 0.9817f*r + coeff_2; }
 //	return (y < 0 ? -angle : angle);
 //}
-
-ZL_Point::ZL_Point(const ZL_Vector &p) : x((int)p.x), y((int)p.y) { }
 
 const ZL_Vector ZL_Vector::Zero(0, 0), ZL_Vector::One(1, 1), ZL_Vector::Right(1, 0), ZL_Vector::Up(0, 1);
 
@@ -169,6 +168,9 @@ ZL_Vector ZL_Vector::VecWithMinLength(scalar minlength) const
 	scalar lensq = x*x+y*y;
 	return (minlength*minlength <= lensq ? *this : *this * (minlength / ssqrt(lensq)));
 }
+
+const ZL_Vector3 ZL_Vector3::Zero(0,0,0), ZL_Vector3::One(1,1,1), ZL_Vector3::Forward(0,0,1), ZL_Vector3::Right(1,0,0), ZL_Vector3::Up(0,1,0);
+const ZL_Matrix ZL_Matrix::Identity;
 
 ZL_AABB::ZL_AABB(const ZL_Rectf& rect) : P(rect.Center()), E(rect.Extents()) {}
 

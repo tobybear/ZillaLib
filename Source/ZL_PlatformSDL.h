@@ -115,10 +115,12 @@ extern PFNGLUNIFORM1IPROC                glUniform1i;
 #if !defined(ZL_DOUBLE_PRECISCION)
 extern PFNGLUNIFORM2FPROC                glUniform2f;
 extern PFNGLUNIFORM3FPROC                glUniform3f;
+extern PFNGLUNIFORM3FVPROC               glUniform3fv;
 extern PFNGLUNIFORM4FPROC                glUniform4f;
 #else
 extern PFNGLUNIFORM2DPROC                glUniform2d;
 extern PFNGLUNIFORM3DPROC                glUniform3d;
+extern PFNGLUNIFORM3DVPROC               glUniform3dv;
 extern PFNGLUNIFORM4DPROC                glUniform4d;
 #endif
 #endif

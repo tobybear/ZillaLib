@@ -705,10 +705,12 @@ PFNGLUNIFORM1IPROC                glUniform1i;
 #if !defined(ZL_DOUBLE_PRECISCION)
 PFNGLUNIFORM2FPROC                glUniform2f;
 PFNGLUNIFORM3FPROC                glUniform3f;
+PFNGLUNIFORM3FVPROC               glUniform3fv;
 PFNGLUNIFORM4FPROC                glUniform4f;
 #else
 PFNGLUNIFORM2DPROC                glUniform2d;
 PFNGLUNIFORM3DPROC                glUniform3d;
+PFNGLUNIFORM3DVPROC               glUniform3dv;
 PFNGLUNIFORM4DPROC                glUniform4d;
 #endif
 void ZL_Init3DGLExtensionEntries()
@@ -730,10 +732,12 @@ void ZL_Init3DGLExtensionEntries()
 #if !defined(ZL_DOUBLE_PRECISCION)
 	glUniform2f =                (PFNGLUNIFORM2FPROC               )(size_t)SDL_GL_GetProcAddress("glUniform2f");
 	glUniform3f =                (PFNGLUNIFORM3FPROC               )(size_t)SDL_GL_GetProcAddress("glUniform3f");
+	glUniform3fv =               (PFNGLUNIFORM3FVPROC              )(size_t)SDL_GL_GetProcAddress("glUniform3fv");
 	glUniform4f =                (PFNGLUNIFORM4FPROC               )(size_t)SDL_GL_GetProcAddress("glUniform4f");
 #else
 	glUniform2d =                (PFNGLUNIFORM2DPROC               )(size_t)SDL_GL_GetProcAddress("glUniform2d");
 	glUniform3d =                (PFNGLUNIFORM3DPROC               )(size_t)SDL_GL_GetProcAddress("glUniform3d");
+	glUniform3dv =               (PFNGLUNIFORM3DVPROC              )(size_t)SDL_GL_GetProcAddress("glUniform3dv");
 	glUniform4d =                (PFNGLUNIFORM4DPROC               )(size_t)SDL_GL_GetProcAddress("glUniform4d");
 #endif
 }

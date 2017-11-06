@@ -138,14 +138,14 @@ enum ZL_NoInitType { ZL_NoInit };
 //Integer based 2d point
 struct ZL_Point
 {
-	ZL_Point() : x(0), y(0) { }
-	ZL_Point(int x, int y) : x(x), y(y) { }
-	ZL_Point(const ZL_Point &p) : x(p.x), y(p.y) { }
-	ZL_Point(const struct ZL_Vector &p);
-	ZL_Point &operator+=(const ZL_Point &p) { x += p.x; y += p.y; return *this; }
-	ZL_Point &operator-=(const ZL_Point &p) { x -= p.x; y -= p.y; return *this; }
-	ZL_Point operator+(const ZL_Point &p) const { return ZL_Point(x + p.x, y + p.y); }
-	ZL_Point operator-(const ZL_Point &p) const { return ZL_Point(x - p.x, y - p.y); }
+	inline ZL_Point() : x(0), y(0) { }
+	inline ZL_Point(int x, int y) : x(x), y(y) { }
+	inline ZL_Point(const ZL_Point &p) : x(p.x), y(p.y) { }
+	inline ZL_Point(const struct ZL_Vector &p);
+	inline ZL_Point &operator+=(const ZL_Point &p) { x += p.x; y += p.y; return *this; }
+	inline ZL_Point &operator-=(const ZL_Point &p) { x -= p.x; y -= p.y; return *this; }
+	inline ZL_Point operator+(const ZL_Point &p) const { return ZL_Point(x + p.x, y + p.y); }
+	inline ZL_Point operator-(const ZL_Point &p) const { return ZL_Point(x - p.x, y - p.y); }
 	inline bool operator==(const ZL_Point &p) const { return (x == p.x) && (y == p.y); }
 	inline bool operator!=(const ZL_Point &p) const { return (x != p.x) || (y != p.y); }
 	inline bool operator!() const { return (x == 0 && y == 0); }
@@ -308,6 +308,8 @@ struct ZL_Vector
 	static const ZL_Vector Zero, One, Right, Up;
 };
 
+inline ZL_Point::ZL_Point(const ZL_Vector &p) : x((int)p.x), y((int)p.y) { }
+
 struct ZL_Plane
 {
 	ZL_Vector N; //unit normal
@@ -424,8 +426,11 @@ struct ZL_Math
 	//Clamp value between 0 and 1
 	static inline scalar Clamp01(const scalar val) { return Max(0, Min(val, 1)); }
 
-	//Linear inpolate value
+	//Linear interpolate value
 	static inline scalar Lerp(const scalar from, const scalar to, const scalar f) { return from + (to-from) * f; }
+
+	//Inverse linear interpolate value
+	static inline scalar InverseLerp(const scalar from, const scalar to, const scalar value) { return (value - from) / (to - from); }
 };
 
 //Easing functions (linear input 0.0 -> 1.0 returns curved 0.0 -> 1.0)

@@ -79,6 +79,15 @@ ZL_Texture_Impl* ZL_Texture_Impl::LoadTextureRef(const ZL_FileLink& file, ZL_Bit
 	return t;
 }
 
+bool ZL_Texture_Impl::LoadPixelsRGBA(const ZL_File& file, unsigned char** pixels, int *w, int *h)
+{
+	ZL_File_Impl* fileimpl = ZL_ImplFromOwner<ZL_File_Impl>(file);
+	if (!fileimpl) { return false; }
+	*pixels = stbi_load_from_callbacks(&stbi_zlrwops_callbacks, fileimpl->src, w, h, NULL, 4);
+	if (!pixels || !w || !h) { ZL_LOG2("TEXTURE", "Cannot load image file: %s (err: %s)", fileimpl->filename.c_str(), stbi_failure_reason()); return false; }
+	return true;
+}
+
 ZL_Texture_Impl::ZL_Texture_Impl(const ZL_File& file, ZL_BitmapSurface* out_surface) : gltexid(0), wraps(GL_CLAMP_TO_EDGE), wrapt(GL_CLAMP_TO_EDGE), filtermin(GL_LINEAR), filtermag(GL_LINEAR), pFrameBuffer(NULL)
 {
 	LoadSurfaceAndTexture(file, out_surface);
@@ -91,7 +100,7 @@ unsigned char* ZL_Texture_Impl::LoadSurfaceData(const ZL_File& file, ZL_BitmapSu
 
 	int BytesPerPixel;
 	unsigned char* pixels = stbi_load_from_callbacks(&stbi_zlrwops_callbacks, fileimpl->src, &w, &h, &BytesPerPixel, 0);
-	if (!pixels || !w || !h) { ZL_LOG2("SURFACE", "Cannot load image file: %s (err: %s)", fileimpl->filename.c_str(), stbi_failure_reason()); return NULL; }
+	if (!pixels || !w || !h) { ZL_LOG2("TEXTURE", "Cannot load image file: %s (err: %s)", fileimpl->filename.c_str(), stbi_failure_reason()); return NULL; }
 	//ZL_LOG4("SURFACE", "Loaded bitmap: %s - x: %d - y: %d - bpp: %d", fileimpl->filename.c_str(), surface->w, surface->h, surface->BytesPerPixel);
 
 	size_t pitch = w * BytesPerPixel;
