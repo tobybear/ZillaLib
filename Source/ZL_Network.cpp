@@ -109,25 +109,20 @@ void ZL_Network::DeInit()
 struct ZL_Server_Impl : ZL_Connection_Impl
 {
 	ENetHost *host;
-	std::vector<ZL_PeerHandle> clients;
+	struct sP2P { bool (*doKeepAlive)(ZL_Server_Impl*); void (*doClose)(ZL_Server_Impl*); ENetAddress relay_server; unsigned char relaykey[0xFF], relaykey_length, is_master; ticks_t time_open; } *P2P;
 	ZL_Signal_v1<ZL_Peer&> sigConnected;
 	ZL_Signal_v1<ZL_Peer&> sigDisconnected;
 	ZL_Signal_v2<ZL_Peer&, ZL_Packet&> sigReceived;
 
-	ZL_Server_Impl() : host(NULL) { }
-
-	ZL_Server_Impl(int server_port, int num_connections, const char *bind_host) : host(NULL)
-	{
-		assert(OpenConnections || (ZL_Application::Log("NETWORK", "Tried to open a connection without initializing with ZL_Network::Init first"), 0));
-		Open(server_port, num_connections, bind_host);
-	}
+	ZL_Server_Impl() : host(NULL), P2P(NULL) { }
 
 	~ZL_Server_Impl() { Close(0, true); }
 
 	void ShutDown() { Close(0, false); }
 
-	void Open(int server_port, int num_connections, const char *bind_host)
+	void Open(int server_port, unsigned short num_connections, const char *bind_host, unsigned char num_channels)
 	{
+		assert(OpenConnections || (ZL_Application::Log("NETWORK", "Tried to open a connection without initializing with ZL_Network::Init first"), 0));
 		if (host) Close(0, true);
 
 		ENetAddress address;
@@ -135,27 +130,119 @@ struct ZL_Server_Impl : ZL_Connection_Impl
 		else address.host = ENET_HOST_ANY;
 		address.port = server_port;
 
-		host = enet_host_create(&address, num_connections, 0, 0, 0);
+		host = enet_host_create(&address, num_connections, num_channels, 0, 0);
 		if (!host) return;
 		OpenConnectionsAdd(this);
 	}
 
 	void Close(unsigned int closemsg, bool remove_openconnection)
 	{
-		for (std::vector<ZL_PeerHandle>::iterator it = clients.begin(); it != clients.end(); ++it)
-		    enet_peer_disconnect((ENetPeer*)(*it), closemsg);
-		if (host && clients.size()) enet_host_flush(host);
-		clients.clear();
 		if (!host) return;
+		for (ENetPeer* it = host->peers; it != &host->peers[host->peerCount]; ++it)
+			if (it->state == ENET_PEER_STATE_CONNECTED)
+				enet_peer_disconnect(it, closemsg);
+		if (P2P) P2P->doClose(this);
+		enet_host_flush(host);
 		enet_host_destroy(host);
 		host = NULL;
 		if (remove_openconnection) OpenConnectionsDel(this);
+	}
+
+	void OpenP2P(const char *p2prelay_host, int p2prelay_port, unsigned short num_connections, const void* relaykey, unsigned char relaykey_length, unsigned char num_channels)
+	{
+		assert(OpenConnections || (ZL_Application::Log("NETWORK", "Tried to open a connection without initializing with ZL_Network::Init first"), 0));
+		if (host) Close(0, true);
+
+		host = enet_host_create(NULL, num_connections, num_channels, 0, 0);
+		if (!host) return;
+
+		P2P = new sP2P();
+		P2P->doKeepAlive = &KeepAliveP2P;
+		P2P->doClose = &CloseP2P;
+		enet_address_set_host(&P2P->relay_server, p2prelay_host);
+		P2P->relay_server.port = p2prelay_port;
+		P2P->is_master = 0xFF;
+		P2P->time_open = ZLTICKS;
+		memcpy(P2P->relaykey, relaykey, P2P->relaykey_length = relaykey_length);
+
+		unsigned char buffer[1 + 2 + 0xFF]; //command + open_connections + key
+		ENetBuffer bs;
+		bs.data = (void*)buffer;
+		buffer[0] = 100; //command 100 = new connection
+		buffer[1] = (num_connections - 1) & 0xFF;
+		buffer[2] = (num_connections - 1) >> 8;
+		memcpy(&buffer[1 + 2], relaykey, relaykey_length);
+		bs.dataLength = 1 + 2 + relaykey_length;
+		enet_socket_send(host->socket, &P2P->relay_server, &bs, 1);
+
+		OpenConnectionsAdd(this);
+	}
+
+	static void CloseP2P(ZL_Server_Impl* self)
+	{
+		if (self->P2P->is_master == 1)
+		{
+			unsigned char buffer[1 + 0xFF]; //command + key
+			ENetBuffer bs;
+			bs.data = (void*)buffer;
+			buffer[0] = 101; //command 101 = remove active relay
+			memcpy(&buffer[1], self->P2P->relaykey, self->P2P->relaykey_length);
+			bs.dataLength = 1 + self->P2P->relaykey_length;
+			enet_socket_send(self->host->socket, &self->P2P->relay_server, &bs, 1);
+			unsigned int waitCondition = ENET_SOCKET_WAIT_RECEIVE;
+			enet_socket_wait(self->host->socket, &waitCondition, 100);
+		}
+		delete self->P2P;
+		self->P2P = NULL;
+	}
+
+	static bool KeepAliveP2P(ZL_Server_Impl* self)
+	{
+		unsigned int waitCondition = ENET_SOCKET_WAIT_RECEIVE;
+		if (enet_socket_wait(self->host->socket, &waitCondition, 0) != 0 || !(waitCondition & ENET_SOCKET_WAIT_RECEIVE))
+		{
+			if (ZLSINCE(self->P2P->time_open) >= ENET_PEER_TIMEOUT_MAXIMUM)
+			{
+				ZL_Peer peer = { SWAPBE32(self->P2P->relay_server.host), self->P2P->relay_server.port, NULL, NULL };
+				self->sigDisconnected.call(peer);
+				self->P2P->doKeepAlive = NULL;
+				return false;
+			}
+			return true;
+		}
+
+		unsigned char buffer[1 + 4 + 2 + 0xFF]; //command + [ip + port] + key
+		ENetBuffer br;
+		br.data = buffer;
+		br.dataLength = sizeof(buffer);
+		int rec = enet_socket_receive(self->host->socket, NULL, &br, 1);
+		if (rec < 1 || rec > sizeof(buffer) || buffer[0] < 200 || buffer[0] > 201) return true; //unknown response
+		if (buffer[0] == 200) //command 200 = become host
+		{
+			if (memcmp(buffer + (1), self->host->packetData, rec - (1))) return true; //key mismatch
+			self->P2P->is_master = 1;
+			ZL_LOG3("NET", "    Received nat punch become host command: [%.*s] (%d bytes)", rec - (1), buffer + (1), rec);
+		}
+		else if (buffer[0] == 201) //command 201 = become guest
+		{
+			if (rec < (1 + 4 + 2) || memcmp(buffer + (1 + 4 + 2), self->host->packetData, rec - (1 + 4 + 2))) return true; //key mismatch
+			ENetAddress address;
+			address.host = buffer[1] | (buffer[2] << 8) | (buffer[3] << 16) | (buffer[4] << 24);
+			address.port = buffer[5] | (buffer[6] << 8);
+			self->P2P->is_master = 0;
+			//self->host->peers->outgoingSessionID = 0; //change from 0xFF to 0 to make outgoingSessionID to 1 on first connection (incomingSessionID will be 1 on master)
+			ZL_LOG3("NET", "    Received nat punch guest info - connectID: %d - Host: %X - Port: %d", self->host->peers->connectID, address.host, address.port);
+			enet_host_connect(self->host, &address, self->host->channelLimit, 0);
+		}
+		self->P2P->doKeepAlive = NULL;
+		return false;
 	}
 
 	bool KeepAlive()
 	{
 		assert(host);
 		if (!host) return false;
+		if (P2P && P2P->doKeepAlive && P2P->doKeepAlive(this)) return true;
 		ENetEvent event;
 		while (enet_host_service(host, &event, 0) > 0)
 		{
@@ -170,11 +257,9 @@ struct ZL_Server_Impl : ZL_Connection_Impl
 					enet_packet_destroy(event.packet);
 					break;
 				case ENET_EVENT_TYPE_CONNECT:
-					clients.push_back(event.peer);
 					sigConnected.call(peer); //ToDo: include event.data
 					break;
 				case ENET_EVENT_TYPE_DISCONNECT:
-					clients.erase(std::remove(clients.begin(), clients.end(), event.peer), clients.end());
 					sigDisconnected.call(peer);
 					break;
 				case ENET_EVENT_TYPE_NONE:
@@ -187,12 +272,27 @@ struct ZL_Server_Impl : ZL_Connection_Impl
 
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_Server)
 
-ZL_Server::ZL_Server(int server_port, int num_connections, const char *bind_host) : impl(new ZL_Server_Impl(server_port, num_connections, bind_host)) { }
-
-void ZL_Server::Open(int server_port, int num_connections, const char *bind_host)
+ZL_Server::ZL_Server(int server_port, unsigned short max_connections, const char *bind_host, unsigned char num_channels) : impl(new ZL_Server_Impl())
 {
-	if (!impl) impl = new ZL_Server_Impl(server_port, num_connections, bind_host);
-	else impl->Open(server_port, num_connections, bind_host);
+	impl->Open(server_port, max_connections, bind_host, num_channels);
+}
+
+ZL_Server::ZL_Server(const char *p2prelay_host, int p2prelay_port, unsigned short max_connections, const void* relaykey, unsigned char relaykey_length, unsigned char num_channels) : impl(new ZL_Server_Impl())
+{
+	impl->OpenP2P(p2prelay_host, p2prelay_port, max_connections, relaykey, relaykey_length, num_channels);
+}
+
+
+void ZL_Server::Open(int server_port, unsigned short max_connections, const char *bind_host, unsigned char num_channels)
+{
+	if (!impl) impl = new ZL_Server_Impl();
+	impl->Open(server_port, max_connections, bind_host, num_channels);
+}
+
+void ZL_Server::OpenP2P(const char *p2prelay_host, int p2prelay_port, unsigned short max_connections, const void* relaykey, unsigned char relaykey_length, unsigned char num_channels)
+{
+	if (!impl) impl = new ZL_Server_Impl();
+	impl->OpenP2P(p2prelay_host, p2prelay_port, max_connections, relaykey, relaykey_length, num_channels);
 }
 
 void ZL_Server::Close(unsigned int closemsg)
@@ -200,47 +300,48 @@ void ZL_Server::Close(unsigned int closemsg)
 	if (impl && impl->host) impl->Close(closemsg, true);
 }
 
-void ZL_Server::Send(std::vector<ZL_PeerHandle> peerhandles, ZL_Packet &packet)
-{
-	if (!impl || !impl->host) return;
-	ENetPacket* enetpacket = enet_packet_create(packet.data, packet.length, (packet.type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (packet.type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED)));
-	for (std::vector<ZL_PeerHandle>::iterator it = peerhandles.begin(); it != peerhandles.end(); ++it)
-		enet_peer_send((ENetPeer*)(*it), packet.channel, enetpacket);
-}
-
-void ZL_Server::Send(ZL_PeerHandle peerhandle, ZL_Packet &packet)
+void ZL_Server::Send(ZL_PeerHandle peerhandle, const ZL_Packet& packet)
 {
 	if (!impl || !impl->host) return;
 	enet_peer_send((ENetPeer*)peerhandle, packet.channel, enet_packet_create(packet.data, packet.length, (packet.type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (packet.type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED))));
-}
-
-void ZL_Server::Broadcast(ZL_Packet &packet)
-{
-	if (!impl || !impl->host) return;
-	enet_host_broadcast(impl->host, packet.channel, enet_packet_create(packet.data, packet.length, (packet.type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (packet.type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED))));
-}
-
-void ZL_Server::Broadcast(ZL_Packet &packet, ZL_PeerHandle peerhandle_except)
-{
-	if (!impl || !impl->host) return;
-	ENetPacket* enetpacket = enet_packet_create(packet.data, packet.length, (packet.type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (packet.type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED)));
-	for (std::vector<ZL_PeerHandle>::iterator it = impl->clients.begin(); it != impl->clients.end(); ++it)
-		if ((*it) != peerhandle_except)
-			enet_peer_send((ENetPeer*)(*it), packet.channel, enetpacket);
-}
-
-void ZL_Server::Send(std::vector<ZL_PeerHandle> peerhandles, const void* data, size_t length, unsigned char channel, ZL_Packet_Reliability type)
-{
-	if (!impl || !impl->host) return;
-	ENetPacket* enetpacket = enet_packet_create(data, length, (type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED)));
-	for (std::vector<ZL_PeerHandle>::iterator it = peerhandles.begin(); it != peerhandles.end(); ++it)
-		enet_peer_send((ENetPeer*)(*it), channel, enetpacket);
 }
 
 void ZL_Server::Send(ZL_PeerHandle peerhandle, const void* data, size_t length, unsigned char channel, ZL_Packet_Reliability type)
 {
 	if (!impl || !impl->host) return;
 	enet_peer_send((ENetPeer*)peerhandle, channel, enet_packet_create(data, length, (type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED))));
+}
+
+void ZL_Server::Send(const std::vector<ZL_PeerHandle>& peerhandles, const ZL_Packet& packet)
+{
+	if (!impl || !impl->host) return;
+	ENetPacket* enetpacket = enet_packet_create(packet.data, packet.length, (packet.type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (packet.type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED)));
+	for (std::vector<ZL_PeerHandle>::const_iterator it = peerhandles.begin(); it != peerhandles.end(); ++it)
+		enet_peer_send((ENetPeer*)(*it), packet.channel, enetpacket);
+}
+
+void ZL_Server::Send(const std::vector<ZL_PeerHandle>& peerhandles, const void* data, size_t length, unsigned char channel, ZL_Packet_Reliability type)
+{
+	if (!impl || !impl->host) return;
+	ENetPacket* enetpacket = enet_packet_create(data, length, (type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED)));
+	for (std::vector<ZL_PeerHandle>::const_iterator it = peerhandles.begin(); it != peerhandles.end(); ++it)
+		enet_peer_send((ENetPeer*)(*it), channel, enetpacket);
+}
+
+void ZL_Server::Broadcast(const ZL_Packet& packet)
+{
+	if (!impl || !impl->host) return;
+	enet_host_broadcast(impl->host, packet.channel, enet_packet_create(packet.data, packet.length, (packet.type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (packet.type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED))));
+}
+
+void ZL_Server::Broadcast(const ZL_Packet& packet, ZL_PeerHandle peerhandle_except)
+{
+	if (!impl || !impl->host) return;
+	ENetPacket* enetpacket = enet_packet_create(packet.data, packet.length, (packet.type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (packet.type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED)));
+	for (ENetPeer *it = impl->host->peers, *end = &impl->host->peers[impl->host->peerCount]; it != end; ++it)
+		if (it->state == ENET_PEER_STATE_CONNECTED &&  it != peerhandle_except)
+			enet_peer_send(it, packet.channel, enetpacket);
+	if (enetpacket->referenceCount == 0) enet_packet_destroy(enetpacket);
 }
 
 void ZL_Server::Broadcast(const void* data, size_t length, unsigned char channel, ZL_Packet_Reliability type)
@@ -253,27 +354,29 @@ void ZL_Server::Broadcast(const void* data, size_t length, ZL_PeerHandle peerhan
 {
 	if (!impl || !impl->host) return;
 	ENetPacket* enetpacket = enet_packet_create(data, length, (type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED)));
-	for (std::vector<ZL_PeerHandle>::iterator it = impl->clients.begin(); it != impl->clients.end(); ++it)
-		if ((*it) != peerhandle_except)
-			enet_peer_send((ENetPeer*)(*it), channel, enetpacket);
+	for (ENetPeer *it = impl->host->peers, *end = &impl->host->peers[impl->host->peerCount]; it != end; ++it)
+		if (it->state == ENET_PEER_STATE_CONNECTED && it != peerhandle_except)
+			enet_peer_send(it, channel, enetpacket);
+	if (enetpacket->referenceCount == 0) enet_packet_destroy(enetpacket);
 }
 
-const std::vector<ZL_PeerHandle> &ZL_Server::GetPeerHandles()
+void ZL_Server::GetPeerHandles(std::vector<ZL_PeerHandle>& out_list)
 {
-	if (!impl) impl = new ZL_Server_Impl();
-	return impl->clients;
+	out_list.clear();
+	if (impl) for (ENetPeer *it = impl->host->peers, *end = &impl->host->peers[impl->host->peerCount]; it != end; ++it)
+		if (it->state == ENET_PEER_STATE_CONNECTED)
+			out_list.push_back(&*it);
 }
 
-std::vector<ZL_Peer> ZL_Server::GetPeerDetails()
+void ZL_Server::GetPeerDetails(std::vector<ZL_Peer>& out_list)
 {
-	if (!impl) impl = new ZL_Server_Impl();
-	std::vector<ZL_Peer> list;
-	for (std::vector<ZL_PeerHandle>::iterator it = impl->clients.begin(); it != impl->clients.end(); ++it)
+	out_list.clear();
+	if (impl) for (ENetPeer *it = impl->host->peers, *end = &impl->host->peers[impl->host->peerCount]; it != end; ++it)
 	{
-		ZL_Peer peer = { SWAPBE32(((ENetPeer*)(*it))->address.host), ((ENetPeer*)(*it))->address.port, &((ENetPeer*)(*it))->data, (*it) };
-		list.push_back(peer);
+		if (it->state != ENET_PEER_STATE_CONNECTED) continue;
+		ZL_Peer peer = { SWAPBE32(it->address.host), it->address.port, &it->data, it };
+		out_list.push_back(peer);
 	}
-	return list;
 }
 
 ZL_Signal_v1<ZL_Peer&>& ZL_Server::sigConnected()
@@ -299,31 +402,38 @@ bool ZL_Server::IsOpened()
 	return (impl && impl->host);
 }
 
+size_t ZL_Server::GetPeerCount()
+{
+	size_t count = 0;
+	if (impl) for (ENetPeer *it = impl->host->peers, *end = &impl->host->peers[impl->host->peerCount]; it != end; ++it)
+		if (it->state == ENET_PEER_STATE_CONNECTED)
+			count++;
+	return count;
+}
+
+bool ZL_Server::IsP2PMaster()
+{
+	return (impl && impl->P2P && impl->P2P->is_master == 1);
+}
+
 //----------------------------------------------------------------------------------------------------------------------------------------------
 
 struct ZL_Client_Impl : ZL_Connection_Impl
 {
 	ENetHost *host;
-	ENetPeer *server;
-	bool (*doNatPunchKeepAlive)(ZL_Client_Impl*);
 	ZL_Signal_v0 sigConnected;
 	ZL_Signal_v0 sigDisconnected;
 	ZL_Signal_v1<ZL_Packet&> sigReceived;
 
-	ZL_Client_Impl() : host(NULL), server(NULL), doNatPunchKeepAlive(NULL) { }
-
-	ZL_Client_Impl(const char *connect_host, int port, int num_channels) : host(NULL), server(NULL), doNatPunchKeepAlive(NULL)
-	{
-		assert(OpenConnections || (ZL_Application::Log("NETWORK", "Tried to open a connection without initializing with ZL_Network::Init first"),0));
-		Connect(connect_host, port, num_channels);
-	}
+	ZL_Client_Impl() : host(NULL) { }
 
 	~ZL_Client_Impl() { Disconnect(0, true); }
 
 	void ShutDown() { Disconnect(0, false); }
 
-	void Connect(const char *connect_host, int port, int num_channels)
+	void Connect(const char *connect_host, int port, unsigned char num_channels)
 	{
+		assert(OpenConnections || (ZL_Application::Log("NETWORK", "Tried to open a connection without initializing with ZL_Network::Init first"),0));
 		if (host) Disconnect(0, true);
 
 		host = enet_host_create(NULL, 1, num_channels, 0, 0);
@@ -333,78 +443,25 @@ struct ZL_Client_Impl : ZL_Connection_Impl
 		enet_address_set_host(&address, connect_host);
 		address.port = port;
 
-		server = enet_host_connect(host, &address, num_channels, 0);
-
-		OpenConnectionsAdd(this);
-	}
-
-	void NatPunch(const char *relay_host, int relay_port, const unsigned char punch_key[8], int num_channels)
-	{
-		if (host) Disconnect(0, true);
-
-		host = enet_host_create(NULL, 1, num_channels, 0, 0);
-		if (!host) return;
-
-		ENetAddress address;
-		enet_address_set_host(&address, relay_host);
-		address.port = relay_port;
-
-		ENetBuffer bs;
-		bs.data = (void*)punch_key;
-		bs.dataLength = 8;
-		enet_socket_send(host->socket, &address, &bs, 1);
-		memcpy(host->packetData, punch_key, 8); //store temporary in unused place for validation before real connection
-
-		doNatPunchKeepAlive = &NatPunchKeepAlive;
+		enet_host_connect(host, &address, num_channels, 0);
 
 		OpenConnectionsAdd(this);
 	}
 
 	void Disconnect(unsigned int closemsg, bool remove_openconnection)
 	{
-		if (server) enet_peer_disconnect(server, closemsg);
 		if (!host) return;
-		if (server) enet_host_flush(host);
+		if (host && host->peerCount) enet_peer_disconnect(host->peers, closemsg);
+		if (host) enet_host_flush(host);
 		enet_host_destroy(host);
-		host = NULL; server = NULL;
+		host = NULL;
 		if (remove_openconnection) OpenConnectionsDel(this);
-	}
-
-	static bool NatPunchKeepAlive(ZL_Client_Impl* self)
-	{
-		unsigned int waitCondition = ENET_SOCKET_WAIT_RECEIVE | ENET_SOCKET_WAIT_SEND;
-		if (enet_socket_wait(self->host->socket, &waitCondition, 0) != 0) return true;
-		if (!(waitCondition & ENET_SOCKET_WAIT_RECEIVE)) return true;
-
-		unsigned char buffer[8+4+2]; //key + ip + port
-		ENetBuffer br;
-		br.data = buffer;
-		br.dataLength = sizeof(buffer);
-		int rec = enet_socket_receive(self->host->socket, NULL, &br, 1);
-		if ((rec != 8 && rec != 8+4+2) || memcmp(buffer, self->host->packetData, 8)) return true; //unknown response
-		if (rec == 8+4+2) //master
-		{
-			//ZL_LOG3("NET", "    Received nat punch data: [%.*s] (%d bytes)", rec, (rec > 0 ? buffer : NULL), rec);
-			ENetAddress address;
-			address.host = buffer[ 8] | (buffer[ 9] << 8) | (buffer[10] << 16) | (buffer[11] << 24);
-			address.port = buffer[12] | (buffer[13] << 8);
-			self->server = enet_host_connect(self->host, &address, 1, 1);
-		}
-		else //slave
-		{
-			//ZL_LOG3("NET", "    Received wait for connection data: [%.*s] (%d bytes)", rec, (rec > 0 ? buffer : NULL), rec);
-			self->server = self->host->peers; //will be first connecting client
-			self->server->outgoingSessionID = 0; //change from 0xFF to 0 to make outgoingSessionID to 1 on first connection (incomingSessionID will be 1 on master)
-		}
-		self->doNatPunchKeepAlive = NULL;
-		return false;
 	}
 
 	bool KeepAlive()
 	{
 		assert(host);
 		if (!host) return false;
-		if (doNatPunchKeepAlive && doNatPunchKeepAlive(this)) return true;
 		ENetEvent event;
 		while (enet_host_service(host, &event, 0) > 0)
 		{
@@ -422,7 +479,7 @@ struct ZL_Client_Impl : ZL_Connection_Impl
 					break;
 				case ENET_EVENT_TYPE_DISCONNECT:
 					enet_host_destroy(host);
-					host = NULL; server = NULL;
+					host = NULL;
 					sigDisconnected.call();
 					return false;
 				case ENET_EVENT_TYPE_NONE:
@@ -435,18 +492,15 @@ struct ZL_Client_Impl : ZL_Connection_Impl
 
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_Client)
 
-ZL_Client::ZL_Client(const char *host, int port, int num_channels) : impl(new ZL_Client_Impl(host, port, num_channels)) { }
-
-void ZL_Client::Connect(const char *host, int port, int num_channels)
+ZL_Client::ZL_Client(const char *host, int port, unsigned char num_channels) : impl(new ZL_Client_Impl())
 {
-	if (!impl) impl = new ZL_Client_Impl(host, port, num_channels);
-	else impl->Connect(host, port, num_channels);
+	impl->Connect(host, port, num_channels);
 }
 
-void ZL_Client::NatPunch(const char *relay_host, int relay_port, const unsigned char punch_key[8], int num_channels)
+void ZL_Client::Connect(const char *host, int port, unsigned char num_channels)
 {
 	if (!impl) impl = new ZL_Client_Impl();
-	impl->NatPunch(relay_host, relay_port, punch_key, num_channels);
+	impl->Connect(host, port, num_channels);
 }
 
 void ZL_Client::Disconnect(unsigned int closemsg)
@@ -456,14 +510,14 @@ void ZL_Client::Disconnect(unsigned int closemsg)
 
 void ZL_Client::Send(ZL_Packet &packet)
 {
-	if (!impl || !impl->host ||!impl->server) return;
-	enet_peer_send(impl->server, packet.channel, enet_packet_create(packet.data, packet.length, (packet.type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (packet.type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED))));
+	if (!impl || !impl->host || ! impl->host->peerCount) return;
+	enet_peer_send(impl->host->peers, packet.channel, enet_packet_create(packet.data, packet.length, (packet.type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (packet.type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED))));
 }
 
 void ZL_Client::Send(const void* data, size_t length, unsigned char channel, ZL_Packet_Reliability type)
 {
-	if (!impl || !impl->host ||!impl->server) return;
-	enet_peer_send(impl->server, channel, enet_packet_create(data, length, (type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED))));
+	if (!impl || !impl->host ||!impl->host->peerCount) return;
+	enet_peer_send(impl->host->peers, channel, enet_packet_create(data, length, (type == ZL_PACKET_RELIABLE ? ENET_PACKET_FLAG_RELIABLE : (type == ZL_PACKET_UNRELIABLE ? 0 : ENET_PACKET_FLAG_UNSEQUENCED))));
 }
 
 ZL_Signal_v0& ZL_Client::sigConnected()
@@ -486,12 +540,7 @@ ZL_Signal_v1<ZL_Packet&>& ZL_Client::sigReceived()
 
 bool ZL_Client::IsConnected()
 {
-	return (impl && impl->host && impl->server);
-}
-
-bool ZL_Client::IsNatPunchSlave()
-{
-	return (impl && impl->server && impl->server->incomingSessionID == 0);
+	return (impl && impl->host && impl->host->peerCount);
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------

@@ -66,7 +66,8 @@ struct ZL_Peer
 struct ZL_Server
 {
 	ZL_Server();
-	ZL_Server(int server_port, int num_connections, const char *bind_host = NULL);
+	ZL_Server(int server_port, unsigned short max_connections, const char *bind_host = NULL, unsigned char num_channels = 1);
+	ZL_Server(const char *p2prelay_host, int p2prelay_port, unsigned short max_connections = 2, const void* relaykey = NULL, unsigned char relaykey_length = 0, unsigned char num_channels = 1);
 	~ZL_Server();
 	ZL_Server(const ZL_Server &source);
 	ZL_Server &operator =(const ZL_Server &source);
@@ -74,19 +75,22 @@ struct ZL_Server
 	bool operator==(const ZL_Server &b) const { return (impl==b.impl); }
 	bool operator!=(const ZL_Server &b) const { return (impl!=b.impl); }
 
-	void Open(int server_port, int num_connections, const char *bind_host = NULL);
+	void Open(int server_port, unsigned short max_connections, const char *bind_host = NULL, unsigned char num_channels = 1);
+	void OpenP2P(const char *p2prelay_host, int p2prelay_port, unsigned short max_connections = 2, const void* relaykey = NULL, unsigned char relaykey_length = 0, unsigned char num_channels = 1);
 	void Close(unsigned int closemsg = 0);
-	void Send(std::vector<ZL_PeerHandle> peerhandles, ZL_Packet &packet);
-	void Send(ZL_PeerHandle peerhandle, ZL_Packet &packet);
-	void Broadcast(ZL_Packet &packet);
-	void Broadcast(ZL_Packet &packet, ZL_PeerHandle peerhandle_except);
-	void Send(std::vector<ZL_PeerHandle> peerhandles, const void* data, size_t length, unsigned char channel = 0, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE);
+	void Send(ZL_PeerHandle peerhandle, const ZL_Packet& packet);
 	void Send(ZL_PeerHandle peerhandle, const void* data, size_t length, unsigned char channel = 0, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE);
+	void Send(const std::vector<ZL_PeerHandle>& peerhandles, const ZL_Packet& packet);
+	void Send(const std::vector<ZL_PeerHandle>& peerhandles, const void* data, size_t length, unsigned char channel = 0, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE);
+	void Broadcast(const ZL_Packet& packet);
+	void Broadcast(const ZL_Packet& packet, ZL_PeerHandle peerhandle_except);
 	void Broadcast(const void* data, size_t length, unsigned char channel = 0, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE);
 	void Broadcast(const void* data, size_t length, ZL_PeerHandle peerhandle_except, unsigned char channel = 0, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE);
-	const std::vector<ZL_PeerHandle> &GetPeerHandles();
-	std::vector<ZL_Peer> GetPeerDetails();
+	void GetPeerHandles(std::vector<ZL_PeerHandle>& out_list);
+	void GetPeerDetails(std::vector<ZL_Peer>& out_list);
 	bool IsOpened();
+	size_t GetPeerCount();
+	bool IsP2PMaster();
 
 	ZL_Signal_v1<ZL_Peer&>& sigConnected();
 	ZL_Signal_v1<ZL_Peer&>& sigDisconnected();
@@ -99,7 +103,7 @@ struct ZL_Client
 {
 public:
 	ZL_Client();
-	ZL_Client(const char *host, int port, int num_channels = 1);
+	ZL_Client(const char *host, int port, unsigned char num_channels = 1);
 	~ZL_Client();
 	ZL_Client(const ZL_Client &source);
 	ZL_Client &operator =(const ZL_Client &source);
@@ -107,13 +111,11 @@ public:
 	bool operator==(const ZL_Client &b) const { return (impl==b.impl); }
 	bool operator!=(const ZL_Client &b) const { return (impl!=b.impl); }
 
-	void Connect(const char *host, int port, int num_channels = 1);
-	void NatPunch(const char *relay_host, int relay_port, const unsigned char punch_key[8], int num_channels = 1);
+	void Connect(const char *host, int port, unsigned char num_channels = 1);
 	void Disconnect(unsigned int closemsg = 0);
 	void Send(ZL_Packet &packet);
 	void Send(const void* data, size_t length, unsigned char channel = 0, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE);
 	bool IsConnected();
-	bool IsNatPunchSlave();
 
 	ZL_Signal_v0& sigConnected();
 	ZL_Signal_v0& sigDisconnected();
