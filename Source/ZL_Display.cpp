@@ -494,6 +494,12 @@ void ZL_Display::DrawLine(scalar x1, scalar y1, scalar x2, scalar y2, const ZL_C
 	*/
 }
 
+void ZL_Display::DrawWideLine(scalar x1, scalar y1, scalar x2, scalar y2, scalar width, const ZL_Color &color_border, const ZL_Color &color_fill /*= ZL_Color::Transparent*/)
+{
+	ZL_Vector p = ZL_Vector(x1, y1, x2, y2).VecNorm().Mul(width).VecPerp();
+	DrawQuad(x1 + p.x, y1 + p.y, x2 + p.x, y2 + p.y, x2 - p.x, y2 - p.y, x1 - p.x, y1 - p.y, color_border, color_fill);
+}
+
 void ZL_Display::DrawBezier(scalar x1, scalar y1, scalar x2, scalar y2, scalar x3, scalar y3, scalar x4, scalar y4, const ZL_Color &color)
 {
 	scalar x = x1, y = y1;
@@ -1170,7 +1176,7 @@ void ZL_Polygon::Draw(const ZL_Surface& surface) const
 
 ZL_Surface ZL_Polygon::GetSurface() const
 {
-	return ZL_ImplMakeOwner<ZL_Surface>(impl->pSurfaceImpl, true);
+	return ZL_ImplMakeOwner<ZL_Surface>((impl ? impl->pSurfaceImpl : NULL), true);
 }
 
 const ZL_Rectf& ZL_Polygon::GetBoundingBox() const

@@ -367,6 +367,8 @@ struct ZL_Display
 	//2D geometry drawing functions
 	inline static void DrawLine(const ZL_Vector& p1, const ZL_Vector& p2, const ZL_Color &color) { DrawLine(p1.x, p1.y, p2.x, p2.y, color); }
 	static void DrawLine(scalar x1, scalar y1, scalar x2, scalar y2, const ZL_Color &color);
+	inline static void DrawWideLine(const ZL_Vector& p1, const ZL_Vector& p2, scalar width, const ZL_Color &color_border, const ZL_Color &color_fill = ZL_Color::Transparent) { DrawWideLine(p1.x, p1.y, p2.x, p2.y, width, color_border, color_fill); }
+	static void DrawWideLine(scalar x1, scalar y1, scalar x2, scalar y2, scalar width, const ZL_Color &color_border, const ZL_Color &color_fill = ZL_Color::Transparent);
 	inline static void DrawRect(const ZL_Rectf& rec, const ZL_Color &color_border, const ZL_Color &color_fill = ZL_Color::Transparent) { DrawRect(rec.left, rec.low, rec.right, rec.high, color_border, color_fill); }
 	static void DrawRect(const scalar& x1, const scalar& y1, const scalar& x2, const scalar& y2, const ZL_Color &color_border, const ZL_Color &color_fill = ZL_Color::Transparent);
 	inline static void DrawCircle(scalar cx, scalar cy, scalar r, const ZL_Color &color_border, const ZL_Color &color_fill = ZL_Color::Transparent) { DrawEllipse(cx, cy, r, r, color_border, color_fill); }
@@ -380,6 +382,8 @@ struct ZL_Display
 	static void DrawBezier(scalar x1, scalar y1, scalar x2, scalar y2, scalar x3, scalar y3, scalar x4, scalar y4, const ZL_Color &color);
 
 	//Filled 2D geometry shape drawing functions
+	inline static void FillWideLine(const ZL_Vector& p1, const ZL_Vector& p2, scalar width, const ZL_Color &color_fill = ZL_Color::Transparent) { DrawWideLine(p1.x, p1.y, p2.x, p2.y, width, ZL_Color::Transparent, color_fill); }
+	inline static void FillWideLine(scalar x1, scalar y1, scalar x2, scalar y2, scalar width, const ZL_Color &color_fill = ZL_Color::Transparent) { DrawWideLine(x1, y1, x2, y2, width, ZL_Color::Transparent, color_fill); }
 	inline static void FillRect(const ZL_Rectf& rec, const ZL_Color &color_fill) { DrawRect(rec.left, rec.low, rec.right, rec.high, ZL_Color::Transparent, color_fill); }
 	inline static void FillRect(const scalar& x1, const scalar& y1, const scalar& x2, const scalar& y2, const ZL_Color &color_fill) { DrawRect(x1, y1, x2, y2, ZL_Color::Transparent, color_fill); }
 	inline static void FillCircle(scalar cx, scalar cy, scalar r, const ZL_Color &color_fill) { DrawEllipse(cx, cy, r, r, ZL_Color::Transparent, color_fill); }

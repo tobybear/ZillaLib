@@ -17,12 +17,13 @@ ZillaLib on Android
 # Setup
 
 ## Get a Java Development Kit (JDK)
-On Windows, I suggest getting a JDK that does not integrate into the OS, annoying you with adware like popups and unwanted browser plugins. You can get that by extracting 'jdk-8u60-windows-x64.exe' (or jdk-8u65-windows-i586.exe if you're running a 32-bit OS) from the link below with 7-Zip:  
+On Windows, I suggest getting a JDK that does not integrate into the OS, annoying you with adware like popups and unwanted browser plugins. You can get that by extracting 'jdk-8u***-windows-x64.exe' (or jdk-8u***-windows-i586.exe if you're running a 32-bit OS) from the link below with 7-Zip:  
 http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
-  1. Download jdk-8u60-windows-****.exe and open it with 7-Zip, not by running it
-  2. Extract bin and lib from /tools.zip/jre/ into a directory named JDK81
-  3. Extract bin and lib from /tools.zip/ into the same place (this will overwrite some stuff from step 1 from jre) (lib/missioncontrol and lib/visualvm can be skipped or deleted afterwards)
-  4. Open a command line to the extracted files and run the following command  
+  1. Download jdk-8u***-windows-****.exe and open it with 7-Zip, not by running it
+  2. Browse with 7-Zip to /.rsrc/1033/JAVA_CAB10/111/tools.zip
+  3. Extract bin and lib from tools.zip/jre/ into a directory named JDK81
+  4. Extract bin and lib from tools.zip/ into the same place (this will overwrite some stuff from step 1 from jre) (lib/missioncontrol and lib/visualvm can be skipped or deleted afterwards)
+  5. Open a command line to the extracted files and run the following command  
      `for /r %x in (*.pack) do .\bin\unpack200 -r "%x" "%~dx%~px%~nx.jar"`
 
 ## Get the Android SDK
