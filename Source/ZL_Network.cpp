@@ -216,7 +216,7 @@ struct ZL_Server_Impl : ZL_Connection_Impl
 		br.data = buffer;
 		br.dataLength = sizeof(buffer);
 		int rec = enet_socket_receive(self->host->socket, NULL, &br, 1);
-		if (rec < 1 || rec > sizeof(buffer) || buffer[0] < 200 || buffer[0] > 201) return true; //unknown response
+		if (rec < 1 || rec > (int)sizeof(buffer) || buffer[0] < 200 || buffer[0] > 201) return true; //unknown response
 		if (buffer[0] == 200) //command 200 = become host
 		{
 			if (memcmp(buffer + (1), self->host->packetData, rec - (1))) return true; //key mismatch
