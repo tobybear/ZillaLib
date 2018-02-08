@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -200,6 +200,7 @@ int main(int argc, char *argv[])
 		if (!(ZL_MainApplicationFlags & ZL_APPLICATION_NOVSYNC)) glFinish();
 	}
 	ZL_MainApplication->OnQuit();
+	//_exit(ZL_DoneReturn); //faster exit without freeing each object, let OS free all memory and resources
 	return ZL_DoneReturn;
 }
 

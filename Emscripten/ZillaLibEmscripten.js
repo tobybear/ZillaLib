@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -25,6 +25,14 @@ var LibraryZLJS =
 	{
 		initTime: null,
 		settings_prefix: 'ZL',
+		lock_flag: 0,
+		do_lock: function(f)
+		{
+			ZLJS.lock_flag = f;
+			var el = (f ? Module['canvas'] : document), rpl = 'requestPointerLock', epl = 'exitPointerLock', moz = 'moz', wk = 'webkit';
+			var fs = (f ? (el[rpl] || el[moz+rpl] || el[wk+rpl]) : (el[epl] || el[moz+epl] || el[wk+epl]));
+			if (fs) fs.apply(el, []);
+		},
 		malloc_string: function(s)
 		{
 			var i, s = unescape(encodeURIComponent(s));
@@ -54,7 +62,7 @@ var LibraryZLJS =
 		cnvs.height = height;
 		cnvs.height = cnvs['clientHeight'];
 		cnvs.width = cnvs['clientWidth'];
-		Module.ctx = Browser.createContext(cnvs, true, true);
+		Module.ctx = Browser.createContext(cnvs, true, true, {antialias:1});
 		if (!Module.ctx) return;
 
   		var mousfocs = true, pointerlock = null, fullscreen = null, mouse_lastx = -1, mouse_lasty = -1;
@@ -114,7 +122,7 @@ var LibraryZLJS =
 			}
 			if (mousfocs) cancelEvent(e);
 		}, true);
-		cnvs.addEventListener('mousedown',      function(e) { _ZLFNMouse(e.button,  true, (pointerlock ? mouse_lastx : mx(e)), (pointerlock ? mouse_lasty : my(e))); if (mousfocs) cancelEvent(e); }, true);
+		cnvs.addEventListener('mousedown',      function(e) { _ZLFNMouse(e.button,  true, (pointerlock ? mouse_lastx : mx(e)), (pointerlock ? mouse_lasty : my(e))); if (mousfocs) cancelEvent(e); if (ZLJS.lock_flag && !pointerlock) ZLJS.do_lock(1); }, true);
 		cnvs.addEventListener('mouseup',        function(e) { _ZLFNMouse(e.button, false, (pointerlock ? mouse_lastx : mx(e)), (pointerlock ? mouse_lasty : my(e))); if (mousfocs) cancelEvent(e); }, true);
 		cnvs.addEventListener('mousewheel',     function(e) { _ZLFNWheel(e.wheelDelta); if (mousfocs) cancelEvent(e); }, true);
 		cnvs.addEventListener('DOMMouseScroll', function(e) { _ZLFNWheel(-e.detail*40); if (mousfocs) cancelEvent(e); }, true);
@@ -186,11 +194,7 @@ var LibraryZLJS =
 
 	ZLJS_SetPointerLock: function(flag)
 	{
-		var el = (flag ? Module['canvas'] : document);
-		var fs = null;
-		if (flag) fs = el['requestPointerLock'] || el['mozRequestPointerLock'] || el['webkitRequestPointerLock']; 
-		else fs = el['exitPointerLock'] || el['mozExitPointerLock'] || el['webkitExitPointerLock'];
-		if (fs) fs.apply(el, []);
+		ZLJS.do_lock(flag);
 	},
 
 	ZLJS_AsyncLoad: function(url, impl, postdata, postlength)

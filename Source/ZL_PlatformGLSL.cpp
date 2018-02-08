@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -288,6 +288,13 @@ namespace ZLGLSL
 			glDeleteShader(shader);
 			return 0;
 		}
+
+		#if defined(ZILLALOG) && (0||ZL_GLSL_OUTPUT_ALL_SHADER_SOURCE)
+		ZL_LOG0("ZLGLSL", "---------------------------------------------");
+		ZL_LOG0("ZLGLSL", "Shader Source:");
+		int i = 1; for (const char *lb = src.c_str(), *le; (le = strchr(lb, '\n')); lb = le+1) { ZL_LOG3("ZLGLSL", "%3d: %.*s", i++, le-lb, lb); }
+		ZL_LOG0("ZLGLSL", "---------------------------------------------");
+		#endif
 
 		return shader;
 	}

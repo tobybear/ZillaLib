@@ -25,7 +25,9 @@ import os, sys, subprocess, zipfile, shutil, re
 MSBUILD_PATH = 'C:/Program Files (x86)/MSBuild/12.0/Bin/MSBuild.exe' #default
 OUT_DIR = 'Builds'
 buildall_dir = os.path.dirname(os.path.realpath(sys.argv.pop(0))).replace('\\', '/')
+WEB_GZ = False
 exec (file(buildall_dir+'/build-all.cfg').read() if os.path.exists(buildall_dir+'/build-all.cfg') else '')
+WEB_GZ = ('.gz' if WEB_GZ else '')
 if 'ANDROID_SIGN_KEYSTORE' in vars() and '..' in ANDROID_SIGN_KEYSTORE: ANDROID_SIGN_KEYSTORE = buildall_dir + '/' + ANDROID_SIGN_KEYSTORE
 if 'OUT_DIR' in vars() and '..' in OUT_DIR: OUT_DIR = buildall_dir + '/' + OUT_DIR
 
@@ -80,16 +82,16 @@ try:
 	def getoutputexecutable(dir,  basename = proj_name, ext = ''):
 		return (dir + '/' + basename + '_WithData' + ext if os.path.exists(dir + '/' + basename + '_WithData' + ext) else dir + '/' + basename + ext)
 	if sys.platform == 'win32':
-		if buildcheck('emscripten', proj_name + '.js.gz', 'Release-emscripten'):
+		if buildcheck('emscripten', proj_name + '.js'+WEB_GZ, 'Release-emscripten'):
 			buildheader('EMSCRIPTEN')
 			building(['make', '-j', '4', 'emscripten-release' ])
-			buildcopy(getoutputexecutable('Release-emscripten', proj_name, '.js.gz'), proj_name + '.js.gz')
+			buildcopy(getoutputexecutable('Release-emscripten', proj_name, '.js'+WEB_GZ), proj_name + '.js'+WEB_GZ)
 			buildfooter()
 
-		if buildcheck('nacl', proj_name + '.pexe.gz', 'Release-nacl'):
+		if buildcheck('nacl', proj_name + '.pexe'+WEB_GZ, 'Release-nacl'):
 			buildheader('NACL')
 			building(['make', '-j', '4', 'nacl-release' ])
-			buildcopy(getoutputexecutable('Release-nacl', proj_name, '.pexe.gz'), proj_name + '.pexe.gz')
+			buildcopy(getoutputexecutable('Release-nacl', proj_name, '.pexe'+WEB_GZ), proj_name + '.pexe'+WEB_GZ)
 			buildfooter()
 
 		if buildcheck('android', proj_name + '.apk', 'Android/obj'):
