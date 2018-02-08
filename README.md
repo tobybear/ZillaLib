@@ -20,9 +20,9 @@ ZillaLib Game SDK
 
 ## Welcome to ZillaLib
 
-ZillaLib is a 2D game creation framework that runs on pretty much every open platform out there. Windows, Linux, Mac OS X, Android, iOS, Chrome Native Client and Emscripten (HTML5).
+ZillaLib is a 2D (and 3D!) game creation framework that runs on pretty much every open platform out there. Windows, Linux, Mac OS X, Android, iOS, Chrome Native Client and Emscripten (HTML5).
 
-It's a sleek C++ library that compiles to all platforms with zero change in the game code. Truly write once, run everywhere. Of course it is still possible to deviate parts easily where needed. For instance for multitouch or touchscreen keyboard inputs.
+It's a sleek C++ library that compiles to all platforms with zero change in the game code. Truly write once, run everywhere. Of course it is still possible to deviate parts easily where needed. For instance for touchscreen inputs.
 
 The library itself compiles quickly, has zero external dependencies, and links statically adding only around 250kb to the binary size of the game. Still it comes with plenty of features.
 
@@ -42,7 +42,7 @@ See the [tutorials listing](https://zillalib.github.io/tutorials/) on the ZillaL
 Here's a list of features provided by the ZillaLib.
 
 ### Code
-- Game code implementation is 100% C++
+- Game code implementation is 100% C/C++
 - All platforms get compiled to natively, linked statically
 - No touching of Java, Objective-C, Javascript, C# or anything required
 - Exact same code that debugs on PC runs everywhere else
@@ -108,6 +108,15 @@ Here's a list of features provided by the ZillaLib.
 - Open URL in default system browser
 - Base64 encoding/decoding
 
+### 3D Rendering
+- Scene management with camera and light objects
+- Material (shader) management system
+- Many options for predefined materials but extendable with custom shader code
+- Mesh file loaders (OBJ/PLY/Multi OBJ animation)
+- Mesh generators (plane, box, sphere, ...)
+- Shadow mapping
+- 3D particle system
+
 ## License
 
 ZillaLib is available under the [zlib license](http://www.gzip.org/zlib/zlib_license.html).
@@ -118,13 +127,11 @@ First download this project from GitHub with the 'Download ZIP' button or by clo
 
 The library itself compiles automatically with the first project being built, so lets start right away!
 
-By far the easiest way to get started is to use the interactive [ZillaLib Project Generator](https://zillalib.github.io/project-generator/).
+By far the easiest way to get started is to use the interactive ZillaLib Project Generator tool which is available [online](https://zillalib.github.io/project-generator/) or [offline](Tools/project-generator.html).
 Just enter a project name and select the target project files to generate.  
 If you have placed ZillaLib in a directory named dfferent than "ZillaLib" or if you want to place your game project in a directory that is not next to ZillaLib's, you have to specify the relative path in the field 'Path to ZillaLib'. For instance, if you have ZillaLib in "D:\dev\libs\ZillaLib-master" and you plan to put your game project in "D:\dev\proj\MySuperGame", then specify "../../libs/ZillaLib-master" as the path to ZillaLib. Always specify the relative path. It makes it easy to build various platforms and even from different virtual machines in the same place.
 
-When finished, click "Create and Download Project Archive (ZIP)" and everything will automagically be prepared for you. Extract the project files in the planned location. There's even some sample code included to start up right away. Check the specific platform from the [list below](#platforms-and-setup) you want to build for on how to set it up and how to actually get your project up and running.
-
-Alternatively you could copy the sample project and modify the paths and names in it. But that would be quite a hassle. An offline project generator might be added some day.
+When finished, click "Generate and Save Project Archive (ZIP)" and everything will automagically be prepared for you. Extract the project files in the planned location. There's even some sample code included to start up right away. Check the specific platform from the [list below](#platforms-and-setup) on how to set it up and how to actually get your project up and running.
 
 ## Platforms and Setup
 
