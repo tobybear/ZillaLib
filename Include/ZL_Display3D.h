@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -31,14 +31,18 @@ namespace ZL_MaterialModes { enum
 {
 	//Material modes
 	MM_STATICCOLOR = 1<<0, MM_VERTEXCOLOR = 1<<1, MM_DIFFUSEMAP = 1<<2, MM_DIFFUSEFUNC = 1<<3,
-	MM_LIT = 1<<4, MM_SPECULARSTATIC = 1<<5, MM_SPECULARMAP = 1<<6, MM_SPECULARFUNC = 1<<7, MM_NORMALMAP = 1<<8, MM_NORMALFUNC = 1<<9,
-	MM_SHADOWMAP = 1<<10, MM_PARALLAXMAP = 1<<11, MM_MASKED = 1<<12,
-	MM_VERTEXCOLORFUNC = 1<<13, MM_POSITIONFUNC = 1<<14,
+	MM_SPECULARSTATIC = 1<<4, MM_SPECULARMAP = 1<<5, MM_SPECULARFUNC = 1<<6, MM_NORMALMAP = 1<<7, MM_NORMALFUNC = 1<<8, MM_PARALLAXMAP = 1<<9,
+	MM_VERTEXFUNC = 1<<10, MM_VERTEXCOLORFUNC = 1<<11, MM_POSITIONFUNC = 1<<12, MM_UVFUNC = 1<<13,
 	//Material requests for custom shader code
-	MR_POSITION = 1<<20, MR_TEXCOORD = 1<<21, MR_NORMALS = 1<<22, MR_CAMERATANGENT = 1<<23, MR_PRECISIONTANGENT = 1<<24, MR_TIME = 1<<25,
+	MR_POSITION = 1<<16, MR_TEXCOORD = 1<<17, MR_NORMAL = 1<<18, MR_CAMERATANGENT = 1<<19, MR_TIME = 1<<20,
 	//Material options
-	MO_TRANSPARENCY = 1<<26, MO_NOSHADOW = 1<<27
-};};
+	MO_UNLIT = 1<<22, MO_RECEIVENOSHADOW = 1<<23, MO_MASKED = 1<<24, MO_PRECISIONTANGENT = 1<<25,
+	MO_TRANSPARENCY = 1<<26, MO_ADDITIVE = 1<<27, MO_MODULATE = 1<<28, MO_CASTNOSHADOW = 1<<29, MO_IGNOREDEPTH = 1<<30
+};
+enum Blending
+{
+	OP_OPAQUE = 0, OP_MASKED = MO_MASKED, OP_TRANSPARENT = MO_TRANSPARENCY, OP_ADDITIVE = MO_ADDITIVE, OP_MODULATE = MO_MODULATE
+};}
 
 //Shader code variable names (attributes, for vertex shader)
 #define Z3A_POSITION         ZL_SHADERVARNAME("ap", "a_position")       //input mesh vertex position (vec3)
@@ -59,9 +63,9 @@ namespace ZL_MaterialModes { enum
 #define Z3U_PARALLAXMAP      ZL_SHADERVARNAME("usp", "u_parallaxmap")   //parallax texture (sampler2D)
 #define Z3U_SHADOWMAP        ZL_SHADERVARNAME("ush", "u_shadowmap")     //calculated shadow map (sampler2D)
 #define Z3U_COLOR            ZL_SHADERVARNAME("uvc", "u_color")         //static color (vec4)
-#define Z3U_PARALLAXSCALE    ZL_SHADERVARNAME("ufp", "u_parallaxscale") //parallax mapping amount (float, default 0.05)
 #define Z3U_SPECULAR         ZL_SHADERVARNAME("ufs", "u_specular")      //specular amount (float, default 5)
 #define Z3U_SHININESS        ZL_SHADERVARNAME("ufh", "u_shininess")     //specular shininess factor (float, default 16)
+#define Z3U_PARALLAXSCALE    ZL_SHADERVARNAME("ufp", "u_parallaxscale") //parallax mapping amount (float, default 0.05)
 #define Z3U_TIME             ZL_SHADERVARNAME("ut", "u_time")           //time passed in seconds (float)
 
 //Shader code variable names (varyings, set up by vertex shader, used in fragment shader)
@@ -100,10 +104,19 @@ struct ZL_Material
 	ZL_Material& SetUniformVec3(ZL_NameID Name, const ZL_Vector3& val);
 	ZL_Material& SetUniformVec3(ZL_NameID Name, const ZL_Color& val);
 	ZL_Material& SetUniformVec4(ZL_NameID Name, const ZL_Color& val);
-	ZL_Material& SetDiffuseTexture(ZL_Surface& srf);
-	ZL_Material& SetNormalTexture(ZL_Surface& srf);
-	ZL_Material& SetSpecularTexture(ZL_Surface& srf);
-	ZL_Material& SetParallaxTexture(ZL_Surface& srf);
+	ZL_Material& SetDiffuseTexture(const ZL_Surface& srf);
+	ZL_Material& SetNormalTexture(const ZL_Surface& srf);
+	ZL_Material& SetSpecularTexture(const ZL_Surface& srf);
+	ZL_Material& SetParallaxTexture(const ZL_Surface& srf);
+
+	scalar GetUniformFloat(ZL_NameID Name);
+	ZL_Vector GetUniformVec2(ZL_NameID Name);
+	ZL_Vector3 GetUniformVec3(ZL_NameID Name);
+	ZL_Color GetUniformVec4(ZL_NameID Name);
+	ZL_Surface GetDiffuseTexture();
+	ZL_Surface GetNormalTexture();
+	ZL_Surface GetSpecularTexture();
+	ZL_Surface GetParallaxTexture();
 
 	private: struct ZL_Material_Impl* impl;
 };
@@ -127,8 +140,8 @@ struct ZL_Mesh
 	ZL_Mesh& SetMaterial(ZL_NameID PartName, const ZL_Material& Material);
 	ZL_Mesh& SetMaterial(const ZL_Material& Material);
 
-	static ZL_Mesh BuildPlane(const ZL_Vector& Extents, const ZL_Material& Material = DefaultMaterial(), const ZL_Vector& UVMapMax = ZL_Vector(1,1));
-	static ZL_Mesh BuildBox(const ZL_Vector3& Extents, const ZL_Material& Material = DefaultMaterial());
+	static ZL_Mesh BuildPlane(const ZL_Vector& Extents, const ZL_Material& Material = DefaultMaterial(), const ZL_Vector3& Normal = ZL_Vector3::Up, const ZL_Vector3& Offset = ZL_Vector3::Zero, const ZL_Vector& UVMapMax = ZL_Vector::One);
+	static ZL_Mesh BuildBox(const ZL_Vector3& Extents, const ZL_Material& Material = DefaultMaterial(), const ZL_Vector3& Offset = ZL_Vector3::Zero, const ZL_Vector& UVMapMax = ZL_Vector::One);
 	static ZL_Mesh BuildLandscape(const ZL_Material& Material = DefaultMaterial());
 	static ZL_Mesh BuildSphere(scalar Radius, int Segments, bool Inside = false, const ZL_Material& Material = DefaultMaterial());
 	static ZL_Mesh BuildExtrudePixels(scalar Scale, scalar Depth, const ZL_FileLink& ImgFile, const ZL_Material& Material = DefaultMaterial(), bool KeepAlpha = true, bool AlphaDepth = false, scalar AlphaDepthAlign = .5f, const ZL_Matrix& Transform = ZL_Matrix::Identity);
@@ -149,11 +162,36 @@ struct ZL_MeshAnimated : public ZL_Mesh
 	~ZL_MeshAnimated();
 	ZL_MeshAnimated(const ZL_MeshAnimated &source);
 	ZL_MeshAnimated &operator=(const ZL_MeshAnimated &source);
-	operator bool () const { return (impl!=NULL); }
-	bool operator==(const ZL_MeshAnimated &b) const { return (impl==b.impl); }
-	bool operator!=(const ZL_MeshAnimated &b) const { return (impl!=b.impl); }
 
 	ZL_MeshAnimated& SetFrame(unsigned int FrameIndex);
+};
+
+struct ZL_ParticleEmitter : public ZL_Mesh
+{
+	ZL_ParticleEmitter();
+	ZL_ParticleEmitter(scalar LifeTime, size_t MaxParticles = 500, ZL_MaterialModes::Blending BlendMode = ZL_MaterialModes::OP_ADDITIVE);
+	~ZL_ParticleEmitter();
+	ZL_ParticleEmitter(const ZL_ParticleEmitter &source);
+	ZL_ParticleEmitter &operator=(const ZL_ParticleEmitter &source);
+
+	ZL_ParticleEmitter& SetLifeTime(scalar LifeTime);
+	ZL_ParticleEmitter& SetGravity(const ZL_Vector3& Gravity);
+	ZL_ParticleEmitter& SetSpawnVelocity(const ZL_Vector3& Velocity);
+	ZL_ParticleEmitter& SetSpawnVelocityRanges(const ZL_Vector3& VelocityMin, const ZL_Vector3& VelocityMax);
+	ZL_ParticleEmitter& SetColor(const ZL_Color& Color, bool IncludeAlpha = true);
+	ZL_ParticleEmitter& SetSpawnColorRange(const ZL_Color& ColorMin, const ZL_Color& ColorMax, bool IncludeAlpha = true);
+	ZL_ParticleEmitter& SetLifetimeColor(const ZL_Color& ColorStart, const ZL_Color& ColorEnd, bool IncludeAlpha = true);
+	ZL_ParticleEmitter& SetAlpha(scalar Alpha);
+	ZL_ParticleEmitter& SetSpawnAlphaRange(scalar AlphaMin, scalar AlphaMax);
+	ZL_ParticleEmitter& SetLifetimeAlpha(scalar AlphaStart, scalar AlphaEnd);
+	ZL_ParticleEmitter& SetSize(scalar Size);
+	ZL_ParticleEmitter& SetSpawnSizeRange(scalar SizeMin, scalar SizeMax);
+	ZL_ParticleEmitter& SetLifetimeSize(scalar SizeStart, scalar SizeEnd);
+	ZL_ParticleEmitter& SetAnimationSheet(const ZL_Surface& srf, int NumTilesCols, int NumTilesRows);
+	ZL_ParticleEmitter& SetTexture(const ZL_Surface& srf, int NumTilesCols = 1, int NumTilesRows = 1);
+
+	ZL_ParticleEmitter& Spawn(const ZL_Vector3& Pos);
+	ZL_ParticleEmitter& Update(const struct ZL_Camera& Camera);
 };
 
 struct ZL_Camera
@@ -168,20 +206,24 @@ struct ZL_Camera
 
 	ZL_Camera& SetPosition(const ZL_Vector3& pos);
 	ZL_Camera& SetDirection(const ZL_Vector3& dir);
-	ZL_Camera& SetFOV(scalar fov);
-	ZL_Camera& SetAspectRatio(scalar ar);
-	ZL_Camera& SetClipPlane(scalar znear, scalar zfar);
-	ZL_Camera& SetAmbientLightColor(const ZL_Color& color);
-	ZL_Matrix& GetVPMatrix();
-	const ZL_Matrix& GetVPMatrix() const;
+	ZL_Camera& SetLookAt(const ZL_Vector3& pos, const ZL_Vector3& target);
+	ZL_Camera& SetFOV(scalar fov); //default 90
+	ZL_Camera& SetOrtho(scalar size); //default off
+	ZL_Camera& SetAspectRatio(scalar ar); //default -1 (use display ratio)
+	ZL_Camera& SetClipPlane(scalar znear, scalar zfar); //default (0.1, 1000.0)
+	ZL_Camera& SetAmbientLightColor(const ZL_Color& color); //default (0.2, 0.2, 0.2)
 	ZL_Vector3 GetPosition() const;
 	ZL_Vector3 GetDirection() const;
+	ZL_Vector3 GetUpDirection() const;
+	ZL_Vector3 GetRightDirection() const;
 	scalar GetFOV() const;
+	scalar GetAspectRatio() const;
 	scalar GetNearClipPlane() const;
 	scalar GetFarClipPlane() const;
 	ZL_Color GetAmbientLightColor() const;
 	ZL_Vector WorldToScreen(const ZL_Vector3& WorldPosition);
 	ZL_Vector WorldToScreen(const ZL_Vector3& WorldPosition, bool* pIsOutsideOfView);
+	ZL_Vector3 ScreenToWorld(const ZL_Vector& ScreenPosition, scalar Depth = -1);
 	void ScreenToWorld(const ZL_Vector& ScreenPosition, ZL_Vector3* WorldRayStart, ZL_Vector3* WorldRayEnd = NULL);
 
 	private: struct ZL_Camera_Impl* impl;
@@ -199,14 +241,15 @@ struct ZL_Light
 
 	ZL_Light& SetPosition(const ZL_Vector3& pos);
 	ZL_Light& SetDirection(const ZL_Vector3& dir);
-	ZL_Light& SetDirectionalLight(scalar area);
-	ZL_Light& SetSpotLight(scalar angle, scalar aspect = 1);
-	ZL_Light& SetRange(scalar range_far, scalar range_near = 1);
-	ZL_Light& SetFalloff(scalar distance);
-	ZL_Light& SetOutsideLit(bool OutsideLit = true);
-	ZL_Light& SetColor(const ZL_Color& color);
-	ZL_Matrix& GetVPMatrix();
-	const ZL_Matrix& GetVPMatrix() const;
+	ZL_Light& SetLookAt(const ZL_Vector3& pos, const ZL_Vector3& target);
+	ZL_Light& SetPointLight(); //default on
+	ZL_Light& SetDirectionalLight(scalar area); //for shadowmapping, default off
+	ZL_Light& SetSpotLight(scalar angle_degree, scalar aspect = 1); //for shadowmapping, default off
+	ZL_Light& SetRange(scalar range_far, scalar range_near = 1); //for shadowmapping, default 50.0, 1.0
+	ZL_Light& SetOutsideLit(bool OutsideLit = true); //for shadowmapping, default false
+	ZL_Light& SetShadowBias(scalar bias); //for shadowmapping, default 0.001
+	ZL_Light& SetFalloff(scalar distance); //default infinite
+	ZL_Light& SetColor(const ZL_Color& color); //default white
 	ZL_Vector3 GetPosition() const;
 	ZL_Vector3 GetDirection() const;
 	ZL_Color GetColor() const;
@@ -226,6 +269,7 @@ struct ZL_RenderList
 
 	void Reset();
 	void Add(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix);
+	void Add(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix, const ZL_Material& OverrideMaterial);
 	void AddReferenced(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix); //keep mesh reference in list
 
 	#if defined(ZILLALOG) && !defined(ZL_VIDEO_OPENGL_ES2)

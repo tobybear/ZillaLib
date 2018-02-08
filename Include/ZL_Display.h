@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -201,6 +201,7 @@ struct ZL_Color
 	static inline ZL_Color LUM(const scalar LUM) { return ZL_Color(LUM, LUM, LUM); }
 	static inline ZL_Color LUMA(const scalar LUM, const scalar A) { return ZL_Color(LUM, LUM, LUM, A); }
 	static inline ZL_Color HSVA(const scalar H, const scalar S, const scalar V, const scalar A = s(1)) { return ZL_Color(V<=0?0:S<=0?V:H<s(1/6.)?V:H<s(2/6.)?V*(1-S*(H*s(6)-s(1))):H<s(4/6.)?V*(1-S):H<s(5/6.)?V*(1-S*(1-(H*s(6)-s(4)))):V,V<=0?0:S<=0?V:H<s(1/6.)?V*(1-S*(1-(H*s(6)))):H<s(3/6.)?V:H<s(4/6.)?V*(1-S*(H*s(6)-s(3))):V*(1-S),V<=0?0:S<=0?V:H<s(2/6.)?V*(1-S):H<s(3/6.)?V*(1-S*(1-(H*s(6)-s(2)))):H<s(5/6.)?V:V*(1-S*(H*s(6)-s(5))),A); }
+	static ZL_Color Lerp(const ZL_Color& From, const ZL_Color& To, const scalar f) { return ZL_Color(ZL_Math::Lerp(From.r, To.r, f), ZL_Math::Lerp(From.g, To.g, f), ZL_Math::Lerp(From.b, To.b, f), ZL_Math::Lerp(From.a, To.a, f)); }
 };
 
 enum ZL_DisplayInitFlags

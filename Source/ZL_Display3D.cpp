@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -29,23 +29,24 @@
 #include <assert.h>
 #include <map>
 
-//#define ZL_DISPLAY3D_ALLOW_SHIFT_DEBUG_VIEW
+#define ZL_DISPLAY3D_ALLOW_SHIFT_DEBUG_VIEW
 
 struct ZL_ShaderIDs { GLuint Program; GLubyte UsedAttributeMask; GLint UniformMatrixModel, UniformMatrixNormal; };
 static struct { ZL_ShaderIDs Shader; GLuint BoundTextureChksum, BoundTextures[4], IndexBuffer, VertexBuffer; GLubyte AttributeMask; GLenum Texture; } g_Active3D;
 static std::vector<struct ZL_MaterialProgram*>* g_LoadedShaderVariations;
 static GLubyte g_MaxLights;
-static ZL_MaterialProgram* g_DebugColorMat;
+static struct ZL_MaterialProgram* g_DebugColorMat;
+
+static void (*g_SetupShadowMapProgram)(struct ZL_MaterialProgram* ShaderProgram, unsigned int MM, const char* CustomVertexCode);
+static GLuint g_ShadowMap_FBO, g_ShadowMap_TEX;
+static ZL_MaterialProgram *g_ShadowMapProgram, *g_ShadowMapMaskProgram;
+#define SHADOWMAP_SIZE         2048
+#define SHADOWMAP_SIZE_STRING "2048"
 
 #ifdef ZL_VIDEO_WEAKCONTEXT
 static std::vector<struct ZL_MaterialProgram*> *g_LoadedMaterialPrograms;
 static std::vector<struct ZL_Mesh_Impl*> *g_LoadedMeshes;
 #endif
-
-static GLuint g_ShadowMap_FBO, g_ShadowMap_TEX;
-static ZL_MaterialProgram *g_ShadowMapProgram, *g_ShadowMapMaskProgram;
-#define SHADOWMAP_SIZE         2048
-#define SHADOWMAP_SIZE_STRING "2048"
 
 namespace ZL_Display3D_Shaders
 {
@@ -61,7 +62,9 @@ namespace ZL_Display3D_Shaders
 	#define Z3L_POS2CAMERA       ZL_SHADERVARNAME("PC", "l_pos2camera")
 	#define Z3L_POS2LIGHT        ZL_SHADERVARNAME("PL", "l_pos2light")
 	#define Z3L_LIGHTDISTANCE    ZL_SHADERVARNAME("LD", "l_lightdistance")
+	#define Z3L_LIGHTDIM         ZL_SHADERVARNAME("LI", "l_lightdim")
 	#define Z3L_DIRECTION2LIGHT  ZL_SHADERVARNAME("DL", "l_direction2light")
+	#define Z3D_SHADOWMAP "SM"
 
 	static const char S_VoidMain[] = "void main(){";
 
@@ -70,26 +73,28 @@ namespace ZL_Display3D_Shaders
 	using namespace ZL_MaterialModes;
 	enum
 	{
-		MMDEF_USECUSTOMFRAGMENT         = MM_DIFFUSEFUNC|MM_NORMALFUNC|MM_SPECULARFUNC,
-		MMDEF_USECUSTOMVERTEX           = MM_VERTEXCOLORFUNC|MM_POSITIONFUNC,
-		MMDEF_USECUSTOMSHADER           = MMDEF_USECUSTOMFRAGMENT|MMDEF_USECUSTOMVERTEX,
-		MMDEF_FRAGCOLORMODES            = MM_STATICCOLOR|MM_VERTEXCOLOR|MM_VERTEXCOLORFUNC|MM_DIFFUSEMAP|MM_DIFFUSEFUNC,
-		MMDEF_USESLIT                   = MM_SPECULARSTATIC|MM_SPECULARMAP|MM_SPECULARFUNC|MM_NORMALMAP|MM_NORMALFUNC|MM_SHADOWMAP,
-		MMDEF_VSGLOBALREQUESTS          = MR_POSITION|MR_TEXCOORD|MR_NORMALS|MR_CAMERATANGENT|MR_PRECISIONTANGENT|MR_TIME,
-		MMDEF_RULEWITHEXTERNALSOURCEPTR = MM_SHADOWMAP,
-		MMDEF_WITHOUTOPTIONS            = MO_TRANSPARENCY-1,
+		MMDEF_USECUSTOMFRAGMENT = MM_DIFFUSEFUNC|MM_NORMALFUNC|MM_SPECULARFUNC,
+		MMDEF_USECUSTOMVERTEX   = MM_VERTEXFUNC|MM_VERTEXCOLORFUNC|MM_POSITIONFUNC|MM_UVFUNC,
+		MMDEF_USECUSTOMSHADER   = MMDEF_USECUSTOMFRAGMENT|MMDEF_USECUSTOMVERTEX,
+		MMDEF_FRAGCOLORMODES    = MM_STATICCOLOR|MM_VERTEXCOLOR|MM_VERTEXCOLORFUNC|MM_DIFFUSEMAP|MM_DIFFUSEFUNC,
+		MMDEF_USESLIT           = MM_SPECULARSTATIC|MM_SPECULARMAP|MM_SPECULARFUNC|MM_NORMALMAP|MM_NORMALFUNC,
+		MMDEF_REQUESTS          = MR_POSITION|MR_TEXCOORD|MR_NORMAL|MR_CAMERATANGENT|MR_TIME,
+		MMDEF_NOSHADERCODE      = MO_TRANSPARENCY|MO_ADDITIVE|MO_MODULATE|MO_CASTNOSHADOW|MO_IGNOREDEPTH,
+		MMDEF_NODEPTHWRITE      = MO_TRANSPARENCY|MO_ADDITIVE|MO_MODULATE,
 
-		MMUSE_VERTEXCOLOR      = MM_VERTEXCOLOR|MM_VERTEXCOLORFUNC,
-		MMUSE_SPECULAR         = MM_SPECULARSTATIC|MM_SPECULARMAP|MM_SPECULARFUNC,
-		MMUSE_CAMERATANGENT    = MM_PARALLAXMAP|MR_CAMERATANGENT,
-		MMUSE_TANGENT          = MMUSE_CAMERATANGENT,
-		MMUSE_DYNTEXCOORD      = MM_PARALLAXMAP,
-		MMUSE_TEXCOORD         = MMUSE_DYNTEXCOORD|MM_DIFFUSEMAP|MM_SPECULARMAP|MM_NORMALMAP|MR_TEXCOORD,
-		MMUSE_NORMAL           = MMUSE_TANGENT|MM_LIT|MM_PARALLAXMAP|MR_NORMALS,
-		MMUSE_POSITION         = MMUSE_TANGENT|MM_LIT|MR_POSITION,
+		MMUSE_VERTEXCOLOR   = MM_VERTEXCOLOR|MM_VERTEXCOLORFUNC,
+		MMUSE_SPECULAR      = MM_SPECULARSTATIC|MM_SPECULARMAP|MM_SPECULARFUNC,
+		MMUSE_CAMERATANGENT = MM_PARALLAXMAP|MR_CAMERATANGENT,
+		MMUSE_BITANGENT     = MO_PRECISIONTANGENT|MM_NORMALMAP|MM_NORMALFUNC,
+		MMUSE_TANGENT       = MMUSE_CAMERATANGENT|MMUSE_BITANGENT,
+		MMUSE_TEXCOORD      = MM_PARALLAXMAP|MM_DIFFUSEMAP|MM_SPECULARMAP|MM_NORMALMAP|MR_TEXCOORD,
+		MMUSE_NORMAL        = MMUSE_TANGENT|MM_PARALLAXMAP|MR_NORMAL,
+		MMUSE_POSITION      = MMUSE_TANGENT|MR_POSITION,
+		MMUSE_LATECOLORCALC = MM_PARALLAXMAP|MM_DIFFUSEFUNC,
 	};
 
-	static const char* Varying_ShadowMap, *VS_ShadowMap_Defs, *FS_ShadowMap_Defs, *VS_ShadowMap_Calc, *FS_ShadowMap_Calc;
+	enum { EXTERN_Varying_ShadowMap, EXTERN_VS_ShadowMap_Defs, EXTERN_FS_ShadowMap_Defs, EXTERN_VS_ShadowMap_Calc, EXTERN_FS_ShadowMap_Calc, _EXTERN_NUM };
+	static const char* ExternalSource[_EXTERN_NUM];
 	static char Const_NumLights[] = "const int " Z3S_NUMLIGHTS "=   ", *Const_NumLightsNumberPtr = Const_NumLights+COUNT_OF(Const_NumLights)-4;
 
 	static const struct SourceRule { int MMUseIf, MMLimit; const char *Source; }
@@ -99,99 +104,114 @@ namespace ZL_Display3D_Shaders
 			#endif
 			{ MMUSE_VERTEXCOLOR,                      0, "varying vec4 " Z3V_COLOR ";" },
 			{ MMUSE_TEXCOORD,                         0, "varying vec2 " Z3V_TEXCOORD ";" },
-			{ MMUSE_CAMERATANGENT,  MR_PRECISIONTANGENT, "varying vec3 " Z3V_CAMERATANGENT ";" },
-			{ MMUSE_TANGENT,       -MR_PRECISIONTANGENT, "varying vec3 " Z3V_TANGENT ", " Z3V_BITANGENT ";" },
+			{ MMUSE_CAMERATANGENT,  MO_PRECISIONTANGENT, "varying vec3 " Z3V_CAMERATANGENT ";" },
+			{ MMUSE_BITANGENT,                        0, "varying vec3 " Z3V_TANGENT ", " Z3V_BITANGENT ";" },
 			{ MMUSE_NORMAL,                           0, "varying vec3 " Z3V_NORMAL ";" },
 			{ MMUSE_POSITION,                         0, "varying vec3 " Z3V_POSITION ";" },
-			{ MM_SHADOWMAP,                           0, (const char *)&Varying_ShadowMap },
+			{ 0,            MO_RECEIVENOSHADOW|MO_UNLIT, (const char *)&ExternalSource[EXTERN_Varying_ShadowMap] },
 		},
 		VSGlobalRules[] = {
 			{ 0,                                      0, "uniform mat4 " Z3U_VIEW "," Z3U_MODEL ";attribute vec3 " Z3A_POSITION ";" },
 			{ MMUSE_TEXCOORD,                         0, "attribute vec2 " Z3A_TEXCOORD ";" },
 			{ MM_VERTEXCOLOR,                         0, "attribute vec4 " Z3A_COLOR ";" },
 			{ MMUSE_NORMAL,                           0, "attribute vec3 " Z3A_NORMAL ";uniform mat4 " Z3U_NORMAL ";" },
-			{ MMUSE_TANGENT,        MR_PRECISIONTANGENT, "attribute vec3 " Z3A_TANGENT ";uniform vec3 " Z3U_VIEWPOS ";" },
-			{ MMUSE_TANGENT,       -MR_PRECISIONTANGENT, "attribute vec3 " Z3A_TANGENT ";" },
+			{ MMUSE_TANGENT,        MO_PRECISIONTANGENT, "attribute vec3 " Z3A_TANGENT ";uniform vec3 " Z3U_VIEWPOS ";" },
+			{ MMUSE_TANGENT,       -MO_PRECISIONTANGENT, "attribute vec3 " Z3A_TANGENT ";" },
 			{ MR_TIME,                                0, "uniform float " Z3U_TIME ";" },
 		},
 		VSRules[] = {
 			{ 0,0,0 }, // <-- Custom Vertex Code
-			{ MM_SHADOWMAP,                           0, (const char *)&VS_ShadowMap_Defs },
+			{ 0,            MO_RECEIVENOSHADOW|MO_UNLIT, (const char *)&ExternalSource[EXTERN_VS_ShadowMap_Defs] },
 			{ 0,0,S_VoidMain },
-			{ MM_POSITIONFUNC,                        0, Z3O_POSITION " = CalcPosition();" },
-			{ 0,                        MM_POSITIONFUNC, Z3O_POSITION " = " Z3U_MODEL " * vec4(" Z3A_POSITION ", 1);" },
+			{ MM_VERTEXFUNC,                          0, "Vertex();" },
+			{ 0,          MM_POSITIONFUNC|MM_VERTEXFUNC, Z3O_POSITION " = " Z3U_MODEL " * vec4(" Z3A_POSITION ", 1);" },
+			{ MM_POSITIONFUNC,            MM_VERTEXFUNC, Z3O_POSITION " = CalcPosition();" },
 			{ MMUSE_POSITION,                         0, Z3V_POSITION " = " Z3O_POSITION ".xyz;" },
 			{ 0,                                      0, Z3O_POSITION " = " Z3U_VIEW " * " Z3O_POSITION ";" },
-			{ MMUSE_TEXCOORD,                         0, Z3V_TEXCOORD " = " Z3A_TEXCOORD ";" },
-			{ MMUSE_NORMAL,                           0, Z3V_NORMAL " = normalize(vec3(" Z3U_NORMAL " * vec4(" Z3A_NORMAL ", 0)));" },
-			{ MMUSE_TANGENT,        MR_PRECISIONTANGENT, "vec3 " Z3L_TANGENT " = normalize(vec3(" Z3U_NORMAL " * vec4(" Z3A_TANGENT ", 0)))," Z3L_BITANGENT " = cross(" Z3V_NORMAL ", " Z3L_TANGENT ");" },
-			{ MMUSE_CAMERATANGENT,  MR_PRECISIONTANGENT, "vec3 " Z3L_POS2CAMERA " = " Z3U_VIEWPOS " - " Z3V_POSITION ";" Z3V_CAMERATANGENT " = normalize(vec3(dot(" Z3L_POS2CAMERA ", " Z3L_TANGENT "), dot(" Z3L_POS2CAMERA ", " Z3L_BITANGENT "), dot(" Z3L_POS2CAMERA ", " Z3V_NORMAL ")));" },
-			{ MMUSE_TANGENT,       -MR_PRECISIONTANGENT, Z3V_TANGENT " = normalize(vec3(" Z3U_NORMAL " * vec4(" Z3A_TANGENT ", 0)));" Z3V_BITANGENT " = cross(" Z3V_NORMAL ", " Z3V_TANGENT ");" },
-			{ MM_VERTEXCOLOR,                         0, Z3V_COLOR " = " Z3A_COLOR ";" },
-			{ MM_VERTEXCOLORFUNC,                     0, Z3V_COLOR " = CalcColor();" },
-			{ MM_SHADOWMAP,                           0, (const char *)&VS_ShadowMap_Calc },
+			{ MMUSE_TEXCOORD,   MM_UVFUNC|MM_VERTEXFUNC, Z3V_TEXCOORD " = " Z3A_TEXCOORD ";" },
+			{ MM_UVFUNC,                  MM_VERTEXFUNC, Z3V_TEXCOORD " = CalcUV();" },
+			{ MM_VERTEXCOLOR,             MM_VERTEXFUNC, Z3V_COLOR " = " Z3A_COLOR ";" },
+			{ MM_VERTEXCOLORFUNC,         MM_VERTEXFUNC, Z3V_COLOR " = CalcColor();" },
+			{ MMUSE_NORMAL,               MM_VERTEXFUNC, Z3V_NORMAL " = normalize(vec3(" Z3U_NORMAL " * vec4(" Z3A_NORMAL ", 0)));" },
+			{ MMUSE_TANGENT,        MO_PRECISIONTANGENT, "vec3 " Z3L_TANGENT " = normalize(vec3(" Z3U_NORMAL " * vec4(" Z3A_TANGENT ", 0)))," Z3L_BITANGENT " = cross(" Z3V_NORMAL ", " Z3L_TANGENT ");" },
+			{ MMUSE_CAMERATANGENT,  MO_PRECISIONTANGENT, "vec3 " Z3L_POS2CAMERA " = " Z3U_VIEWPOS " - " Z3V_POSITION ";" Z3V_CAMERATANGENT " = normalize(vec3(dot(" Z3L_POS2CAMERA ", " Z3L_TANGENT "), dot(" Z3L_POS2CAMERA ", " Z3L_BITANGENT "), dot(" Z3L_POS2CAMERA ", " Z3V_NORMAL ")));" },
+			{ MMUSE_BITANGENT,                        0, Z3V_TANGENT " = normalize(vec3(" Z3U_NORMAL " * vec4(" Z3A_TANGENT ", 0)));" Z3V_BITANGENT " = cross(" Z3V_NORMAL ", " Z3V_TANGENT ");" },
+			{ 0,            MO_RECEIVENOSHADOW|MO_UNLIT, (const char *)&ExternalSource[EXTERN_VS_ShadowMap_Calc] },
 			{ 0,0,"}" }
 		},
 		FSRules[] = {
-			{ MM_LIT,                                 0, Const_NumLights },
+			{ 0,                               MO_UNLIT, Const_NumLights },
 			{ MM_STATICCOLOR,                         0, "uniform vec4 " Z3U_COLOR ";" },
 			{ MM_DIFFUSEMAP,                          0, "uniform sampler2D " Z3U_DIFFUSEMAP ";" },
 			{ MM_PARALLAXMAP,                         0, "uniform sampler2D " Z3U_PARALLAXMAP ";uniform float " Z3U_PARALLAXSCALE ";" },
 			{ MMUSE_SPECULAR|MMUSE_CAMERATANGENT,     0, "uniform vec3 " Z3U_VIEWPOS ";" },
-			{ MM_LIT,                                 0, "uniform vec3 " Z3U_LIGHTDATA "[1+3*" Z3S_NUMLIGHTS "];" },
+			{ 0,                               MO_UNLIT, "uniform vec3 " Z3U_LIGHTDATA "[1+3*" Z3S_NUMLIGHTS "];" },
 			{ MM_NORMALMAP,                           0, "uniform sampler2D " Z3U_NORMALMAP ";" },
 			{ MMUSE_SPECULAR,                         0, "uniform float " Z3U_SPECULAR ", " Z3U_SHININESS ";" },
 			{ MM_SPECULARMAP,                         0, "uniform sampler2D " Z3U_SPECULARMAP ";" },
 			{ MR_TIME,                                0, "uniform float " Z3U_TIME ";" },
 			{ MMUSE_NORMAL,                           0, "vec3 " Z3S_NORMAL ";" },
 			{ MMUSE_CAMERATANGENT,                    0, "vec3 " Z3S_CAMERATANGENT ";" },
-			{ MM_SHADOWMAP,                           0, (const char *)&FS_ShadowMap_Defs },
+			{ 0,            MO_RECEIVENOSHADOW|MO_UNLIT, (const char *)&ExternalSource[EXTERN_FS_ShadowMap_Defs] },
 			{ 0,0,0 }, // <-- Custom Fragment Code
 			{ 0,0,S_VoidMain },
-			{ 0,                                   MM_DIFFUSEFUNC, Z3O_FRAGCOLOR " = " },
-			{ 0,                                   MM_DIFFUSEFUNC, 0 }, // <-- FragColor Calculation
-			{ MM_MASKED,                           MM_DIFFUSEFUNC, "if (" Z3O_FRAGCOLOR ".a<.5)discard;" },
-			{ MMUSE_CAMERATANGENT,            MR_PRECISIONTANGENT, Z3S_CAMERATANGENT " = normalize(" Z3V_CAMERATANGENT ");" },
-			{ MMUSE_CAMERATANGENT,           -MR_PRECISIONTANGENT, "vec3 " Z3L_POS2CAMERA " = " Z3U_VIEWPOS " - " Z3V_POSITION ";"
-			                                                       Z3S_CAMERATANGENT " = normalize(vec3(dot(" Z3L_POS2CAMERA ", " Z3V_TANGENT "), dot(" Z3L_POS2CAMERA ", " Z3V_BITANGENT "), dot(" Z3L_POS2CAMERA ", " Z3V_NORMAL ")));" },
-			{ MMUSE_DYNTEXCOORD,                                0, "vec2 " Z3V_TEXCOORD " = " Z3V_TEXCOORD ";" },
-			{ MM_PARALLAXMAP,                                   0, "float " Z3L_PARALLAXDEPTH " = texture2D(" Z3U_PARALLAXMAP ", " Z3V_TEXCOORD ").r;"
-			                                                       Z3V_TEXCOORD " += " Z3S_CAMERATANGENT ".xy * (" Z3L_PARALLAXDEPTH " * " Z3U_PARALLAXSCALE ");" },
-			{ MM_NORMALMAP,                         MM_NORMALFUNC, Z3S_NORMAL " = texture2D(" Z3U_NORMALMAP ", " Z3V_TEXCOORD ").xyz * 2.0 - 1.0;" },
-			{ MM_NORMALFUNC,                         MM_NORMALMAP, Z3S_NORMAL " = CalcNormal();" },
-			{ MMUSE_NORMAL,            MM_NORMALMAP|MM_NORMALFUNC, Z3S_NORMAL " = normalize(" Z3V_NORMAL ");" },
-			{ 0,                                  -MM_DIFFUSEFUNC, Z3O_FRAGCOLOR " = " },
-			{ 0,                                  -MM_DIFFUSEFUNC, 0 }, // <-- FragColor Calculation
-			{ MM_MASKED,                          -MM_DIFFUSEFUNC, "if (" Z3O_FRAGCOLOR ".a<.5)discard;" },
-			{ MM_PARALLAXMAP,                                   0, Z3O_FRAGCOLOR ".rgb *= .5+" Z3L_PARALLAXDEPTH "*.5;" },
-			{ MM_SPECULARMAP,      MMUSE_SPECULAR&~MM_SPECULARMAP, "float " Z3L_SPECULAR " = texture2D(" Z3U_SPECULARMAP ", " Z3V_TEXCOORD ").r * " Z3U_SPECULAR ";" },
-			{ MM_SPECULARFUNC,    MMUSE_SPECULAR&~MM_SPECULARFUNC, "float " Z3L_SPECULAR " = CalcSpecular();" },
-			{ MM_SPECULARSTATIC,MMUSE_SPECULAR&~MM_SPECULARSTATIC, "float " Z3L_SPECULAR " = " Z3U_SPECULAR ";" },
-			{ MM_LIT,                                           0, "vec3 " Z3L_LIGHTSCOLOR " = vec3(0.)," Z3L_LIGHTSSHINE " = vec3(0.);"
-			                                                       "for (int i = 0; i < " Z3S_NUMLIGHTS "; i++)" //"const int i = 0;"
-			                                                       "{"
-			                                                           "if (i > 0 && " Z3U_LIGHTDATA "[1+i*3].x > 3.3e+38) break;"
-			                                                           "vec3 " Z3L_POS2LIGHT " = " Z3U_LIGHTDATA "[1+i*3] - " Z3V_POSITION ";"
-			                                                           "float " Z3L_LIGHTDISTANCE " = length(" Z3L_POS2LIGHT ");"
-			                                                           "vec3 " Z3L_DIRECTION2LIGHT " = " Z3L_POS2LIGHT " / " Z3L_LIGHTDISTANCE ";"
-			                                                           "float " Z3L_LIGHTFACTOR " = max(dot(" Z3S_NORMAL ", " Z3L_DIRECTION2LIGHT "), 0.);" },
-			{ MMUSE_SPECULAR,                                   0,     "float " Z3L_LIGHTSPECULAR " = " Z3L_SPECULAR " * pow(max(dot(normalize(" Z3U_VIEWPOS " - " Z3V_POSITION "), reflect(-" Z3L_DIRECTION2LIGHT ", " Z3S_NORMAL ")), 0.0), " Z3U_SHININESS ");"
-			                                                           Z3O_FRAGCOLOR ".a = min(" Z3O_FRAGCOLOR ".a + " Z3L_LIGHTSPECULAR ", 1.);"
-			                                                           Z3L_LIGHTFACTOR " += " Z3L_LIGHTSPECULAR ";" },
-			{ MM_SHADOWMAP,                                     0,     (const char *)&FS_ShadowMap_Calc },
-			{ MM_LIT,                                           0,     Z3L_LIGHTFACTOR " *= max((" Z3U_LIGHTDATA "[1+i*3+2].x - " Z3L_LIGHTDISTANCE ") / " Z3U_LIGHTDATA "[1+i*3+2].x, 0.);"
-			                                                           Z3L_LIGHTSSHINE " += " Z3U_LIGHTDATA "[1+i*3+1] * max(" Z3L_LIGHTFACTOR "-1.,0.);"
-			                                                           Z3L_LIGHTSCOLOR " += " Z3U_LIGHTDATA "[1+i*3+1] * " Z3L_LIGHTFACTOR ";"
-			                                                       "}"
-			                                                       //Z3O_FRAGCOLOR ".rgb = " Z3L_LIGHTSCOLOR ";"
-			                                                       Z3O_FRAGCOLOR ".rgb = " Z3O_FRAGCOLOR ".rgb*(" Z3L_LIGHTSCOLOR "+" Z3U_LIGHTDATA "[0]) + " Z3L_LIGHTSSHINE ";"
+			{ MMDEF_FRAGCOLORMODES,        MMUSE_LATECOLORCALC, Z3O_FRAGCOLOR " = " },
+			{ MMDEF_FRAGCOLORMODES,        MMUSE_LATECOLORCALC, 0 }, // <-- FragColor Calculation
+			{ MO_MASKED,                   MMUSE_LATECOLORCALC, "if (" Z3O_FRAGCOLOR ".a<.5)discard;" },
+			{ MMUSE_CAMERATANGENT,         MO_PRECISIONTANGENT, Z3S_CAMERATANGENT " = normalize(" Z3V_CAMERATANGENT ");" },
+			{ MMUSE_CAMERATANGENT,        -MO_PRECISIONTANGENT, "vec3 " Z3L_POS2CAMERA " = " Z3U_VIEWPOS " - " Z3V_POSITION ";"
+			                                                    Z3S_CAMERATANGENT " = normalize(vec3(dot(" Z3L_POS2CAMERA ", " Z3V_TANGENT "), dot(" Z3L_POS2CAMERA ", " Z3V_BITANGENT "), dot(" Z3L_POS2CAMERA ", " Z3V_NORMAL ")));" },
+			{ MM_PARALLAXMAP,                                0, "vec2 " Z3V_TEXCOORD " = " Z3V_TEXCOORD ";"
+			                                                    "float " Z3L_PARALLAXDEPTH " = texture2D(" Z3U_PARALLAXMAP ", " Z3V_TEXCOORD ").r;"
+			                                                    Z3V_TEXCOORD " += " Z3S_CAMERATANGENT ".xy * (" Z3L_PARALLAXDEPTH " * " Z3U_PARALLAXSCALE ");" },
+			{ MM_NORMALMAP,                      MM_NORMALFUNC, Z3S_NORMAL " = texture2D(" Z3U_NORMALMAP ", " Z3V_TEXCOORD ").xyz * 2. - 1.;" },
+			{ MM_NORMALFUNC,                      MM_NORMALMAP, Z3S_NORMAL " = CalcNormal();" },
+			{ MM_NORMALMAP|MM_NORMALFUNC,                    0, Z3S_NORMAL " = normalize(" Z3V_NORMAL " * " Z3S_NORMAL ".z + " Z3V_TANGENT " * " Z3S_NORMAL ".x + " Z3V_BITANGENT " * " Z3S_NORMAL ".y);" },
+			{ MMUSE_NORMAL,         MM_NORMALMAP|MM_NORMALFUNC, Z3S_NORMAL " = normalize(" Z3V_NORMAL ");" },
+			{ MMDEF_FRAGCOLORMODES,       -MMUSE_LATECOLORCALC, Z3O_FRAGCOLOR " = " },
+			{ MMDEF_FRAGCOLORMODES,       -MMUSE_LATECOLORCALC, 0 }, // <-- FragColor Calculation
+			{ MO_MASKED,                  -MMUSE_LATECOLORCALC, "if (" Z3O_FRAGCOLOR ".a<.5)discard;" },
+			{ MM_PARALLAXMAP,                                 0, Z3O_FRAGCOLOR ".rgb *= .5+" Z3L_PARALLAXDEPTH "*.5;" },
+			{ MM_SPECULARMAP,MM_SPECULARFUNC|MM_SPECULARSTATIC, "float " Z3L_SPECULAR " = texture2D(" Z3U_SPECULARMAP ", " Z3V_TEXCOORD ").r * " Z3U_SPECULAR ";" },
+			{ MM_SPECULARFUNC,MM_SPECULARMAP|MM_SPECULARSTATIC, "float " Z3L_SPECULAR " = CalcSpecular();" },
+			{ MM_SPECULARSTATIC,MM_SPECULARMAP|MM_SPECULARFUNC, "float " Z3L_SPECULAR " = " Z3U_SPECULAR ";" },
+			{ 0,                                      MO_UNLIT, "vec3 " Z3L_LIGHTSCOLOR " = vec3(0.)," Z3L_LIGHTSSHINE " = vec3(0.)," Z3L_DIRECTION2LIGHT ";"
+			                                                    "for (int i = 0; i < " Z3S_NUMLIGHTS "; i++)"
+			                                                    "{"
+			                                                        "if (i > 0 && " Z3U_LIGHTDATA "[1+i*3].x > 3.3e+38) break;"
+			                                                        "float " Z3L_LIGHTFACTOR "," Z3L_LIGHTDIM ";"
+			                                                        "if (" Z3U_LIGHTDATA "[1+i*3+2].x < 0.)"
+			                                                        "{"
+			                                                            Z3L_LIGHTFACTOR " = max(dot(" Z3S_NORMAL ", " Z3U_LIGHTDATA "[1+i*3]), 0.);"
+			                                                            Z3L_LIGHTDIM " = 1.;" },
+			{ MMUSE_SPECULAR,                         MO_UNLIT,         "vec3 " Z3L_POS2LIGHT " =  " Z3U_LIGHTDATA "[1+i*3] * -" Z3U_LIGHTDATA "[1+i*3+2].x - " Z3V_POSITION ";"
+			                                                            Z3L_DIRECTION2LIGHT " = " Z3L_POS2LIGHT " / length(" Z3L_POS2LIGHT ");" },
+			{ 0,                                      MO_UNLIT,     "}"
+			                                                        "else"
+			                                                        "{"
+			                                                            "vec3 " Z3L_POS2LIGHT " = " Z3U_LIGHTDATA "[1+i*3] - " Z3V_POSITION ";"
+			                                                            "float " Z3L_LIGHTDISTANCE " = length(" Z3L_POS2LIGHT ");"
+			                                                            Z3L_DIRECTION2LIGHT " = " Z3L_POS2LIGHT " / " Z3L_LIGHTDISTANCE ";"
+			                                                            Z3L_LIGHTFACTOR " = max(dot(" Z3S_NORMAL ", " Z3L_DIRECTION2LIGHT "), 0.);"
+			                                                            Z3L_LIGHTDIM " = max((" Z3U_LIGHTDATA "[1+i*3+2].x - " Z3L_LIGHTDISTANCE ") / " Z3U_LIGHTDATA "[1+i*3+2].x, 0.);"
+			                                                        "}" },
+			{ MMUSE_SPECULAR,                         MO_UNLIT,     "float " Z3L_LIGHTSPECULAR " = " Z3L_SPECULAR " * pow(max(dot(normalize(" Z3U_VIEWPOS " - " Z3V_POSITION "), reflect(-" Z3L_DIRECTION2LIGHT ", " Z3S_NORMAL ")), 0.), " Z3U_SHININESS ");"
+			                                                        Z3O_FRAGCOLOR ".a = min(" Z3O_FRAGCOLOR ".a + " Z3L_LIGHTSPECULAR ", 1.);"
+			                                                        Z3L_LIGHTFACTOR " += " Z3L_LIGHTSPECULAR ";" },
+			{ 0,                   MO_RECEIVENOSHADOW|MO_UNLIT,     (const char *)&ExternalSource[EXTERN_FS_ShadowMap_Calc] },
+			{ 0,                                      MO_UNLIT,     Z3L_LIGHTFACTOR " *= " Z3L_LIGHTDIM ";"
+			                                                        Z3L_LIGHTSSHINE " += " Z3U_LIGHTDATA "[1+i*3+1] * max(" Z3L_LIGHTFACTOR "-1.,0.);"
+			                                                        Z3L_LIGHTSCOLOR " += " Z3U_LIGHTDATA "[1+i*3+1] * " Z3L_LIGHTFACTOR ";"
+			                                                    "}"
+			                                                    //Z3O_FRAGCOLOR ".rgb = " Z3L_LIGHTSCOLOR ";return;"
+			                                                    Z3O_FRAGCOLOR ".rgb = " Z3O_FRAGCOLOR ".rgb * (" Z3L_LIGHTSCOLOR "+" Z3U_LIGHTDATA "[0]) + " Z3L_LIGHTSSHINE ";"
 			},
 			{ 0,0,"}" }
 		},
 		ShadowMapFSRules[] = {
-			{ MM_MASKED, 0, "uniform sampler2D " Z3U_DIFFUSEMAP ";" },
+			{ MO_MASKED, 0, "uniform sampler2D " Z3U_DIFFUSEMAP ";" },
 			{ 0,         0, S_VoidMain },
-			{ MM_MASKED, 0, "if (texture2D(" Z3U_DIFFUSEMAP ", " Z3V_TEXCOORD ").a<.5)discard;" },
+			{ MO_MASKED, 0,     "if (texture2D(" Z3U_DIFFUSEMAP ", " Z3V_TEXCOORD ").a<.5)discard;" },
 			{ 0,         0, "}" }
 		}
 	;
@@ -202,9 +222,10 @@ namespace ZL_Display3D_Shaders
 		for (const SourceRule *Rule = Rules, *RuleEnd = Rule+RuleCount; Rule != RuleEnd; Rule++)
 		{
 			if ((Rule->MMUseIf && !(MM & Rule->MMUseIf)) || (Rule->MMLimit > 0 && (MM & Rule->MMLimit)) || (Rule->MMLimit < 0 && !(MM & -Rule->MMLimit))) continue;
-			if (Rule->MMUseIf & MMDEF_RULEWITHEXTERNALSOURCEPTR) *(List++) = *(const char**)Rule->Source;
-			else if (Rule->Source) *(List++) = Rule->Source;
-			else if (NullReplacements) { if (*NullReplacements) { *(List++) = *NullReplacements; } NullReplacements++; }
+			const char* Source = Rule->Source;
+			if (Source == NULL && NullReplacements) Source = *(NullReplacements++);
+			else if ((void*)Source >= (void*)ExternalSource && (void*)Source < (void*)(ExternalSource+_EXTERN_NUM)) Source = *(const char**)Source;
+			if (Source) *(List++) = Source;
 		}
 		return (GLsizei)(List - ListStart);
 	}
@@ -227,30 +248,39 @@ struct ZL_CameraBase_Impl : ZL_Impl
 	ZL_Matrix VP;
 	ZL_Vector3 Pos, Dir;
 	GLuint UpdateCount;
-	ZL_CameraBase_Impl() : Dir(0,0,1) { static GLushort gc; UpdateCount = gc++; }
+	scalar Aspect, Size, Near, Far;
+	ZL_CameraBase_Impl() : Dir(ZL_Vector3::Forward) { static GLushort gc; UpdateCount = gc++; }
 };
 
 struct ZL_Camera_Impl : public ZL_CameraBase_Impl
 {
-	scalar FOV, AspectRatio, ZNear, ZFar;
 	ZL_Vector3 AmbientLightColor;
-	ZL_Camera_Impl() : FOV(s(90)), AspectRatio(-1), ZNear(s(.1)), ZFar(s(1000)), AmbientLightColor(s(.2)) { UpdateMatrix(); }
-	void UpdateMatrix() { VP = ZL_Matrix::MakeCamera(Pos, Dir) * ZL_Matrix::MakePerspectiveHorizontal(FOV, (AspectRatio > 0 ? AspectRatio : ZLWIDTH/ZLHEIGHT), ZNear, ZFar); UpdateCount += 0x10000; }
+	bool IsOrtho;
+	ZL_Camera_Impl() : IsOrtho(false) { Aspect = -1; Size = s(90); Near = s(.1); Far = s(1000); AmbientLightColor = s(.2); UpdateMatrix(); }
+	void UpdateMatrix()
+	{
+		scalar ar = (Aspect > 0 ? Aspect : ZLWIDTH/ZLHEIGHT);
+		if (IsOrtho) VP = ZL_Matrix::MakeCamera(Pos, Dir) * ZL_Matrix::MakeOrtho(-Size * ar, Size * ar, -Size, Size, Near, Far);
+		else         VP = ZL_Matrix::MakeCamera(Pos, Dir) * ZL_Matrix::MakePerspectiveHorizontal(Size, ar, Near, Far);
+		UpdateCount += 0x10000;
+	}
 };
 
 struct ZL_Light_Impl : public ZL_CameraBase_Impl
 {
-	ZL_Matrix BiasedLightMatrix;
-	scalar Aspect, Size, Near, Far, Falloff, LightFactorOutside;
+	scalar Falloff, LightFactorOutside, ShadowBias;
 	ZL_Vector3 Color;
-	ZL_Light_Impl() : Aspect(0), Size(2), Near(1), Far(50), Falloff(3.4e+37f), LightFactorOutside(0), Color(1,1,1) { UpdateMatrix(); }
+	ZL_Matrix BiasedLightMatrix;
+	ZL_Light_Impl() : Color(1,1,1) { Aspect = s(0); Size = s(0); Near = s(1); Far = s(50); Falloff = s(3.4e+37); LightFactorOutside = s(0); ShadowBias = s(.001); UpdateMatrix(); }
 	void UpdateMatrix()
 	{
-		if (!Aspect) VP = ZL_Matrix::MakeCamera(Pos, Dir) * ZL_Matrix::MakeOrtho(-Size, Size, -Size, Size, Near, Far);
-		else         VP = ZL_Matrix::MakeCamera(Pos, Dir) * ZL_Matrix::MakePerspectiveHorizontal(Size, Aspect, Near, Far);
+		if (!Size)        VP = ZL_Matrix::MakeCamera(Pos, Dir);
+		else if (!Aspect) VP = ZL_Matrix::MakeCamera(Pos, Dir) * ZL_Matrix::MakeOrtho(-Size, Size, -Size, Size, Near, Far);
+		else              VP = ZL_Matrix::MakeCamera(Pos, Dir) * ZL_Matrix::MakePerspectiveHorizontal(Size, Aspect, Near, Far);
 		BiasedLightMatrix = VP * ZL_Matrix(.5f, 0, 0, 0, 0, .5f, 0, 0, 0, 0, .5f, 0, .5f, .5f, .5f, 1);
 		UpdateCount += 0x10000;
 	}
+	bool IsDirectionalLight() { return Size && VP.m[15] == 1; }
 };
 
 struct ZL_RenderSceneSetup
@@ -268,21 +298,18 @@ struct ZL_RenderSceneSetup
 
 struct ZL_Material_Impl : ZL_Impl
 {
-	struct UniformValue
-	{
-		bool operator<(const ZL_NameID& b) const { return (Name<b); }
-		ZL_NameID Name; GLint Location;
-		enum { TYPE_FLOAT, TYPE_VEC2, TYPE_VEC3, TYPE_VEC4 } Type;
-		union { scalar Float, Vec2[2], Vec3[3], Vec4[4]; } Value;
-	};
+	struct UniformArrayValue { scalar *Ptr; GLsizei Count; };
 	struct sUniformSet
 	{
-		GLuint Num; UniformValue* Values; GLuint ValueChksum, TextureChksum; ZL_Texture_Impl* TextureReferences[4];
-		void CalcValueChksum()   { ZL_STATIC_ASSERT(!(sizeof(UniformValue)&3),BAD_ALIGN);      ValueChksum   = ZL_Checksum::Fast4(Values, sizeof(UniformValue) * Num); }
+		GLuint ValueNum, ValueChksum, TextureChksum; scalar* Values; ZL_Texture_Impl* TextureReferences[4];
+		void CalcValueChksum()   { ZL_STATIC_ASSERT(!(sizeof(scalar)&3),BAD_ALIGN);            ValueChksum   = ZL_Checksum::Fast4(Values, sizeof(scalar) * ValueNum); }
 		void CalcTextureChksum() { ZL_STATIC_ASSERT(!(sizeof(TextureReferences)&3),BAD_ALIGN); TextureChksum = ZL_Checksum::Fast4(TextureReferences, sizeof(TextureReferences)); }
-	} UniformSet;
+	};
 	struct ZL_MaterialProgram* ShaderProgram;
 	unsigned int MaterialModes;
+	sUniformSet UniformSet;
+
+	static ZL_Material_Impl* GetMaterialReference(unsigned int MM, const char* CustomFragmentCode = NULL, const char* CustomVertexCode = NULL);
 
 	ZL_Material_Impl(struct ZL_MaterialProgram* ShaderProgram, unsigned int MaterialModes) : ShaderProgram(ShaderProgram), MaterialModes(MaterialModes)
 	{
@@ -298,75 +325,54 @@ struct ZL_Material_Impl : ZL_Impl
 		if (UniformSet.Values) free(UniformSet.Values);
 	}
 
-	void SetUniformFloat(ZL_NameID Name, scalar val)
+	void SetUniform1(GLint Offset, scalar val)
 	{
-		UniformValue* v = std::lower_bound(UniformSet.Values, UniformSet.Values+UniformSet.Num, Name);
-		if (v == UniformSet.Values+UniformSet.Num || v->Name != Name) return;
-		assert(v->Type == UniformValue::TYPE_FLOAT);ZL_STATIC_ASSERT(sizeof(val)==sizeof(v->Value.Float),NEEDS_TO_MATCH);
-		v->Value.Float = val;
+		if (Offset < 0) return;
+		UniformSet.Values[Offset] = val;
 		UniformSet.CalcValueChksum();
 	}
-	void SetUniformVec2(ZL_NameID Name, const ZL_Vector& val)
+	void SetUniformX(GLint Offset, const scalar* val, int count)
 	{
-		UniformValue* v = std::lower_bound(UniformSet.Values, UniformSet.Values+UniformSet.Num, Name);
-		if (v == UniformSet.Values+UniformSet.Num || v->Name != Name) return;
-		assert(v->Type == UniformValue::TYPE_VEC2);ZL_STATIC_ASSERT(sizeof(val)==sizeof(v->Value.Vec2),NEEDS_TO_MATCH);
-		memcpy(v->Value.Vec2, &val, sizeof(val));
+		if (Offset < 0) return;
+		memcpy(UniformSet.Values+Offset, val, sizeof(scalar)*count);
 		UniformSet.CalcValueChksum();
 	}
-	void SetUniformVec3(ZL_NameID Name, const ZL_Vector3& val)
+	float GetUniform1(GLint Offset)
 	{
-		UniformValue* v = std::lower_bound(UniformSet.Values, UniformSet.Values+UniformSet.Num, Name);
-		if (v == UniformSet.Values+UniformSet.Num || v->Name != Name) return;
-		assert(v->Type == UniformValue::TYPE_VEC3);ZL_STATIC_ASSERT(sizeof(val)==sizeof(v->Value.Vec3),NEEDS_TO_MATCH);
-		memcpy(v->Value.Vec3, &val, sizeof(val));
-		UniformSet.CalcValueChksum();
+		return (Offset >= 0 ? UniformSet.Values[Offset] : 0);
 	}
-	void SetUniformVec4(ZL_NameID Name, const ZL_Color& val)
+	void GetUniformX(GLint Offset, scalar* val, int count)
 	{
-		UniformValue* v = std::lower_bound(UniformSet.Values, UniformSet.Values+UniformSet.Num, Name);
-		if (v == UniformSet.Values+UniformSet.Num || v->Name != Name) return;
-		assert(v->Type == UniformValue::TYPE_VEC4);ZL_STATIC_ASSERT(sizeof(val)==sizeof(v->Value.Vec4),NEEDS_TO_MATCH);
-		memcpy(v->Value.Vec4, &val, sizeof(val));
-		UniformSet.CalcValueChksum();
+		if (Offset >= 0) memcpy(val, UniformSet.Values+Offset, sizeof(scalar)*count);
 	}
-	void SetTexture(int Num, ZL_Surface& Surface)
+	void SetTexture(int Num, ZL_Texture_Impl *Tex)
 	{
 		assert(Num >= 0 && Num < (int)COUNT_OF(UniformSet.TextureReferences));
-		ZL_Surface_Impl *srfi = ZL_ImplFromOwner<ZL_Surface_Impl>(Surface);
-		ZL_Texture_Impl *texi = (srfi ? srfi->tex : NULL);
-		ZL_Impl::CopyRef(texi, (ZL_Impl*&)UniformSet.TextureReferences[Num]);
+		if (UniformSet.TextureReferences[Num] == Tex) return;
+		ZL_Impl::CopyRef(Tex, (ZL_Impl*&)UniformSet.TextureReferences[Num]);
 		UniformSet.CalcTextureChksum();
 	}
-	ZL_Color GetUniformVec4(ZL_NameID Name)
+	ZL_Texture_Impl* GetTexture(int Num)
 	{
-		UniformValue* v = std::lower_bound(UniformSet.Values, UniformSet.Values+UniformSet.Num, Name);
-		if (v == UniformSet.Values+UniformSet.Num || v->Name != Name) return ZL_Color::White;
-		assert(v->Type == UniformValue::TYPE_VEC4);
-		return ZL_Color(v->Value.Vec4[0], v->Value.Vec4[1], v->Value.Vec4[2], v->Value.Vec4[3]);
+		assert(Num >= 0 && Num < (int)COUNT_OF(UniformSet.TextureReferences));
+		return UniformSet.TextureReferences[Num];
 	}
-};
-
-struct ZL_MaterialInstance : ZL_Material_Impl
-{
-	ZL_MaterialInstance(ZL_Material_Impl *Base, unsigned int MaterialModes) : ZL_Material_Impl(Base->ShaderProgram, MaterialModes)
-	{
-		assert((Base->MaterialModes & ZL_Display3D_Shaders::MMDEF_WITHOUTOPTIONS) == (MaterialModes & ZL_Display3D_Shaders::MMDEF_WITHOUTOPTIONS));
-		ShaderProgram = Base->ShaderProgram;
-		reinterpret_cast<ZL_Material_Impl*>(ShaderProgram)->AddRef();
-		UniformSet = Base->UniformSet;
-		UniformSet.Values = (UniformValue*)malloc(sizeof(UniformValue) * UniformSet.Num);
-		memcpy(UniformSet.Values, Base->UniformSet.Values, sizeof(UniformValue) * UniformSet.Num);
-	}
-
-	~ZL_MaterialInstance() { reinterpret_cast<ZL_Material_Impl*>(ShaderProgram)->DelRef(); }
 };
 
 struct ZL_MaterialProgram : ZL_Material_Impl
 {
+	struct UniformEntry
+	{
+		bool operator<(const ZL_NameID& b) const { return (Name<b); }
+		ZL_NameID Name; GLint Location, ValueOffset, Type;
+		enum eType { TYPE_FLOAT = 1, TYPE_VEC2 = 2, TYPE_VEC3 = 3, TYPE_VEC4 = 4, TYPEFLAG_ARRAY = 8 };
+	};
+
 	ZL_ShaderIDs ShaderIDs;
+	u64 VariationID;
 	GLint UniformMatrixView, UniformVectorViewPos, UniformMatrixLight, UniformVectorLightData, UniformTime;
-	GLuint UploadedCamera, UploadedLight, UploadedLightDataChkSum, UniformUploadedValueChksum;
+	GLuint UploadedCamera, UploadedLight, UploadedLightDataChkSum, UniformUploadedValueChksum, UniformNum;
+	UniformEntry* UniformEntries;
 	ZL_MaterialProgram* ShadowMapProgram;
 
 	#ifdef ZL_VIDEO_WEAKCONTEXT
@@ -380,27 +386,27 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 	}
 	#endif
 
-	static std::vector<struct ZL_MaterialProgram*>::iterator FindVariation(unsigned int MaterialModes)
+	static std::vector<struct ZL_MaterialProgram*>::iterator FindVariation(u64 VariationID)
 	{
-		struct SortFunc { static inline bool ByMaterialMode(ZL_MaterialProgram* a, unsigned int MM) { return (a->MaterialModes & ZL_Display3D_Shaders::MMDEF_WITHOUTOPTIONS) < MM; } };
-		return std::lower_bound(g_LoadedShaderVariations->begin(), g_LoadedShaderVariations->end(), (MaterialModes & ZL_Display3D_Shaders::MMDEF_WITHOUTOPTIONS), SortFunc::ByMaterialMode);
+		struct SortFunc { static inline bool ByVariationID(ZL_MaterialProgram* a, u64 VariationID) { return a->VariationID < VariationID; } };
+		return std::lower_bound(g_LoadedShaderVariations->begin(), g_LoadedShaderVariations->end(), VariationID, SortFunc::ByVariationID);
 	}
 
 	~ZL_MaterialProgram()
 	{
 		if (ShaderIDs.Program) glDeleteProgram(ShaderIDs.Program);
-		if (MaterialModes && !(MaterialModes & (ZL_Display3D_Shaders::MMDEF_USECUSTOMSHADER)))
-			g_LoadedShaderVariations->erase(FindVariation(MaterialModes));
+		if (VariationID) g_LoadedShaderVariations->erase(FindVariation(VariationID));
 		if (ShadowMapProgram) ShadowMapProgram->DelRef();
 		if (this == g_ShadowMapProgram) g_ShadowMapProgram = NULL;
 		if (this == g_ShadowMapMaskProgram) g_ShadowMapMaskProgram = NULL;
+		if (UniformEntries) free(UniformEntries);
 
 		#ifdef ZL_VIDEO_WEAKCONTEXT
 		if (ShaderIDs.Program) g_LoadedMaterialPrograms->erase(std::find(g_LoadedMaterialPrograms->begin(), g_LoadedMaterialPrograms->end(), this));
 		#endif
 	}
 
-	ZL_MaterialProgram(GLsizei vertex_shader_srcs_count, const char **vertex_shader_srcs, GLsizei fragment_shader_srcs_count, const char **fragment_shader_srcs, unsigned int MaterialModes = 0) : ZL_Material_Impl(NULL, MaterialModes), UploadedCamera(0), UploadedLight(0), UploadedLightDataChkSum(0), UniformUploadedValueChksum(0), ShadowMapProgram(NULL)
+	ZL_MaterialProgram(GLsizei vertex_shader_srcs_count, const char **vertex_shader_srcs, GLsizei fragment_shader_srcs_count, const char **fragment_shader_srcs, unsigned int MaterialModes = 0) : ZL_Material_Impl(NULL, MaterialModes), VariationID(0), UploadedCamera(0), UploadedLight(0), UploadedLightDataChkSum(0), UniformUploadedValueChksum(0), UniformEntries(NULL), ShadowMapProgram(NULL)
 	{
 		ShaderProgram = this;
 		if (!(ShaderIDs.Program = ZLGLSL::CreateProgramFromVertexAndFragmentShaders(vertex_shader_srcs_count, vertex_shader_srcs, fragment_shader_srcs_count, fragment_shader_srcs, COUNT_OF(ZL_Display3D_Shaders::S_AttributeList), ZL_Display3D_Shaders::S_AttributeList))) return;
@@ -426,13 +432,13 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 		GLint ActiveProgram;
 		glGetIntegerv(GL_CURRENT_PROGRAM, &ActiveProgram);
 		glUseProgram(ShaderIDs.Program);
-		if (UniformSamplerDiffuse  != -1) glUniform1i(UniformSamplerDiffuse , 0);
-		if (UniformSamplerNormal   != -1) glUniform1i(UniformSamplerNormal  , 1);
+		if (UniformSamplerDiffuse  != -1) glUniform1i(UniformSamplerDiffuse,  0);
+		if (UniformSamplerNormal   != -1) glUniform1i(UniformSamplerNormal,   1);
 		if (UniformSamplerSpecular != -1) glUniform1i(UniformSamplerSpecular, 2);
 		if (UniformSamplerParallax != -1) glUniform1i(UniformSamplerParallax, 3);
-		if (UniformSamplerShadow   != -1) glUniform1i(UniformSamplerShadow  , 4);
+		if (UniformSamplerShadow   != -1) glUniform1i(UniformSamplerShadow,   4);
 
-		std::vector<UniformValue> Values;
+		std::vector<UniformEntry> Entries; std::vector<scalar> Values;
 		for (int i = 0; i < AllUniformCount; i++)
 		{
 			GLsizei UniformNameLen; GLint UniformSize; GLenum UniformType; char UniformName[256];
@@ -441,27 +447,36 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 			if (loc == UniformMatrixView || loc == ShaderIDs.UniformMatrixModel || loc == ShaderIDs.UniformMatrixNormal || loc == UniformMatrixLight ||
 			    loc == UniformVectorViewPos || loc == UniformVectorLightData || loc == UniformTime ||
 			    loc == UniformSamplerDiffuse || loc == UniformSamplerNormal || loc == UniformSamplerSpecular || loc == UniformSamplerParallax || loc == UniformSamplerShadow) continue;
-			UniformValue v;
-			memset(&v.Value, 0, sizeof(v.Value));
-			if      (loc == UniformFloatSpecular )     { v.Type = UniformValue::TYPE_FLOAT; glUniform1(loc, (v.Value.Float = s(5))); }
-			else if (loc == UniformFloatShininess)     { v.Type = UniformValue::TYPE_FLOAT; glUniform1(loc, (v.Value.Float = s(16))); }
-			else if (loc == UniformFloatParallaxScale) { v.Type = UniformValue::TYPE_FLOAT; glUniform1(loc, (v.Value.Float = s(0.05))); }
-			else if (UniformType == GL_FLOAT)          { v.Type = UniformValue::TYPE_FLOAT; glUniform1(loc, (v.Value.Float = 1)); }
-			else if (UniformType == GL_FLOAT_VEC2 )    { v.Type = UniformValue::TYPE_VEC2;  glUniform2(loc, (v.Value.Vec2[0] = 1), (v.Value.Vec2[1] = 1)); }
-			else if (UniformType == GL_FLOAT_VEC3 )    { v.Type = UniformValue::TYPE_VEC3;  glUniform3(loc, (v.Value.Vec3[0] = 1), (v.Value.Vec3[1] = 1), (v.Value.Vec3[2] = 1)); }
-			else if (UniformType == GL_FLOAT_VEC4 )    { v.Type = UniformValue::TYPE_VEC4;  glUniform4(loc, (v.Value.Vec4[0] = 1), (v.Value.Vec4[1] = 1), (v.Value.Vec4[2] = 1), (v.Value.Vec4[3] = 1)); }
+			UniformEntry e;
+			scalar v[4] = {1, 1, 1, 1};
+			if      (loc == UniformFloatSpecular )     v[0] = s(5);
+			else if (loc == UniformFloatShininess)     v[0] = s(16);
+			else if (loc == UniformFloatParallaxScale) v[0] = s(0.05);
+			if      (UniformType == GL_FLOAT)          { e.Type = UniformEntry::TYPE_FLOAT; glUniform1(loc, v[0]); }
+			else if (UniformType == GL_FLOAT_VEC2 )    { e.Type = UniformEntry::TYPE_VEC2;  glUniform2(loc, v[0], v[1]); }
+			else if (UniformType == GL_FLOAT_VEC3 )    { e.Type = UniformEntry::TYPE_VEC3;  glUniform3(loc, v[0], v[1], v[2]); }
+			else if (UniformType == GL_FLOAT_VEC4 )    { e.Type = UniformEntry::TYPE_VEC4;  glUniform4(loc, v[0], v[1], v[2], v[3]); }
 			else continue; //unhandled type
-			v.Name = UniformName;
-			v.Location = loc;
-			std::vector<UniformValue>::iterator it = std::lower_bound(Values.begin(), Values.end(), v.Name);
-			if (it == Values.end() || it->Name != v.Name) Values.insert(it, v);
-			ZL_LOG3("3D", "[%d] Uniform Name: %s - Type: %d", v.Location, UniformName, v.Type);
+			e.Name = UniformName;
+			e.Location = loc;
+			std::vector<UniformEntry>::iterator it = std::lower_bound(Entries.begin(), Entries.end(), e.Name);
+			if (it == Entries.end() || it->Name != e.Name)
+			{
+				e.ValueOffset = (GLint)Values.size();
+				if (UniformSize <= 1) Values.insert(Values.end(), v, v + (int)e.Type);
+				else { Values.insert(Values.end(), (sizeof(UniformArrayValue)+sizeof(scalar)-1) / sizeof(scalar), 0); e.Type |= UniformEntry::TYPEFLAG_ARRAY; }
+				Entries.insert(it, e);
+				//ZL_LOG3("3D", "[%d] Uniform Name: %s - Type: %d", e.Location, UniformName, e.Type);
+			}
 		}
-		if (!Values.empty())
+		UniformNum = (GLuint)Entries.size();
+		if (UniformNum)
 		{
-			UniformSet.Num = (GLuint)Values.size();
-			UniformSet.Values = (UniformValue*)malloc(sizeof(UniformValue) * UniformSet.Num);
-			memcpy(UniformSet.Values, &Values[0], sizeof(UniformValue) * UniformSet.Num);
+			UniformSet.ValueNum = (GLuint)Values.size();
+			UniformEntries = (UniformEntry*)malloc(sizeof(UniformEntry) * UniformNum);
+			UniformSet.Values = (scalar*)malloc(sizeof(scalar) * UniformSet.ValueNum);
+			memcpy(UniformEntries, &Entries[0], sizeof(UniformEntry) * UniformNum);
+			memcpy(UniformSet.Values, &Values[0], sizeof(scalar) * UniformSet.ValueNum);
 			UniformSet.CalcValueChksum();
 			UniformUploadedValueChksum = UniformSet.ValueChksum;
 		}
@@ -471,7 +486,7 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 		ShaderIDs.UsedAttributeMask = 0;
 		for (GLint loc = 1; loc < (GLint)COUNT_OF(ZL_Display3D_Shaders::S_AttributeList); loc++)
 			if (glGetAttribLocation(ShaderIDs.Program, ZL_Display3D_Shaders::S_AttributeList[loc]) != -1) { ShaderIDs.UsedAttributeMask |= 1<<loc; assert(glGetAttribLocation(ShaderIDs.Program, ZL_Display3D_Shaders::S_AttributeList[loc]) == loc); }
-		ZL_LOG4("3D", "Compiled Shader - Program ID: %d - VS Parts: %d - FS Parts: %d - AttrMask: %d", ShaderIDs.Program, vertex_shader_srcs_count, fragment_shader_srcs_count, ShaderIDs.UsedAttributeMask);
+		//ZL_LOG4("3D", "Compiled Shader - Program ID: %d - VS Parts: %d - FS Parts: %d - AttrMask: %d", ShaderIDs.Program, vertex_shader_srcs_count, fragment_shader_srcs_count, ShaderIDs.UsedAttributeMask);
 
 		#ifdef ZL_VIDEO_WEAKCONTEXT
 		for (GLsizei ivs = 0; ivs < vertex_shader_srcs_count; ivs++) WeakVertexShaderSrc += vertex_shader_srcs[ivs];
@@ -479,78 +494,6 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 		if (!g_LoadedMaterialPrograms) g_LoadedMaterialPrograms = new std::vector<struct ZL_MaterialProgram*>();
 		g_LoadedMaterialPrograms->push_back(this);
 		#endif
-	}
-
-	static ZL_Material_Impl* GetReference(unsigned int MM, const char* CustomFragmentCode = NULL, const char* CustomVertexCode = NULL)
-	{
-		using namespace ZL_Display3D_Shaders;
-		assert(!CustomFragmentCode || (MM & MMDEF_USECUSTOMFRAGMENT));
-		assert(!CustomVertexCode   || (MM & MMDEF_USECUSTOMVERTEX));
-		assert(MM & MMDEF_FRAGCOLORMODES); //need at least one material mode defining the output fragment color
-		assert((MM & MM_LIT) || !(MM & MMDEF_USESLIT));
-		assert(!(MM & MM_SHADOWMAP) || Varying_ShadowMap); //check if InitShadowMapping has been called
-
-		//normalize MaterialModes
-		const unsigned int MMRequests = (MM & MMDEF_VSGLOBALREQUESTS);
-		if (!(MM & MMDEF_FRAGCOLORMODES)) MM |= MM_STATICCOLOR;
-		if (!(MM & MM_LIT)) MM &= ~MMDEF_USESLIT;
-		if ((MM & MM_SHADOWMAP)     && !Varying_ShadowMap                           ) MM ^= MM_SHADOWMAP;
-		if ((MM & MR_CAMERATANGENT) && (MM & (MMUSE_CAMERATANGENT^MR_CAMERATANGENT))) MM ^= MR_CAMERATANGENT;
-		if ((MM & MR_TEXCOORD)      && (MM & (MMUSE_TEXCOORD     ^MR_TEXCOORD     ))) MM ^= MR_TEXCOORD;
-		if ((MM & MR_NORMALS)       && (MM & (MMUSE_NORMAL       ^MR_NORMALS      ))) MM ^= MR_NORMALS;
-		if ((MM & MR_POSITION)      && (MM & (MMUSE_POSITION     ^MR_POSITION     ))) MM ^= MR_POSITION;
-
-		const bool bStoreVariation = (!(MM & MMDEF_USECUSTOMSHADER));
-		std::vector<ZL_MaterialProgram*>::iterator it;
-		ZL_Material_Impl* res;
-		if (!g_LoadedShaderVariations) g_LoadedShaderVariations = new std::vector<struct ZL_MaterialProgram*>();
-		if (bStoreVariation && (it = FindVariation(MM)) != g_LoadedShaderVariations->end() && ((*it)->MaterialModes&MMDEF_WITHOUTOPTIONS) == (MM&MMDEF_WITHOUTOPTIONS))
-		{
-			res = new ZL_MaterialInstance(*it, MM);
-		}
-		else
-		{
-			char FS_FragColorCalc[FRAGCOLOR_CALC_MAXLEN+1], *FS_FragColorCalcPtr = FS_FragColorCalc;
-			for (size_t i = 0; i < COUNT_OF(FragColorRules); i++)
-				if (MM & FragColorRules[i].MMUseIf)
-					FS_FragColorCalcPtr += sprintf(FS_FragColorCalcPtr, "%s%s", (FS_FragColorCalcPtr != FS_FragColorCalc ? "*" : ""), FragColorRules[i].Source);
-			FS_FragColorCalcPtr[0] = ';'; FS_FragColorCalcPtr[1] = '\0';
-
-			const char* FSNullReplacements[] = { CustomFragmentCode, FS_FragColorCalc };
-			const char *VS[COUNT_OF(SharedRules)+COUNT_OF(VSGlobalRules)+COUNT_OF(VSRules)], *FS[COUNT_OF(SharedRules)+COUNT_OF(FSRules)];
-			GLsizei VSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MM, &VS[      0]);
-			        VSCount += BuildList(VSGlobalRules, COUNT_OF(VSGlobalRules), MM, &VS[VSCount]);
-			        VSCount += BuildList(VSRules,       COUNT_OF(VSRules),       MM, &VS[VSCount], &CustomVertexCode);
-			GLsizei FSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MM, &FS[      0]);
-			        FSCount += BuildList(FSRules,       COUNT_OF(FSRules),       MM, &FS[FSCount], FSNullReplacements);
-
-			res = new ZL_MaterialProgram(VSCount, VS, FSCount, FS, MM);
-			if (!res->ShaderProgram->ShaderIDs.Program) { res->ShaderProgram->MaterialModes = 0; delete res; return NULL; }
-
-			if (bStoreVariation) g_LoadedShaderVariations->insert(it, res->ShaderProgram);
-		}
-
-		if (Varying_ShadowMap && !(MM & MO_NOSHADOW) && !res->ShaderProgram->ShadowMapProgram)
-		{
-			ZL_MaterialProgram*& UseShadowMapProgram = (MM & MM_POSITIONFUNC ? res->ShaderProgram->ShadowMapProgram : (!(MM&(MM_MASKED|MM_DIFFUSEMAP)) ? g_ShadowMapProgram : g_ShadowMapMaskProgram));
-			if (UseShadowMapProgram) UseShadowMapProgram->AddRef();
-			else
-			{
-				unsigned int MMSMRules =  (MM & MM_POSITIONFUNC ? MM_POSITIONFUNC : (!(MM&(MM_MASKED|MM_DIFFUSEMAP)) ? 0 : MM_MASKED|MM_DIFFUSEMAP));
-				unsigned int MMSMGlobal = (MMSMRules == MM_POSITIONFUNC ? MMRequests : MMSMRules);
-				const char *VS[COUNT_OF(SharedRules)+COUNT_OF(VSGlobalRules)+COUNT_OF(VSRules)], *FS[COUNT_OF(SharedRules)+COUNT_OF(FSRules)];
-				GLsizei VSCount  = BuildList(SharedRules,      COUNT_OF(SharedRules),      MMSMRules,  &VS[      0]);
-				        VSCount += BuildList(VSGlobalRules,    COUNT_OF(VSGlobalRules),    MMSMGlobal, &VS[VSCount]);
-				        VSCount += BuildList(VSRules,          COUNT_OF(VSRules),          MMSMRules,  &VS[VSCount], &CustomVertexCode);
-				GLsizei FSCount  = BuildList(SharedRules,      COUNT_OF(SharedRules),      MMSMRules,  &FS[      0]);
-				        FSCount += BuildList(ShadowMapFSRules, COUNT_OF(ShadowMapFSRules), MMSMRules,  &FS[FSCount]);
-				UseShadowMapProgram = new ZL_MaterialProgram(VSCount, VS, FSCount, FS);
-				if (!UseShadowMapProgram->ShaderIDs.Program) { delete UseShadowMapProgram; UseShadowMapProgram = NULL; }
-			}
-			res->ShaderProgram->ShadowMapProgram = UseShadowMapProgram;
-		}
-
-		return res;
 	}
 
 	void Activate(const sUniformSet& Override, const ZL_RenderSceneSetup& Scene)
@@ -579,15 +522,17 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 		}
 		if (UniformUploadedValueChksum != Override.ValueChksum)
 		{
-			assert(Override.Num >= UniformSet.Num);
-			for (UniformValue* v = Override.Values, *vEnd = v + UniformSet.Num; v != vEnd; ++v)
+			assert(Override.ValueNum >= UniformSet.ValueNum);
+			for (UniformEntry* e = UniformEntries, *eEnd = e + UniformNum; e != eEnd; e++)
 			{
-				switch (v->Type)
+				const scalar* v = Override.Values + e->ValueOffset;
+				switch (e->Type)
 				{
-					case UniformValue::TYPE_FLOAT: glUniform1(v->Location, v->Value.Float); break;
-					case UniformValue::TYPE_VEC2:  glUniform2(v->Location, v->Value.Vec2[0], v->Value.Vec2[1]); break;
-					case UniformValue::TYPE_VEC3:  glUniform3(v->Location, v->Value.Vec3[0], v->Value.Vec3[1], v->Value.Vec3[2]); break;
-					case UniformValue::TYPE_VEC4:  glUniform4(v->Location, v->Value.Vec4[0], v->Value.Vec4[1], v->Value.Vec4[2], v->Value.Vec4[3]); break;
+					case UniformEntry::TYPE_FLOAT: glUniform1(e->Location, v[0]); break;
+					case UniformEntry::TYPE_VEC2:  glUniform2(e->Location, v[0], v[1]); break;
+					case UniformEntry::TYPE_VEC3:  glUniform3(e->Location, v[0], v[1], v[2]); break;
+					case UniformEntry::TYPE_VEC4:  glUniform4(e->Location, v[0], v[1], v[2], v[3]); break;
+					case UniformEntry::TYPE_VEC3|UniformEntry::TYPEFLAG_ARRAY: glUniform3v(e->Location, ((UniformArrayValue*)v)->Count, ((UniformArrayValue*)v)->Ptr); break;
 					default: assert(0);
 				}
 			}
@@ -602,7 +547,109 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 			g_Active3D.BoundTextureChksum = Override.TextureChksum;
 		}
 	}
+
+	inline GLint GetUniformOffset(ZL_NameID Name, UniformEntry::eType Type, bool IsArray = false) const
+	{
+		UniformEntry* e = std::lower_bound(UniformEntries, UniformEntries+UniformNum, Name);
+		if (e == UniformEntries+UniformNum || e->Name != Name) return -1;
+		assert(e->Type == (Type | (IsArray ? UniformEntry::TYPEFLAG_ARRAY : 0)));
+		return UniformEntries[e - UniformEntries].ValueOffset;
+	}
 };
+
+struct ZL_MaterialInstance : ZL_Material_Impl
+{
+	ZL_MaterialInstance(ZL_Material_Impl *Base, unsigned int MaterialModes, bool ResetUniforms) : ZL_Material_Impl(Base->ShaderProgram, MaterialModes)
+	{
+		assert((Base->MaterialModes & ~ZL_Display3D_Shaders::MMDEF_NOSHADERCODE) == (MaterialModes & ~ZL_Display3D_Shaders::MMDEF_NOSHADERCODE));
+		ShaderProgram->AddRef();
+		UniformSet.ValueNum = Base->UniformSet.ValueNum;
+		UniformSet.Values = (scalar*)malloc(sizeof(scalar) * UniformSet.ValueNum);
+		if (!ResetUniforms)
+		{
+			memcpy(UniformSet.Values, Base->UniformSet.Values, sizeof(scalar) * ShaderProgram->UniformSet.ValueNum);
+			UniformSet.ValueChksum = Base->UniformSet.ValueChksum;
+			for (int i = 0; i < (int)COUNT_OF(UniformSet.TextureReferences); i++) SetTexture(i, Base->GetTexture(i));
+		}
+		else
+		{
+			for (ZL_MaterialProgram::UniformEntry *e = ShaderProgram->UniformEntries, *eEnd = e + ShaderProgram->UniformNum; e != eEnd; e++)
+			{
+				scalar* v = UniformSet.Values + e->ValueOffset;
+				switch (e->Type)
+				{
+					case ZL_MaterialProgram::UniformEntry::TYPE_VEC4: v[0] = v[1] = v[2] = v[3] = 1; break;
+					case ZL_MaterialProgram::UniformEntry::TYPE_VEC3: v[0] = v[1] = v[2] = 1; break;
+					case ZL_MaterialProgram::UniformEntry::TYPE_VEC2: v[0] = v[1] = 1; break;
+					case ZL_MaterialProgram::UniformEntry::TYPE_FLOAT:
+						if      (e->Name == Z3U_SPECULAR)      v[0] = s(5);
+						else if (e->Name == Z3U_SHININESS)     v[0] = s(16);
+						else if (e->Name == Z3U_PARALLAXSCALE) v[0] = s(0.05);
+						else                                   v[0] = 1;
+				}
+			}
+			UniformSet.CalcValueChksum();
+		}
+	}
+
+	~ZL_MaterialInstance() { ShaderProgram->DelRef(); }
+};
+
+ZL_Material_Impl* ZL_Material_Impl::GetMaterialReference(unsigned int MM, const char* CustomFragmentCode, const char* CustomVertexCode)
+{
+	using namespace ZL_Display3D_Shaders;
+	assert(!CustomFragmentCode || (MM & MMDEF_USECUSTOMFRAGMENT));
+	assert(!CustomVertexCode || (MM & MMDEF_USECUSTOMVERTEX));
+	assert(CustomFragmentCode || CustomVertexCode || !(MM & MMDEF_REQUESTS)); //requests only valid for custom code
+	assert(MM & MMDEF_FRAGCOLORMODES); //need at least one material mode defining the output fragment color
+	assert(!(MM & MO_UNLIT) || !(MM & MMDEF_USESLIT)); //confirm that if things that need lit are set lit is also set
+	if (!(MM & MO_RECEIVENOSHADOW) && !(MM & MO_UNLIT) && !g_SetupShadowMapProgram) MM |= MO_RECEIVENOSHADOW;
+	if (!(MM & MMDEF_FRAGCOLORMODES)) MM |= MM_STATICCOLOR;
+	if (MM & MO_UNLIT) MM &= ~MMDEF_USESLIT;
+
+	u64 VariationID = (MM & ~MMDEF_NOSHADERCODE); //normalize MaterialModes
+	if ((MM & MR_POSITION)      && (MM & (MMUSE_POSITION     ^MR_POSITION     ))) VariationID ^= MR_POSITION;
+	if ((MM & MR_TEXCOORD)      && (MM & (MMUSE_TEXCOORD     ^MR_TEXCOORD     ))) VariationID ^= MR_TEXCOORD;
+	if ((MM & MR_NORMAL)        && (MM & (MMUSE_NORMAL       ^MR_NORMAL       ))) VariationID ^= MR_NORMAL;
+	if ((MM & MR_CAMERATANGENT) && (MM & (MMUSE_CAMERATANGENT^MR_CAMERATANGENT))) VariationID ^= MR_CAMERATANGENT;
+	if (CustomFragmentCode) VariationID ^= (((u64)(ZL_NameID(CustomFragmentCode).IDValue)) << 32);
+	if (CustomVertexCode  ) VariationID ^= (((u64)(ZL_NameID(CustomVertexCode  ).IDValue)) << 32);
+
+	ZL_Material_Impl* res;
+	std::vector<ZL_MaterialProgram*>::iterator it;
+	if (!g_LoadedShaderVariations) g_LoadedShaderVariations = new std::vector<struct ZL_MaterialProgram*>();
+	if ((it = ZL_MaterialProgram::FindVariation(VariationID)) != g_LoadedShaderVariations->end() && (*it)->VariationID == VariationID)
+	{
+		res = new ZL_MaterialInstance(*it, MM, true);
+	}
+	else
+	{
+		char FS_FragColorCalc[FRAGCOLOR_CALC_MAXLEN+1], *FS_FragColorCalcPtr = FS_FragColorCalc;
+		for (size_t i = 0; i < COUNT_OF(FragColorRules); i++)
+			if (MM & FragColorRules[i].MMUseIf)
+				FS_FragColorCalcPtr += sprintf(FS_FragColorCalcPtr, "%s%s", (FS_FragColorCalcPtr != FS_FragColorCalc ? "*" : ""), FragColorRules[i].Source);
+		FS_FragColorCalcPtr[0] = ';'; FS_FragColorCalcPtr[1] = '\0';
+
+		const unsigned int MMRules = (MM & MO_UNLIT ? MM : MM | MR_POSITION | MR_NORMAL);
+		const char* FSNullReplacements[] = { CustomFragmentCode, FS_FragColorCalc };
+		const char *VS[COUNT_OF(SharedRules)+COUNT_OF(VSGlobalRules)+COUNT_OF(VSRules)], *FS[COUNT_OF(SharedRules)+COUNT_OF(FSRules)];
+		GLsizei VSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MMRules, &VS[      0]);
+		        VSCount += BuildList(VSGlobalRules, COUNT_OF(VSGlobalRules), MMRules, &VS[VSCount]);
+		        VSCount += BuildList(VSRules,       COUNT_OF(VSRules),       MMRules, &VS[VSCount], &CustomVertexCode);
+		GLsizei FSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MMRules, &FS[      0]);
+		        FSCount += BuildList(FSRules,       COUNT_OF(FSRules),       MMRules, &FS[FSCount], FSNullReplacements);
+		res = new ZL_MaterialProgram(VSCount, VS, FSCount, FS, MM);
+		if (!res->ShaderProgram->ShaderIDs.Program) { res->ShaderProgram->MaterialModes = 0; delete res; return NULL; }
+		((ZL_MaterialProgram*)res)->VariationID = VariationID;
+
+		g_LoadedShaderVariations->insert(it, res->ShaderProgram);
+	}
+
+	if (!res->ShaderProgram->ShadowMapProgram && g_SetupShadowMapProgram && !(MM & MO_CASTNOSHADOW))
+		g_SetupShadowMapProgram(res->ShaderProgram, MM, CustomVertexCode);
+
+	return res;
+}
 
 struct ZL_Mesh_Impl : ZL_Impl
 {
@@ -615,7 +662,7 @@ struct ZL_Mesh_Impl : ZL_Impl
 	struct MeshPart
 	{
 		ZL_NameID Name; GLsizei IndexCount; GLushort* IndexOffsetPtr; ZL_Material_Impl* Material;
-		MeshPart(ZL_NameID Name, GLsizei IndexCount, GLushort* IndexOffsetPtr,  ZL_Material_Impl* Material) : Name(Name), IndexCount(IndexCount), IndexOffsetPtr(IndexOffsetPtr), Material(Material) { if (Material) Material->AddRef(); }
+		MeshPart(ZL_NameID Name, GLsizei IndexCount, GLushort* IndexOffsetPtr,  ZL_Material_Impl* Material, bool AddMatRef) : Name(Name), IndexCount(IndexCount), IndexOffsetPtr(IndexOffsetPtr), Material(Material) { if (Material && AddMatRef) Material->AddRef(); }
 		bool operator==(ZL_NameID n) { return Name == n; }
 	};
 	MeshPart *Parts, *PartsEnd;
@@ -649,7 +696,7 @@ struct ZL_Mesh_Impl : ZL_Impl
 		ZL_Mesh_Impl* res = new ZL_Mesh_Impl(AttributeMask);
 		res->CreateAndFillBufferData(Indices, IndicesCount, VertData, VertCount);
 		res->Parts = (MeshPart*)malloc(sizeof(MeshPart));
-		res->Parts[0] = MeshPart(ZL_NameID(), IndicesCount, NULL, Program);
+		res->Parts[0] = MeshPart(ZL_NameID(), IndicesCount, NULL, Program, true);
 		res->PartsEnd = res->Parts+1;
 		return res;
 	}
@@ -665,15 +712,10 @@ struct ZL_Mesh_Impl : ZL_Impl
 		#endif
 	}
 
-#if defined(ZILLALOG) && !defined(ZL_VIDEO_OPENGL_ES2)
+	#if defined(ZILLALOG) && !defined(ZL_VIDEO_OPENGL_ES2)
 	void DrawDebug(const ZL_Matrix& Matrix, const ZL_Camera& cam)
 	{
 		if (!VertexBufferObject || !ProvideAttributeMask) return;
-		ZL_Camera_Impl CamModelImpl = *ZL_ImplFromOwner<ZL_Camera_Impl>(cam);
-		CamModelImpl.VP = Matrix * CamModelImpl.VP;
-		CamModelImpl.UpdateCount ^= (GLuint)-1;
-		const ZL_Camera_Impl* CamModelImplPtr = &CamModelImpl;
-		const ZL_Camera& CamModel = *(const ZL_Camera*)&CamModelImplPtr;
 
 		GLint BufferSize;
 		glBindBuffer(GL_ARRAY_BUFFER, VertexBufferObject);
@@ -684,17 +726,17 @@ struct ZL_Mesh_Impl : ZL_Impl
 
 		for (GLubyte *v = (GLubyte*)StoredVertData, *vEnd = v + BufferSize; v != vEnd; v += Stride)
 		{
-			ZL_Vector3 *pos = (ZL_Vector3*)v; GLscalar *ScalarOffset = (GLscalar*)(pos+1);
-			if (ProvideAttributeMask & VAMASK_NORMAL)   { ZL_Display3D::DrawLine(CamModel, *pos, *pos + *((ZL_Vector3*)ScalarOffset) * 0.1f, ZL_Color::White, 0.001f); ScalarOffset += 3; }
-			if (ProvideAttributeMask & VAMASK_TEXCOORD) { ZL_Display3D::DrawPlane(CamModel, *pos, ZL_Vector3(0,0,1), ZL_Vector(0.05f,0.05f), ZL_Color(ScalarOffset[0], ScalarOffset[1], 0)); ScalarOffset += 2; }
-			if (ProvideAttributeMask & VAMASK_TANGENT)  { ZL_Display3D::DrawLine(CamModel, *pos, *pos + *((ZL_Vector3*)ScalarOffset) * 0.1f, ZL_Color::Red, 0.001f); ScalarOffset += 3; }
+			ZL_Vector3 *pos = (ZL_Vector3*)v, tpos = Matrix.TransformPosition(*pos), nrml = ZL_Vector3::Up; GLscalar *ScalarOffset = (GLscalar*)(pos+1);
+			if (ProvideAttributeMask & VAMASK_NORMAL)   { nrml = Matrix.TransformDirection(*((ZL_Vector3*)ScalarOffset)); ZL_Display3D::DrawLine(cam, tpos, tpos + nrml * 0.1f, ZL_Color::Green, 0.001f); ScalarOffset += 3; }
+			if (ProvideAttributeMask & VAMASK_TEXCOORD) { ZL_Display3D::DrawPlane(cam, tpos, nrml, ZL_Vector(0.05f,0.05f), ZL_Color(ScalarOffset[0], ScalarOffset[1], 0)); ScalarOffset += 2; }
+			if (ProvideAttributeMask & VAMASK_TANGENT)  { ZL_Display3D::DrawLine(cam, tpos, tpos + Matrix.TransformDirection(*((ZL_Vector3*)ScalarOffset)) * 0.1f, ZL_Color::Red, 0.001f); ScalarOffset += 3; }
 		}
 
 		glBindBuffer(GL_ARRAY_BUFFER, VertexBufferObject);
 		glUnmapBuffer(GL_ARRAY_BUFFER);
 		glBindBuffer(GL_ARRAY_BUFFER, g_Active3D.VertexBuffer);
 	}
-#endif
+	#endif
 
 	void CreateAndFillBufferData(const GLushort* Indices, GLsizei IndicesCount, const GLvoid* VertData, GLsizei VertCount)
 	{
@@ -853,7 +895,7 @@ struct ZL_Mesh_Impl : ZL_Impl
 		res->CreateAndFillBufferData(&Indices[0], (GLsizei)Indices.size(), VertData, vertex_count);
 		free(VertData);
 		res->Parts = (MeshPart*)malloc(sizeof(MeshPart));
-		res->Parts[0] = MeshPart(ZL_NameID(), (GLsizei)Indices.size(), NULL, Material);
+		res->Parts[0] = MeshPart(ZL_NameID(), (GLsizei)Indices.size(), NULL, Material, true);
 		res->PartsEnd = res->Parts+1;
 		ZL_LOG3("3D", "Loaded PLY - Verts: %d - Indices: %d - Parts: %d", vertex_count, Indices.size(), 1);
 		return res;
@@ -889,7 +931,7 @@ struct ZL_Mesh_Impl : ZL_Impl
 		std::vector<GLushort> Indices;
 		std::vector<GLscalar> Positions, Normals, TexCoords;
 		std::vector<MeshPart> Parts;
-		MeshPart NextPart(ZL_NameID(), 0, NULL, NULL);
+		MeshPart NextPart(ZL_NameID(), 0, NULL, NULL, false);
 		for (unsigned char *line_end = obj_buffer, *cursor; AdvanceLine(line_end, cursor);)
 		{
 			if (cursor[0] == 'u' && cursor[1] == 's' && Indices.size() != (size_t)(NextPart.IndexOffsetPtr - (GLushort*)NULL)) //usemtl end
@@ -956,10 +998,12 @@ struct ZL_Mesh_Impl : ZL_Impl
 			{
 				ZL_Mesh_Impl::MeshPart* it = std::find(Parts, PartsEnd, ZL_NameID((char*)line+7, line_length-7));
 				if (it == PartsEnd) mat = NULL;
-				else { mat = new ZL_MaterialInstance(it->Material, it->Material->MaterialModes); it->Material->DelRef(); it->Material = mat; }
+				else { mat = new ZL_MaterialInstance(it->Material, it->Material->MaterialModes, false); it->Material->DelRef(); it->Material = mat; }
 				continue;
 			}
 			if (!mat) continue;
+			const GLint OffSpecular = mat->ShaderProgram->GetUniformOffset(Z3U_SPECULAR, ZL_MaterialProgram::UniformEntry::TYPE_FLOAT);
+			const GLint OffColor = mat->ShaderProgram->GetUniformOffset(Z3U_COLOR, ZL_MaterialProgram::UniformEntry::TYPE_VEC4);
 
 			GLscalar param[4];
 			size_t param_count = 0;
@@ -971,9 +1015,9 @@ struct ZL_Mesh_Impl : ZL_Impl
 				param[param_count] = (GLscalar)strtod((char*)p, (char**)&pEnd);
 				if (pEnd == p) break;
 			}
-			if      (param_count == 1 && line[0] == 'N' && line[1] == 's') mat->SetUniformFloat(Z3U_SPECULAR, param[0]*0.01f);
-			else if (param_count == 3 && line[0] == 'K' && line[1] == 'd') mat->SetUniformVec4(Z3U_COLOR, ZL_Color(param[0], param[1], param[2], mat->GetUniformVec4(Z3U_COLOR).a));
-			else if (param_count == 1 && line[0] == 'd' && line[1] == ' ') { ZL_Color c = mat->GetUniformVec4(Z3U_COLOR); c.a = param[0]; mat->SetUniformVec4(Z3U_COLOR, c); }
+			if      (param_count == 1 && line[0] == 'N' && line[1] == 's') mat->SetUniform1(OffSpecular, param[0]*0.01f);
+			else if (param_count == 3 && line[0] == 'K' && line[1] == 'd') { ZL_Color c = ZL_Color(param[0], param[1], param[2], mat->GetUniform1(OffColor+3)); mat->SetUniformX(OffColor, (scalar*)&c, 4); }
+			else if (param_count == 1 && line[0] == 'd' && line[1] == ' ') { ZL_Color c; mat->GetUniformX(OffColor, (scalar*)&c, 4); c.a = param[0]; mat->SetUniformX(OffColor, (scalar*)&c, 4); }
 		}
 	}
 
@@ -1134,96 +1178,275 @@ struct ZL_MeshAnimated_Impl : public ZL_Mesh_Impl
 	}
 };
 
+struct ZL_ParticleEmitter_Impl : public ZL_Mesh_Impl
+{
+	struct sParticleMeta { scalar SpawnTime; ZL_Vector3 Velocity; sParticleMeta() : SpawnTime(s(-1)) {} };
+	struct sEmitter { scalar LifeTime; ZL_Vector3 Gravity, VelocityMins, VelocityMaxs; ZL_Vector3 ColorMin, ColorMax; scalar AlphaMin, AlphaMax, SizeMin, SizeMax; int TileCount, TileCols; bool TileAnimate, ColorOverTime, AlphaOverTime, SizeOverTime; };
+
+	std::vector<sParticleMeta> ParticleMeta;
+	std::vector<ZL_Vector3> ShaderData;
+	sEmitter Emitter;
+	size_t ActiveCount, MaxCount;
+
+	enum { S_COUNT = 100, SD_HEADER = 3, SD_BODY = 3, SD_COUNT = SD_HEADER + S_COUNT * SD_BODY, P_INDEXES = 6 };
+
+	ZL_ParticleEmitter_Impl(scalar LifeTime, size_t MaxParticles, ZL_MaterialModes::Blending BlendMode) : ZL_Mesh_Impl(0), ActiveCount(0), MaxCount(MaxParticles)
+	{
+		memset(&Emitter, 0, sizeof(Emitter));
+		Emitter.LifeTime = LifeTime;
+		Emitter.ColorMin = Emitter.ColorMax = ZL_Vector3::One;
+		Emitter.SizeMin = Emitter.SizeMax = Emitter.AlphaMin = Emitter.AlphaMax = s(1);
+		GLscalar Verts[S_COUNT*4*3];
+		GLushort Indices[S_COUNT*P_INDEXES];
+		for (GLushort i = 0; i < S_COUNT; i++)
+		{
+			Verts[i*4*3 + 3*0 + 0] = -HALF; Verts[i*4*3 + 3*0 + 1] =  HALF; Verts[i*4*3 + 3*0 + 2] = 3+i*3+HALF;
+			Verts[i*4*3 + 3*1 + 0] = -HALF; Verts[i*4*3 + 3*1 + 1] = -HALF; Verts[i*4*3 + 3*1 + 2] = 3+i*3+HALF;
+			Verts[i*4*3 + 3*2 + 0] =  HALF; Verts[i*4*3 + 3*2 + 1] = -HALF; Verts[i*4*3 + 3*2 + 2] = 3+i*3+HALF;
+			Verts[i*4*3 + 3*3 + 0] =  HALF; Verts[i*4*3 + 3*3 + 1] =  HALF; Verts[i*4*3 + 3*3 + 2] = 3+i*3+HALF;
+			Indices[i*P_INDEXES + 0] = i*4 + 0; Indices[i*P_INDEXES + 1] = i*4 + 1; Indices[i*P_INDEXES + 2] = i*4 + 2;
+			Indices[i*P_INDEXES + 3] = i*4 + 0; Indices[i*P_INDEXES + 4] = i*4 + 2; Indices[i*P_INDEXES + 5] = i*4 + 3;
+		}
+
+		using namespace ZL_MaterialModes;
+		ZL_Material_Impl* Program = ZL_Material_Impl::GetMaterialReference(MM_VERTEXCOLOR | MM_DIFFUSEMAP | MM_VERTEXFUNC | MO_UNLIT | MO_CASTNOSHADOW | BlendMode, NULL, 
+			"uniform vec3 sd[303];"
+			"void Vertex()"
+			"{"
+				"int i = int(" Z3A_POSITION ".z);"
+				"float sz = sd[i+2].z;"
+				Z3O_POSITION " = vec4(sd[i] + sd[0] * (" Z3A_POSITION ".x*sz) + sd[1] * (" Z3A_POSITION ".y*sz), 1);"
+				"\n#ifndef " Z3D_SHADOWMAP "\n"
+				Z3V_COLOR " = vec4(sd[i+1], sd[i+2].x);"
+				"float m = sd[i+2].y, n = sd[2].z;"
+				Z3V_TEXCOORD " = vec2((" Z3A_POSITION ".x + .5 + mod(m, n)) * sd[2].x, (" Z3A_POSITION ".y + .5 + (n-1.-floor(m/n))) * sd[2].y);"
+				"\n#endif\n"
+			"}"
+		);
+
+		CreateAndFillBufferData(Indices, S_COUNT*P_INDEXES, Verts, S_COUNT*4);
+		Parts = (MeshPart*)malloc(sizeof(MeshPart));
+		Parts[0] = MeshPart(ZL_NameID(), 0, NULL, Program, false);
+		PartsEnd = Parts+1;
+		
+		GLint Off = Parts[0].Material->ShaderProgram->GetUniformOffset("sd[0]", ZL_MaterialProgram::UniformEntry::TYPE_VEC3, true);
+		reinterpret_cast<ZL_Material_Impl::UniformArrayValue*>(Program->UniformSet.Values+Off)->Count = SD_COUNT;
+	}
+
+	void SetTexture(ZL_Texture_Impl* Tex, int NumTilesCols, int NumTilesRows, bool Animate)
+	{
+		for (ZL_Mesh_Impl::MeshPart* it = Parts; it != PartsEnd; ++it)
+			it->Material->SetTexture(0, Tex);
+		Emitter.TileCount = NumTilesCols * NumTilesRows;
+		Emitter.TileCols = NumTilesCols;
+		Emitter.TileAnimate = Animate;
+	}
+
+	void Spawn(const ZL_Vector3& Pos)
+	{
+		if (ActiveCount == MaxCount) return;
+
+		sParticleMeta* m;
+		if (ActiveCount == ParticleMeta.size())
+		{
+			size_t NewPartIdx = ActiveCount / S_COUNT, NewPartCount = NewPartIdx + 1;
+			if (NewPartIdx > 0)
+			{
+				Parts = (MeshPart*)realloc(Parts, sizeof(MeshPart) * NewPartCount);
+				Parts[NewPartIdx] = Parts[0];
+				Parts[NewPartIdx].Material = new ZL_MaterialInstance(Parts[0].Material, Parts[0].Material->MaterialModes, false);
+				Parts[NewPartIdx].Material->UniformSet.ValueChksum = (GLuint)NewPartIdx + 1;
+				PartsEnd = Parts + NewPartCount;
+			}
+			else Parts[0].IndexCount = S_COUNT*P_INDEXES;
+
+			ParticleMeta.resize(NewPartCount * S_COUNT);
+			ShaderData.resize(NewPartCount * SD_COUNT);
+			GLint Off = Parts[0].Material->ShaderProgram->GetUniformOffset("sd[0]", ZL_MaterialProgram::UniformEntry::TYPE_VEC3, true);
+			for (size_t Part = 0; Part < NewPartCount; Part++)
+				reinterpret_cast<ZL_Material_Impl::UniformArrayValue*>(Parts[Part].Material->UniformSet.Values+Off)->Ptr = (scalar*)&ShaderData[SD_COUNT * Part];
+			m = &ParticleMeta[ActiveCount];
+		}
+		else
+		{
+			m = &ParticleMeta[0];
+			for (sParticleMeta* mEnd = m + ParticleMeta.size(); m != mEnd; m++)
+				if (m->SpawnTime < 0)
+					break;
+		}
+
+		size_t i = (m - &ParticleMeta[0]);
+		ZL_Vector3* p = &ShaderData[SD_HEADER + ((i / S_COUNT) * SD_COUNT) + ((i % S_COUNT) * SD_BODY)];
+		m->SpawnTime = ZLSECONDS;
+		m->Velocity = ZLV3(RAND_RANGE(Emitter.VelocityMins.x,Emitter.VelocityMaxs.x), RAND_RANGE(Emitter.VelocityMins.y,Emitter.VelocityMaxs.y), RAND_RANGE(Emitter.VelocityMins.z,Emitter.VelocityMaxs.z));
+		p[0] = Pos;
+		if (!Emitter.ColorOverTime) p[1] = ZL_Vector3::Lerp(Emitter.ColorMin, Emitter.ColorMax, RAND_FACTOR);
+		if (!Emitter.AlphaOverTime) p[2].x = ZL_Math::Lerp(Emitter.AlphaMin, Emitter.AlphaMax, RAND_FACTOR);
+		if (!Emitter.TileAnimate)   p[2].y = s(RAND_INT_MAX(Emitter.TileCount-1));
+		if (!Emitter.SizeOverTime)  p[2].z = ZL_Math::Lerp(Emitter.SizeMin, Emitter.SizeMax, RAND_FACTOR);
+		ActiveCount++;
+	}
+
+	void Update(const ZL_Camera& Camera)
+	{
+		if (!ActiveCount) return;
+
+		scalar TimeNow = ZLSECONDS, TimeElapsed = ZLELAPSED;
+		ZL_Vector3 CamRight = Camera.GetRightDirection();
+		ZL_Vector3 CamUp = Camera.GetUpDirection();
+		ZL_Vector3 SpriteSize = ZLV3(s(1)/Emitter.TileCols, s(1)/(Emitter.TileCount/Emitter.TileCols), Emitter.TileCols);
+		ZL_Vector3* p = &ShaderData[0];
+		sParticleMeta* m = &ParticleMeta[0];
+		for (size_t i = 0; i < ParticleMeta.size(); i++, m++, p+=3)
+		{
+			if (!(i % S_COUNT))
+			{
+				*(p++) = CamRight;
+				*(p++) = CamUp;
+				*(p++) = SpriteSize;
+			}
+			if (m->SpawnTime < 0) continue;
+
+			scalar t = (TimeNow - m->SpawnTime) / Emitter.LifeTime;
+			if (t > 1)
+			{
+				ActiveCount--;
+				m->SpawnTime = s(-1);
+				p[0].x = S_MAX;
+				p[2].z = 0;
+				continue;
+			}
+
+			m->Velocity += Emitter.Gravity * TimeElapsed;
+			p[0] += m->Velocity * TimeElapsed;
+			if (Emitter.ColorOverTime) p[1] = ZL_Vector3::Lerp(Emitter.ColorMin, Emitter.ColorMax, t);
+			if (Emitter.AlphaOverTime) p[2].x = ZL_Math::Lerp(Emitter.AlphaMin, Emitter.AlphaMax, t);
+			if (Emitter.TileAnimate)   p[2].y = s((int)(t * Emitter.TileCount));
+			if (Emitter.SizeOverTime)  p[2].z = ZL_Math::Lerp(Emitter.SizeMin, Emitter.SizeMax, t);
+		}
+		Parts[0].Material->UniformSet.ValueChksum ^= 1;
+	}
+};
+
 struct ZL_RenderList_Impl : public ZL_Impl
 {
 	struct MeshEntry { ZL_Mesh_Impl* Mesh; ZL_Matrix ModelMatrix, NormalMatrix; MeshEntry(ZL_Mesh_Impl* Mesh, const ZL_Matrix& ModelMatrix, const ZL_Matrix& NormalMatrix) : Mesh(Mesh), ModelMatrix(ModelMatrix), NormalMatrix(NormalMatrix) {} };
-	struct PartEntry { ZL_Mesh_Impl::MeshPart* Part; GLushort MeshIndex, UniformSetIndex; };
+	struct PartEntry { ZL_Mesh_Impl::MeshPart* Part; ZL_Material_Impl* Material; GLushort MeshIndex; GLuint Checksum; PartEntry(ZL_Mesh_Impl::MeshPart* Part, ZL_Material_Impl* Material, GLushort MeshIndex, GLuint Checksum) : Part(Part), Material(Material), MeshIndex(MeshIndex), Checksum(Checksum) {} };
 	std::vector<ZL_Mesh_Impl*> ReferencedMeshes;
 	std::vector<MeshEntry> Meshes;
-	std::vector<PartEntry> SortedParts, CustomVertexShaderParts;
-	std::vector<ZL_Material_Impl::UniformValue> UniformValues;
-	std::vector<ZL_Material_Impl::sUniformSet> UniformSets;
-
-	static inline bool SortMeshPartByMaterial(const PartEntry& a, const PartEntry& b)
-	{
-		const ZL_Material_Impl *am = a.Part->Material, *bm = b.Part->Material;
-		if ((am->MaterialModes & ZL_MaterialModes::MO_TRANSPARENCY) != (bm->MaterialModes & ZL_MaterialModes::MO_TRANSPARENCY)) return !(am->MaterialModes & ZL_MaterialModes::MO_TRANSPARENCY);
-		const ZL_MaterialProgram *ap = am->ShaderProgram, *bp = bm->ShaderProgram;
-		return (ap->ShadowMapProgram == bp->ShadowMapProgram ? ap < bp : ap->ShadowMapProgram < bp->ShadowMapProgram);
-	}
+	std::vector<PartEntry> Parts;
 
 	void Reset()
 	{
 		for (std::vector<ZL_Mesh_Impl*>::iterator it = ReferencedMeshes.begin(); it != ReferencedMeshes.end(); ++it) (*it)->DelRef();
 		ReferencedMeshes.clear();
 		Meshes.clear();
-		SortedParts.clear();
-		UniformValues.clear();
-		UniformSets.clear();
+		Parts.clear();
 	}
 
-	void Add(ZL_Mesh_Impl* mesh, const ZL_Matrix& matrix)
+	void Add(ZL_Mesh_Impl* mesh, const ZL_Matrix& matrix, ZL_Material_Impl* OverrideMaterial)
 	{
 		GLushort MeshIndex = (GLushort)Meshes.size();
-		MeshEntry me(mesh, matrix, matrix.GetInverseTransposed());
-		Meshes.push_back(me);
+		bool UseNormalMatrix = false;
 		for (ZL_Mesh_Impl::MeshPart *p = mesh->Parts; p != mesh->PartsEnd; p++)
-		{
-			PartEntry e = { p, MeshIndex };
-			std::vector<PartEntry>::iterator it = std::upper_bound(SortedParts.begin(), SortedParts.end(), e, SortMeshPartByMaterial);
-			if (it != SortedParts.begin())
-			{
-				PartEntry *PrevEntry = &*(it-1);
-				if (PrevEntry->Part->Material->ShaderProgram == p->Material->ShaderProgram)
-				{
-					ZL_Material_Impl::sUniformSet& PrevUniformSet = UniformSets[PrevEntry->UniformSetIndex];
-					if (PrevUniformSet.ValueChksum == p->Material->UniformSet.ValueChksum && PrevUniformSet.TextureChksum == p->Material->UniformSet.TextureChksum)
-					{
-						e.UniformSetIndex = PrevEntry->UniformSetIndex;
-						goto InsertStoredPart;
-					}
-				}
-			}
-			e.UniformSetIndex = (GLushort)UniformSets.size();
-			UniformSets.push_back(p->Material->UniformSet);
-			if (p->Material->UniformSet.Num)
-			{
-				char* OldPtr = (char*)(UniformValues.empty() ? NULL : &UniformValues[0]);
-				UniformValues.resize(UniformValues.size() + p->Material->UniformSet.Num);
-				ptrdiff_t PtrDiff = (char*)&UniformValues[0] - OldPtr;
-				if (PtrDiff && OldPtr)
-					for (std::vector<ZL_Material_Impl::sUniformSet>::iterator its = UniformSets.begin(); its != UniformSets.end(); ++its)
-						*(char**)&its->Values += PtrDiff;
-				ZL_Material_Impl::sUniformSet& UniformSet = UniformSets.back();
-				UniformSet.Values = &UniformValues[UniformValues.size() - p->Material->UniformSet.Num];
-				memcpy(UniformSet.Values, p->Material->UniformSet.Values, sizeof(ZL_Material_Impl::UniformValue) * p->Material->UniformSet.Num);
-			}
-			InsertStoredPart:
-			SortedParts.insert(it, e);
+		{	
+			ZL_Material_Impl* m = (OverrideMaterial ? OverrideMaterial : p->Material);
+			if (m->ShaderProgram->ShaderIDs.UniformMatrixNormal != -1) UseNormalMatrix = true;
+			Parts.push_back(PartEntry(p, m, MeshIndex, (m->ShaderProgram->ShaderIDs.Program ^ m->UniformSet.ValueChksum ^ m->UniformSet.TextureChksum)));
 		}
+		Meshes.push_back(MeshEntry(mesh, matrix, (UseNormalMatrix ? matrix.GetInverseTransposed() : ZL_Matrix(ZL_NoInit))));
 	}
 
 	void AddReferenced(ZL_Mesh_Impl* mesh, const ZL_Matrix& matrix)
 	{
 		mesh->AddRef();
 		ReferencedMeshes.push_back(mesh);
-		Add(mesh, matrix);
+		Add(mesh, matrix, NULL);
+	}
+
+	void Sort()
+	{
+		struct Func { static inline bool SortByMaterial(const PartEntry& a, const PartEntry& b)
+		{
+			const ZL_Material_Impl *am = a.Material, *bm = b.Material;
+			if ((am->MaterialModes & ZL_Display3D_Shaders::MMDEF_NODEPTHWRITE) != (bm->MaterialModes & ZL_Display3D_Shaders::MMDEF_NODEPTHWRITE)) return !(am->MaterialModes & ZL_Display3D_Shaders::MMDEF_NODEPTHWRITE);
+			const ZL_MaterialProgram *ap = am->ShaderProgram, *bp = bm->ShaderProgram;
+			return (ap->ShadowMapProgram == bp->ShadowMapProgram ? ap < bp : ap->ShadowMapProgram < bp->ShadowMapProgram);
+		}};
+		std::sort(Parts.begin(), Parts.end(), Func::SortByMaterial);
+	}
+
+	void RenderShadowMap(const ZL_RenderSceneSetup& Scene)
+	{
+		GLuint ActiveChecksum = 0;
+		for (ZL_RenderList_Impl::PartEntry *e = (Parts.empty() ? NULL : &Parts[0]), *eEnd = e + Parts.size(); e != eEnd; e++)
+		{
+			if (e->Material->MaterialModes & ZL_MaterialModes::MO_CASTNOSHADOW) continue;
+			if (ActiveChecksum != e->Checksum)
+			{
+				ActiveChecksum = e->Checksum;
+				e->Material->ShaderProgram->ShadowMapProgram->Activate(e->Material->UniformSet, Scene);
+			}
+			ZL_RenderList_Impl::MeshEntry& me = Meshes[e->MeshIndex];
+			me.Mesh->DrawPart(e->Part, me.ModelMatrix, me.NormalMatrix);
+		}
+	}
+
+	void RenderColor(const ZL_RenderSceneSetup& Scene)
+	{
+		using namespace ZL_Display3D_Shaders; using namespace ZL_MaterialModes;
+		GLuint ActiveChecksum = 0, MaterialOptions = 0;
+		for (ZL_RenderList_Impl::PartEntry *e = (Parts.empty() ? NULL : &Parts[0]), *eEnd = e + Parts.size(); e != eEnd; e++)
+		{
+			enum { MMDEF_WATCHOPTIONS = MMDEF_NODEPTHWRITE|MO_ADDITIVE|MO_MODULATE|MO_IGNOREDEPTH };
+			if (MaterialOptions != (e->Material->MaterialModes & MMDEF_WATCHOPTIONS))
+			{
+				GLuint NewOptions = (e->Material->MaterialModes & MMDEF_WATCHOPTIONS);
+				if ((NewOptions & MMDEF_NODEPTHWRITE) && !(MaterialOptions & MMDEF_NODEPTHWRITE)) glDepthMask(GL_FALSE);
+				if (!(NewOptions & MMDEF_NODEPTHWRITE) && (MaterialOptions & MMDEF_NODEPTHWRITE)) glDepthMask(GL_TRUE);
+				if ((NewOptions & MO_IGNOREDEPTH) && !(MaterialOptions & MO_IGNOREDEPTH)) glDisable(GL_DEPTH_TEST);
+				if (!(NewOptions & MO_IGNOREDEPTH) && (MaterialOptions & MO_IGNOREDEPTH)) glEnable(GL_DEPTH_TEST);
+				if ((NewOptions & MO_ADDITIVE) && !(MaterialOptions & MO_ADDITIVE)) glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+				if ((NewOptions & MO_MODULATE) && !(MaterialOptions & MO_MODULATE)) glBlendFunc(GL_DST_COLOR, GL_ZERO);
+				if (!(NewOptions & MO_ADDITIVE) && (MaterialOptions & MO_ADDITIVE)) glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				if (!(NewOptions & MO_MODULATE) && (MaterialOptions & MO_MODULATE)) glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				MaterialOptions = NewOptions;
+			}
+			if (ActiveChecksum != e->Checksum)
+			{
+				ActiveChecksum = e->Checksum;
+				e->Material->ShaderProgram->Activate(e->Material->UniformSet, Scene);
+			}
+			ZL_RenderList_Impl::MeshEntry& me = Meshes[e->MeshIndex];
+			me.Mesh->DrawPart(e->Part, me.ModelMatrix, me.NormalMatrix);
+		}
+		if (MaterialOptions & MMDEF_NODEPTHWRITE) glDepthMask(GL_TRUE);
+		if (MaterialOptions & MO_IGNOREDEPTH) glEnable(GL_DEPTH_TEST);
+		if (MaterialOptions & (MO_ADDITIVE|MO_MODULATE)) glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 };
 
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_Material)
-ZL_Material::ZL_Material(unsigned int MaterialModes) : impl(ZL_MaterialProgram::GetReference(MaterialModes)) { }
-ZL_Material::ZL_Material(unsigned int MaterialModes, const char* CustomFragmentCode, const char* CustomVertexCode) : impl(ZL_MaterialProgram::GetReference(MaterialModes, CustomFragmentCode, CustomVertexCode)) { }
-ZL_Material ZL_Material::MakeNewMaterialInstance() { return (impl ? ZL_ImplMakeOwner<ZL_Material>(new ZL_MaterialInstance(impl, impl->MaterialModes), false) : ZL_Material()); }
-ZL_Material& ZL_Material::SetUniformFloat(ZL_NameID Name, scalar val) { if (impl) impl->SetUniformFloat(Name, val); return *this; }
-ZL_Material& ZL_Material::SetUniformVec2(ZL_NameID Name, const ZL_Vector& val) { if (impl) impl->SetUniformVec2(Name, val); return *this; }
-ZL_Material& ZL_Material::SetUniformVec3(ZL_NameID Name, const ZL_Vector3& val) { if (impl) impl->SetUniformVec3(Name, val); return *this; }
-ZL_Material& ZL_Material::SetUniformVec3(ZL_NameID Name, const ZL_Color& val) { if (impl) impl->SetUniformVec3(Name, (const ZL_Vector3&)val); return *this; }
-ZL_Material& ZL_Material::SetUniformVec4(ZL_NameID Name, const ZL_Color& val) { if (impl) impl->SetUniformVec4(Name, val); return *this; }
-ZL_Material& ZL_Material::SetDiffuseTexture(ZL_Surface& srf) { if (impl) impl->SetTexture(0, srf); return *this; }
-ZL_Material& ZL_Material::SetNormalTexture(ZL_Surface& srf) { if (impl) impl->SetTexture(1, srf); return *this; }
-ZL_Material& ZL_Material::SetSpecularTexture(ZL_Surface& srf) { if (impl) impl->SetTexture(2, srf); return *this; }
-ZL_Material& ZL_Material::SetParallaxTexture(ZL_Surface& srf) { if (impl) impl->SetTexture(3, srf); return *this; }
+ZL_Material::ZL_Material(unsigned int MaterialModes) : impl(ZL_Material_Impl::GetMaterialReference(MaterialModes)) { }
+ZL_Material::ZL_Material(unsigned int MaterialModes, const char* CustomFragmentCode, const char* CustomVertexCode) : impl(ZL_Material_Impl::GetMaterialReference(MaterialModes, CustomFragmentCode, CustomVertexCode)) { }
+ZL_Material ZL_Material::MakeNewMaterialInstance() { return (impl ? ZL_ImplMakeOwner<ZL_Material>(new ZL_MaterialInstance(impl, impl->MaterialModes, false), false) : ZL_Material()); }
+ZL_Material& ZL_Material::SetUniformFloat(ZL_NameID Name, scalar val)           { if (impl) impl->SetUniform1(impl->ShaderProgram->GetUniformOffset(Name, ZL_MaterialProgram::UniformEntry::TYPE_FLOAT), val); return *this; }
+ZL_Material& ZL_Material::SetUniformVec2(ZL_NameID Name, const ZL_Vector& val)  { if (impl) impl->SetUniformX(impl->ShaderProgram->GetUniformOffset(Name, ZL_MaterialProgram::UniformEntry::TYPE_VEC2), (scalar*)&val, 2); return *this; }
+ZL_Material& ZL_Material::SetUniformVec3(ZL_NameID Name, const ZL_Vector3& val) { if (impl) impl->SetUniformX(impl->ShaderProgram->GetUniformOffset(Name, ZL_MaterialProgram::UniformEntry::TYPE_VEC3), (scalar*)&val, 3); return *this; }
+ZL_Material& ZL_Material::SetUniformVec3(ZL_NameID Name, const ZL_Color& val)   { if (impl) impl->SetUniformX(impl->ShaderProgram->GetUniformOffset(Name, ZL_MaterialProgram::UniformEntry::TYPE_VEC3), (scalar*)&val, 3); return *this; }
+ZL_Material& ZL_Material::SetUniformVec4(ZL_NameID Name, const ZL_Color& val)   { if (impl) impl->SetUniformX(impl->ShaderProgram->GetUniformOffset(Name, ZL_MaterialProgram::UniformEntry::TYPE_VEC4), (scalar*)&val, 4); return *this; }
+ZL_Material& ZL_Material::SetDiffuseTexture(const ZL_Surface& srf)  { if (impl) impl->SetTexture(0, (srf ? ZL_ImplFromOwner<ZL_Surface_Impl>(srf)->tex : NULL)); return *this; }
+ZL_Material& ZL_Material::SetNormalTexture(const ZL_Surface& srf)   { if (impl) impl->SetTexture(1, (srf ? ZL_ImplFromOwner<ZL_Surface_Impl>(srf)->tex : NULL)); return *this; }
+ZL_Material& ZL_Material::SetSpecularTexture(const ZL_Surface& srf) { if (impl) impl->SetTexture(2, (srf ? ZL_ImplFromOwner<ZL_Surface_Impl>(srf)->tex : NULL)); return *this; }
+ZL_Material& ZL_Material::SetParallaxTexture(const ZL_Surface& srf) { if (impl) impl->SetTexture(3, (srf ? ZL_ImplFromOwner<ZL_Surface_Impl>(srf)->tex : NULL)); return *this; }
+scalar ZL_Material::GetUniformFloat(ZL_NameID Name)    { return (impl ? impl->GetUniform1(impl->ShaderProgram->GetUniformOffset(Name, ZL_MaterialProgram::UniformEntry::TYPE_FLOAT)) : 0); }
+ZL_Vector ZL_Material::GetUniformVec2(ZL_NameID Name)  { ZL_Vector r;  if (impl) impl->GetUniformX(impl->ShaderProgram->GetUniformOffset(Name, ZL_MaterialProgram::UniformEntry::TYPE_FLOAT), (scalar*)&r, 2); return r; }
+ZL_Vector3 ZL_Material::GetUniformVec3(ZL_NameID Name) { ZL_Vector3 r; if (impl) impl->GetUniformX(impl->ShaderProgram->GetUniformOffset(Name, ZL_MaterialProgram::UniformEntry::TYPE_FLOAT), (scalar*)&r, 3); return r; }
+ZL_Color ZL_Material::GetUniformVec4(ZL_NameID Name)   { ZL_Color r;   if (impl) impl->GetUniformX(impl->ShaderProgram->GetUniformOffset(Name, ZL_MaterialProgram::UniformEntry::TYPE_FLOAT), (scalar*)&r, 4); return r; }
+ZL_Surface ZL_Material::GetDiffuseTexture()  { return ZL_ImplMakeOwner<ZL_Surface>(new ZL_Surface_Impl(impl->GetTexture(0)), false); }
+ZL_Surface ZL_Material::GetNormalTexture()   { return ZL_ImplMakeOwner<ZL_Surface>(new ZL_Surface_Impl(impl->GetTexture(1)), false); }
+ZL_Surface ZL_Material::GetSpecularTexture() { return ZL_ImplMakeOwner<ZL_Surface>(new ZL_Surface_Impl(impl->GetTexture(2)), false); }
+ZL_Surface ZL_Material::GetParallaxTexture() { return ZL_ImplMakeOwner<ZL_Surface>(new ZL_Surface_Impl(impl->GetTexture(3)), false); }
 
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_Mesh)
 ZL_Mesh::ZL_Mesh(const ZL_FileLink& ModelFile, const ZL_Material& Material) : impl(ZL_Mesh_Impl::LoadAny(ModelFile, ZL_ImplFromOwner<ZL_Material_Impl>(Material))) {}
@@ -1270,17 +1493,18 @@ ZL_Mesh& ZL_Mesh::SetMaterial(const ZL_Material& Material)
 	return *this;
 }
 
-ZL_Mesh ZL_Mesh::BuildPlane(const ZL_Vector& Extents, const ZL_Material& Material, const ZL_Vector& UVMapMax)
+ZL_Mesh ZL_Mesh::BuildPlane(const ZL_Vector& Extents, const ZL_Material& Material, const ZL_Vector3& Normal, const ZL_Vector3& Offset, const ZL_Vector& UVMapMax)
 {
+	ZL_Vector3 Tangent = (Normal ^ ZL_Vector3::Up).VecNorm(), Bitangent = -(Tangent ^ Normal).VecNorm(), X = Tangent * Extents.x, Y = Bitangent * Extents.y;
 	GLscalar Verts[] = {
-		 Extents.x,  Extents.y, 0, 0,0,1, UVMapMax.x, UVMapMax.y, 1,0,0,
-		-Extents.x,  Extents.y, 0, 0,0,1,          0, UVMapMax.y, 1,0,0,
-		-Extents.x, -Extents.y, 0, 0,0,1,          0,          0, 1,0,0,
-		 Extents.x, -Extents.y, 0, 0,0,1, UVMapMax.x,          0, 1,0,0
+		Offset.x + X.x + Y.x, Offset.y + X.y + Y.y, Offset.z + X.z + Y.z, Normal.x,Normal.y,Normal.z, UVMapMax.x, UVMapMax.y, Tangent.x,Tangent.y,Tangent.z,
+		Offset.x - X.x + Y.x, Offset.y - X.y + Y.y, Offset.z - X.z + Y.z, Normal.x,Normal.y,Normal.z,          0, UVMapMax.y, Tangent.x,Tangent.y,Tangent.z,
+		Offset.x - X.x - Y.x, Offset.y - X.y - Y.y, Offset.z - X.z - Y.z, Normal.x,Normal.y,Normal.z,          0,          0, Tangent.x,Tangent.y,Tangent.z,
+		Offset.x + X.x - Y.x, Offset.y + X.y - Y.y, Offset.z + X.z - Y.z, Normal.x,Normal.y,Normal.z, UVMapMax.x,          0, Tangent.x,Tangent.y,Tangent.z
 	};
-
 	GLushort Indices[] = { 0,1,2,0,2,3 };
 
+	/*
 	for (size_t indind = 0; indind < COUNT_OF(Indices); indind+=3)
 	{
 		GLushort a = 11*Indices[indind+0], b = 11*Indices[indind+1], c = 11*Indices[indind+2];
@@ -1303,21 +1527,23 @@ ZL_Mesh ZL_Mesh::BuildPlane(const ZL_Vector& Extents, const ZL_Material& Materia
 		assert(Verts[b+8]==tangent.x && Verts[b+9]==tangent.y && Verts[b+10]==tangent.z);
 		assert(Verts[c+8]==tangent.x && Verts[c+9]==tangent.y && Verts[c+10]==tangent.z);
 	}
+	*/
+
 	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl::Make((ZL_Mesh_Impl::VAMASK_NORMAL|ZL_Mesh_Impl::VAMASK_TEXCOORD|ZL_Mesh_Impl::VAMASK_TANGENT), Indices, 6, Verts, 4, ZL_ImplFromOwner<ZL_Material_Impl>(Material)), false);
 }
 
-ZL_Mesh ZL_Mesh::BuildBox(const ZL_Vector3& ex, const ZL_Material& Material)
+ZL_Mesh ZL_Mesh::BuildBox(const ZL_Vector3& e, const ZL_Material& Material, const ZL_Vector3& o, const ZL_Vector& uv)
 {
-	const GLscalar Verts[11*6*4] = {
-		 ex.x, ex.y, ex.z,  0, 0, 1, 1,1 ,  1, 0, 0, -ex.x, ex.y, ex.z,  0, 0, 1, 0,1,  1, 0, 0 , -ex.x,-ex.y, ex.z,  0, 0, 1, 0,0,  1, 0, 0 ,  ex.x,-ex.y, ex.z,  0, 0, 1, 1,0,  1, 0, 0 , 
-		 ex.x, ex.y,-ex.z,  0, 0,-1, 1,1 , -1, 0, 0,  ex.x,-ex.y,-ex.z,  0, 0,-1, 1,0, -1, 0, 0 , -ex.x,-ex.y,-ex.z,  0, 0,-1, 0,0, -1, 0, 0 , -ex.x, ex.y,-ex.z,  0, 0,-1, 0,1, -1, 0, 0 ,
-		 ex.x, ex.y, ex.z,  1, 0, 0, 1,1 ,  0, 1, 0,  ex.x,-ex.y, ex.z,  1, 0, 0, 0,1,  0, 1, 0 ,  ex.x,-ex.y,-ex.z,  1, 0, 0, 0,0,  0, 1, 0 ,  ex.x, ex.y,-ex.z,  1, 0, 0, 1,0,  0, 1, 0 , 
-		-ex.x, ex.y, ex.z, -1, 0, 0, 1,1 ,  0,-1, 0, -ex.x, ex.y,-ex.z, -1, 0, 0, 1,0,  0,-1, 0 , -ex.x,-ex.y,-ex.z, -1, 0, 0, 0,0,  0,-1, 0 , -ex.x,-ex.y, ex.z, -1, 0, 0, 0,1,  0,-1, 0 ,
-		 ex.x, ex.y, ex.z,  0, 1, 0, 1,1 ,  0, 0, 1,  ex.x, ex.y,-ex.z,  0, 1, 0, 0,1,  0, 0, 1 , -ex.x, ex.y,-ex.z,  0, 1, 0, 0,0,  0, 0, 1 , -ex.x, ex.y, ex.z,  0, 1, 0, 1,0,  0, 0, 1 , 
-		 ex.x,-ex.y, ex.z,  0,-1, 0, 1,1 ,  0, 0,-1, -ex.x,-ex.y, ex.z,  0,-1, 0, 1,0,  0, 0,-1 , -ex.x,-ex.y,-ex.z,  0,-1, 0, 0,0,  0, 0,-1 ,  ex.x,-ex.y,-ex.z,  0,-1, 0, 0,1,  0, 0,-1 ,
+	const GLscalar ex = e.x, ey = e.y, ez = e.z, ox = o.x, oy = o.y, oz = o.z, u = uv.x/MAX(ex,ey), v = uv.y/MAX(ey,ez), ux = u*ex, uy = u*ey, vy = 1-v*ey, vz = 1-v*ez, Verts[11*6*4] = {
+		ox+ex,oy+ey,oz+ez,  0, 0, 1,    ux, 1    ,  1, 0, 0 , ox-ex,oy+ey,oz+ez,  0, 0, 1,    0 ,1,     1, 0, 0 , ox-ex,oy-ey,oz+ez,  0, 0, 1,     0,vy   ,  1, 0, 0 , ox+ex,oy-ey,oz+ez,  0, 0, 1,    ux,vy   ,  1, 0, 0,
+		ox+ex,oy+ey,oz-ez,  0, 0,-1,     0, 1    ,  0, 1, 0 , ox+ex,oy-ey,oz-ez,  0, 0,-1,    0,vy,     0, 1, 0 , ox-ex,oy-ey,oz-ez,  0, 0,-1,    ux,vy   ,  0, 1, 0 , ox-ex,oy+ey,oz-ez,  0, 0,-1,    ux, 1   ,  0, 1, 0,
+		ox+ex,oy+ey,oz+ez,  1, 0, 0,    uy, 1    ,  0, 1, 0 , ox+ex,oy-ey,oz+ez,  1, 0, 0,    0, 1,     0, 1, 0 , ox+ex,oy-ey,oz-ez,  1, 0, 0,     0,vz   ,  0, 1, 0 , ox+ex,oy+ey,oz-ez,  1, 0, 0,    uy,vz   ,  0, 1, 0,
+		ox-ex,oy+ey,oz+ez, -1, 0, 0,     0, 1    ,  0,-1, 0 , ox-ex,oy+ey,oz-ez, -1, 0, 0,    0,vz,     0,-1, 0 , ox-ex,oy-ey,oz-ez, -1, 0, 0,    uy,vz   ,  0,-1, 0 , ox-ex,oy-ey,oz+ez, -1, 0, 0,    uy, 1   ,  0,-1, 0,
+		ox+ex,oy+ey,oz+ez,  0, 1, 0,     0, 1    , -1, 0, 0 , ox+ex,oy+ey,oz-ez,  0, 1, 0,    0,vz,    -1, 0, 0 , ox-ex,oy+ey,oz-ez,  0, 1, 0,    ux,vz   , -1, 0, 0 , ox-ex,oy+ey,oz+ez,  0, 1, 0,    ux, 1   , -1, 0, 0,
+		ox+ex,oy-ey,oz+ez,  0,-1, 0,    ux, 1    ,  1, 0, 0 , ox-ex,oy-ey,oz+ez,  0,-1, 0,    0, 1,     1, 0, 0 , ox-ex,oy-ey,oz-ez,  0,-1, 0,     0,vz  ,  1, 0, 0 , ox+ex,oy-ey,oz-ez,  0,-1, 0,     ux,vz   ,  1, 0, 0,
 	};
 	const GLushort Indices[] = { 0,1,2,0,2,3 , 4,5,6,4,6,7 , 8,9,10,8,10,11 , 12,13,14,12,14,15 , 16,17,18,16,18,19 , 20,21,22,20,22,23 };
-	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl::Make((ZL_Mesh_Impl::VAMASK_NORMAL|ZL_Mesh_Impl::VAMASK_TEXCOORD|ZL_Mesh_Impl::VAMASK_TANGENT), Indices, COUNT_OF(Indices), Verts, COUNT_OF(Verts), ZL_ImplFromOwner<ZL_Material_Impl>(Material)), false);
+	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl::Make((ZL_Mesh_Impl::VAMASK_NORMAL|ZL_Mesh_Impl::VAMASK_TEXCOORD|ZL_Mesh_Impl::VAMASK_TANGENT), Indices, COUNT_OF(Indices), Verts, COUNT_OF(Verts)/11, ZL_ImplFromOwner<ZL_Material_Impl>(Material)), false);
 }
 
 ZL_Mesh ZL_Mesh::BuildLandscape(const ZL_Material& Material)
@@ -1439,7 +1665,7 @@ ZL_Mesh ZL_Mesh::BuildExtrudePixels(scalar Scale, scalar Depth, const ZL_FileLin
 				*(ZL_Vector3*)&pVerts[8] = Transform.TransformPosition(*(ZL_Vector3*)&pVerts[8]);
 				pVerts[11] = PixelColorAsScalar;
 			}
-			for (GLushort IndexOffset = (Verts.size() - COUNT_OF(CubeVerts)) / 12, *pIndicesEnd = pIndices + COUNT_OF(CubeIndices); pIndices != pIndicesEnd; pIndices++)
+			for (GLushort IndexOffset = (GLushort)((Verts.size() - COUNT_OF(CubeVerts)) / 12), *pIndicesEnd = pIndices + COUNT_OF(CubeIndices); pIndices != pIndicesEnd; pIndices++)
 				*pIndices += IndexOffset;
 		}
 	}
@@ -1451,21 +1677,46 @@ ZL_IMPL_OWNER_INHERITED_IMPLEMENTATIONS(ZL_MeshAnimated)
 ZL_MeshAnimated::ZL_MeshAnimated(const ZL_FileLink& ModelFile, const ZL_Material& Material) { impl = ZL_MeshAnimated_Impl::OBJLoadAnimation(ModelFile, ZL_ImplFromOwner<ZL_Material_Impl>(Material)); }
 ZL_MeshAnimated& ZL_MeshAnimated::SetFrame(unsigned int FrameIndex) { if (impl) static_cast<ZL_MeshAnimated_Impl*>(impl)->SetFrame(FrameIndex); return *this; }
 
+ZL_IMPL_OWNER_INHERITED_IMPLEMENTATIONS(ZL_ParticleEmitter)
+#define PIMPL static_cast<ZL_ParticleEmitter_Impl*>(impl)
+ZL_ParticleEmitter::ZL_ParticleEmitter(scalar LifeTime, size_t MaxParticles, ZL_MaterialModes::Blending BlendMode) { impl = new ZL_ParticleEmitter_Impl(LifeTime, MaxParticles, BlendMode); }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetLifeTime(scalar LifeTime)                                             { PIMPL->Emitter.LifeTime = LifeTime; return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetGravity(const ZL_Vector3& Gravity)                                    { PIMPL->Emitter.Gravity = Gravity; return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetSpawnVelocity(const ZL_Vector3& Velocity)                             { PIMPL->Emitter.VelocityMins =       PIMPL->Emitter.VelocityMaxs = Velocity; return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetSpawnVelocityRanges(const ZL_Vector3& Mins, const ZL_Vector3& Maxs)   { PIMPL->Emitter.VelocityMins = Mins; PIMPL->Emitter.VelocityMaxs = Maxs;     return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetColor(const ZL_Color& Color, bool Alpha)                              { PIMPL->Emitter.ColorMin =        PIMPL->Emitter.ColorMax = Color; PIMPL->Emitter.ColorOverTime = false; if (Alpha) { PIMPL->Emitter.AlphaMin =          PIMPL->Emitter.AlphaMax = Color.a; PIMPL->Emitter.AlphaOverTime = false; } return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetSpawnColorRange(const ZL_Color& Min, const ZL_Color& Max, bool Alpha) { PIMPL->Emitter.ColorMin = Min;   PIMPL->Emitter.ColorMax = Max;   PIMPL->Emitter.ColorOverTime = false; if (Alpha) { PIMPL->Emitter.AlphaMin = Min.a;   PIMPL->Emitter.AlphaMax = Max.a;   PIMPL->Emitter.AlphaOverTime = false; } return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetLifetimeColor(const ZL_Color& Start, const ZL_Color& End, bool Alpha) { PIMPL->Emitter.ColorMin = Start; PIMPL->Emitter.ColorMax = End;   PIMPL->Emitter.ColorOverTime = true;  if (Alpha) { PIMPL->Emitter.AlphaMin = Start.a; PIMPL->Emitter.AlphaMax = End.a;   PIMPL->Emitter.AlphaOverTime = true;  } return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetAlpha(scalar Alpha)                                                   { PIMPL->Emitter.AlphaMin =        PIMPL->Emitter.AlphaMax = Alpha; PIMPL->Emitter.AlphaOverTime = false; return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetSpawnAlphaRange(scalar Min, scalar Max)                               { PIMPL->Emitter.AlphaMin = Min;   PIMPL->Emitter.AlphaMax = Max;   PIMPL->Emitter.AlphaOverTime = false; return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetLifetimeAlpha(scalar Start, scalar End)                               { PIMPL->Emitter.AlphaMin = Start; PIMPL->Emitter.AlphaMax = End;   PIMPL->Emitter.AlphaOverTime = true;  return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetSize(scalar Size)                                                     { PIMPL->Emitter.SizeMin =        PIMPL->Emitter.SizeMax = Size; PIMPL->Emitter.SizeOverTime = false; return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetSpawnSizeRange(scalar Min, scalar Max)                                { PIMPL->Emitter.SizeMin = Min;   PIMPL->Emitter.SizeMax = Max;  PIMPL->Emitter.SizeOverTime = false; return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetLifetimeSize(scalar Start, scalar End)                                { PIMPL->Emitter.SizeMin = Start; PIMPL->Emitter.SizeMax = End;  PIMPL->Emitter.SizeOverTime = true;  return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetAnimationSheet(const ZL_Surface& srf, int Cols, int Rows)             { PIMPL->SetTexture((srf ? ZL_ImplFromOwner<ZL_Surface_Impl>(srf)->tex : NULL), Cols, Rows, true); return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::SetTexture(const ZL_Surface& srf, int Cols, int Rows)                    { PIMPL->SetTexture((srf ? ZL_ImplFromOwner<ZL_Surface_Impl>(srf)->tex : NULL), Cols, Rows, false); return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::Spawn(const ZL_Vector3& Pos) { PIMPL->Spawn(Pos); return *this; }
+ZL_ParticleEmitter& ZL_ParticleEmitter::Update(const ZL_Camera& Camera) { PIMPL->Update(Camera); return *this; }
+#undef PIMPL
+
 ZL_IMPL_OWNER_NONULLCON_IMPLEMENTATIONS(ZL_Camera)
 ZL_Camera::ZL_Camera() : impl(new ZL_Camera_Impl) { }
-ZL_Camera& ZL_Camera::SetPosition(const ZL_Vector3& pos)      { impl->Pos = pos; impl->UpdateMatrix(); return *this; }
-ZL_Camera& ZL_Camera::SetDirection(const ZL_Vector3& dir)     { impl->Dir = dir; impl->UpdateMatrix(); return *this; }
-ZL_Camera& ZL_Camera::SetFOV(scalar fov)                      { impl->FOV = fov; impl->UpdateMatrix(); return *this; }
-ZL_Camera& ZL_Camera::SetAspectRatio(scalar ar)               { impl->AspectRatio = ar; impl->UpdateMatrix(); return *this; }
-ZL_Camera& ZL_Camera::SetClipPlane(scalar znear, scalar zfar) { impl->ZNear = znear; impl->ZFar = zfar; impl->UpdateMatrix(); return *this; }
+ZL_Camera& ZL_Camera::SetPosition(const ZL_Vector3& pos) { impl->Pos = pos; impl->UpdateMatrix(); return *this; }
+ZL_Camera& ZL_Camera::SetDirection(const ZL_Vector3& dir) { impl->Dir = dir; impl->UpdateMatrix(); return *this; }
+ZL_Camera& ZL_Camera::SetLookAt(const ZL_Vector3& pos, const ZL_Vector3& targ) { impl->Pos = pos; impl->Dir = (targ - pos).VecNorm(); impl->UpdateMatrix(); return *this; }
+ZL_Camera& ZL_Camera::SetFOV(scalar fov) { impl->IsOrtho = false; impl->Size = fov; impl->UpdateMatrix(); return *this; }
+ZL_Camera& ZL_Camera::SetOrtho(scalar size) { impl->IsOrtho = true; impl->Size = size; impl->UpdateMatrix(); return *this; }
+ZL_Camera& ZL_Camera::SetAspectRatio(scalar ar) { impl->Aspect = ar; impl->UpdateMatrix(); return *this; }
+ZL_Camera& ZL_Camera::SetClipPlane(scalar znear, scalar zfar) { impl->Near = znear; impl->Far = zfar; impl->UpdateMatrix(); return *this; }
 ZL_Camera& ZL_Camera::SetAmbientLightColor(const ZL_Color& color) { impl->AmbientLightColor = ZL_Vector3(color.r*color.a, color.g*color.a, color.b*color.a); return *this; }
-ZL_Matrix& ZL_Camera::GetVPMatrix() { return impl->VP; }
-const ZL_Matrix& ZL_Camera::GetVPMatrix() const { return impl->VP; }
 ZL_Vector3 ZL_Camera::GetPosition() const { return impl->Pos; }
 ZL_Vector3 ZL_Camera::GetDirection() const { return impl->Dir; }
-scalar ZL_Camera::GetFOV() const { return impl->FOV; }
-scalar ZL_Camera::GetNearClipPlane() const { return impl->ZNear; }
-scalar ZL_Camera::GetFarClipPlane() const { return impl->ZFar; }
+ZL_Vector3 ZL_Camera::GetUpDirection() const { return impl->VP.GetInverted().GetAxisY().Norm(); }
+ZL_Vector3 ZL_Camera::GetRightDirection() const { return impl->VP.GetInverted().GetAxisX().Norm(); }
+scalar ZL_Camera::GetFOV() const { return impl->Size; }
+scalar ZL_Camera::GetAspectRatio() const { return (impl->Aspect > 0 ? impl->Aspect : ZLWIDTH/ZLHEIGHT); }
+scalar ZL_Camera::GetNearClipPlane() const { return impl->Near; }
+scalar ZL_Camera::GetFarClipPlane() const { return impl->Far; }
 ZL_Color ZL_Camera::GetAmbientLightColor() const { return ZL_Color(impl->AmbientLightColor.x, impl->AmbientLightColor.y, impl->AmbientLightColor.z); }
 ZL_Vector ZL_Camera::WorldToScreen(const ZL_Vector3& WorldPosition)
 {
@@ -1476,6 +1727,11 @@ ZL_Vector ZL_Camera::WorldToScreen(const ZL_Vector3& WorldPosition, bool* pIsOut
 	ZL_Vector3 v = impl->VP.PerspectiveTransformPosition(WorldPosition);
 	if (pIsOutsideOfView) *pIsOutsideOfView = (v.z < s(-1) || v.z > s(1));
 	return ZL_Vector((v.x + s(1)) * ZLHALFW, (v.y + s(1)) * ZLHALFH);
+}
+ZL_Vector3 ZL_Camera::ScreenToWorld(const ZL_Vector& ScreenPosition, scalar Depth /*= -1*/)
+{
+	const ZL_Vector Screenspace = (ScreenPosition - ZL_Display::Center()) / ZL_Display::Center();
+	return impl->VP.GetInverted().PerspectiveTransformPosition(ZL_Vector3(Screenspace, Depth));
 }
 void ZL_Camera::ScreenToWorld(const ZL_Vector& ScreenPosition, ZL_Vector3* WorldRayStart, ZL_Vector3* WorldRayEnd)
 {
@@ -1489,14 +1745,15 @@ ZL_IMPL_OWNER_NONULLCON_IMPLEMENTATIONS(ZL_Light)
 ZL_Light::ZL_Light() : impl(new ZL_Light_Impl) { }
 ZL_Light& ZL_Light::SetPosition(const ZL_Vector3& pos) { impl->Pos = pos; impl->UpdateMatrix(); return *this; }
 ZL_Light& ZL_Light::SetDirection(const ZL_Vector3& dir) { impl->Dir = dir; impl->UpdateMatrix(); return *this; }
+ZL_Light& ZL_Light::SetLookAt(const ZL_Vector3& pos, const ZL_Vector3& targ) { impl->Pos = pos; impl->Dir = (targ - pos).VecNorm(); impl->UpdateMatrix(); return *this; }
+ZL_Light& ZL_Light::SetPointLight() { impl->Size = 0; impl->Aspect = 0; impl->UpdateMatrix(); return *this; }
 ZL_Light& ZL_Light::SetDirectionalLight(scalar area) { impl->Size = area; impl->Aspect = 0; impl->UpdateMatrix(); return *this; }
-ZL_Light& ZL_Light::SetSpotLight(scalar angle, scalar aspect) { impl->Size = angle; impl->Aspect = aspect; impl->UpdateMatrix(); return *this; }
+ZL_Light& ZL_Light::SetSpotLight(scalar angle_degree, scalar aspect) { impl->Size = angle_degree; impl->Aspect = aspect; impl->UpdateMatrix(); return *this; }
 ZL_Light& ZL_Light::SetRange(scalar range_far, scalar range_near) { impl->Far = range_far; impl->Near = range_near; impl->UpdateMatrix(); return *this; }
 ZL_Light& ZL_Light::SetFalloff(scalar distance) { impl->Falloff = distance; return *this; }
 ZL_Light& ZL_Light::SetOutsideLit(bool OutsideLit) { impl->LightFactorOutside = (OutsideLit ? s(1) : s(0)); return *this; }
+ZL_Light& ZL_Light::SetShadowBias(scalar bias) { impl->ShadowBias = bias; return *this; }
 ZL_Light& ZL_Light::SetColor(const ZL_Color& color) { impl->Color = ZL_Vector3(color.r*color.a, color.g*color.a, color.b*color.a); return *this; }
-ZL_Matrix& ZL_Light::GetVPMatrix() { return impl->VP; }
-const ZL_Matrix& ZL_Light::GetVPMatrix() const { return impl->VP; }
 ZL_Vector3 ZL_Light::GetPosition() const { return impl->Pos; }
 ZL_Vector3 ZL_Light::GetDirection() const { return impl->Dir; }
 ZL_Color ZL_Light::GetColor() const { return ZL_Color(impl->Color.x, impl->Color.y, impl->Color.z); }
@@ -1504,7 +1761,8 @@ ZL_Color ZL_Light::GetColor() const { return ZL_Color(impl->Color.x, impl->Color
 ZL_IMPL_OWNER_NONULLCON_IMPLEMENTATIONS(ZL_RenderList)
 ZL_RenderList::ZL_RenderList() : impl(new ZL_RenderList_Impl) { }
 void ZL_RenderList::Reset() { impl->Reset(); }
-void ZL_RenderList::Add(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix) { impl->Add(ZL_ImplFromOwner<ZL_Mesh_Impl>(Mesh), Matrix); }
+void ZL_RenderList::Add(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix) { impl->Add(ZL_ImplFromOwner<ZL_Mesh_Impl>(Mesh), Matrix, NULL); }
+void ZL_RenderList::Add(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix, const ZL_Material& OverrideMaterial) { impl->Add(ZL_ImplFromOwner<ZL_Mesh_Impl>(Mesh), Matrix, ZL_ImplFromOwner<ZL_Material_Impl>(OverrideMaterial)); }
 void ZL_RenderList::AddReferenced(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix) { impl->AddReferenced(ZL_ImplFromOwner<ZL_Mesh_Impl>(Mesh), Matrix); }
 
 #if defined(ZILLALOG) && !defined(ZL_VIDEO_OPENGL_ES2)
@@ -1513,10 +1771,8 @@ void ZL_RenderList::DebugDump()
 	ZL_LOG0("[RENDERLIST]", "----------------------------------------------------------------");
 	ZL_LOG1("[RENDERLIST]", "ReferencedMeshes Count: %d", impl->ReferencedMeshes.size());
 	ZL_LOG1("[RENDERLIST]", "Meshes Count: %d", impl->Meshes.size());
-	ZL_LOG1("[RENDERLIST]", "SortedParts Count: %d", impl->SortedParts.size());
-	ZL_LOG1("[RENDERLIST]", "UniformValues Count: %d", impl->UniformValues.size());
-	ZL_LOG1("[RENDERLIST]", "UniformSets Count: %d", impl->UniformSets.size());
-	for (ZL_RenderList_Impl::PartEntry *e = (impl->SortedParts.empty() ? NULL : &impl->SortedParts[0]), *eBegin = e, *eEnd = e + impl->SortedParts.size(); e != eEnd; e++)
+	ZL_LOG1("[RENDERLIST]", "SortedParts Count: %d", impl->Parts.size());
+	for (ZL_RenderList_Impl::PartEntry *e = (impl->Parts.empty() ? NULL : &impl->Parts[0]), *eBegin = e, *eEnd = e + impl->Parts.size(); e != eEnd; e++)
 	{
 		ZL_LOG4("[RENDERLIST]", "[Part #%d] ShadowMapProgram: %d - Program: %d - MM: %X", e-eBegin, (e->Part->Material->ShaderProgram->ShadowMapProgram ? e->Part->Material->ShaderProgram->ShadowMapProgram->ShaderIDs.Program : 0), e->Part->Material->ShaderProgram->ShaderIDs.Program, e->Part->Material->MaterialModes);
 	}
@@ -1528,36 +1784,20 @@ static void ZL_Display3D_BuildDebugColorMat()
 	assert(!g_DebugColorMat);
 	using namespace ZL_Display3D_Shaders;
 	const char *VS[COUNT_OF(SharedRules)+COUNT_OF(VSGlobalRules)+COUNT_OF(VSRules)], *FS[COUNT_OF(SharedRules)+COUNT_OF(FSRules)], *FSNullReplacements[] = { NULL, Z3U_COLOR ";" };
-	GLsizei VSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MM_STATICCOLOR, &VS[      0]);
-		    VSCount += BuildList(VSGlobalRules, COUNT_OF(VSGlobalRules), MM_STATICCOLOR, &VS[VSCount]);
-		    VSCount += BuildList(VSRules,       COUNT_OF(VSRules),       MM_STATICCOLOR, &VS[VSCount]);
-	GLsizei FSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MM_STATICCOLOR, &FS[      0]);
-		    FSCount += BuildList(FSRules,       COUNT_OF(FSRules),       MM_STATICCOLOR, &FS[FSCount], FSNullReplacements);
+	GLsizei VSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MM_STATICCOLOR|MO_UNLIT, &VS[      0]);
+	        VSCount += BuildList(VSGlobalRules, COUNT_OF(VSGlobalRules), MM_STATICCOLOR|MO_UNLIT, &VS[VSCount]);
+	        VSCount += BuildList(VSRules,       COUNT_OF(VSRules),       MM_STATICCOLOR|MO_UNLIT, &VS[VSCount]);
+	GLsizei FSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MM_STATICCOLOR|MO_UNLIT, &FS[      0]);
+	        FSCount += BuildList(FSRules,       COUNT_OF(FSRules),       MM_STATICCOLOR|MO_UNLIT, &FS[FSCount], FSNullReplacements);
 	g_DebugColorMat = new ZL_MaterialProgram(VSCount, VS, FSCount, FS);
+	assert(g_DebugColorMat->ShaderIDs.Program);
 }
 
 static void ZL_Display3D_DrawDebugMesh(ZL_Mesh_Impl* DbgMesh, const ZL_Matrix& Matrix, const ZL_Camera& Camera, const ZL_Color& color)
 {
-	g_DebugColorMat->SetUniformVec4(g_DebugColorMat->UniformSet.Values->Name, color);
+	g_DebugColorMat->SetUniformX(0, (scalar*)&color, 4);
 	g_DebugColorMat->Activate(g_DebugColorMat->UniformSet, ZL_RenderSceneSetup(ZL_ImplFromOwner<ZL_Camera_Impl>(Camera)));
 	DbgMesh->DrawPart(DbgMesh->Parts, Matrix, Matrix);
-}
-
-template<bool IsLighting> static void ZL_Display3D_RenderShaded(ZL_RenderList_Impl* List, const ZL_RenderSceneSetup& Scene)
-{
-	if (List->SortedParts.empty()) return;
-	GLushort ActiveUniformSetIndex = (GLushort)-1;
-	for (ZL_RenderList_Impl::PartEntry *e = &List->SortedParts[0], *eEnd = e + List->SortedParts.size(); e != eEnd; e++)
-	{
-		ZL_RenderList_Impl::MeshEntry& me = List->Meshes[e->MeshIndex];
-		if (IsLighting && !e->Part->Material->ShaderProgram->ShadowMapProgram) continue;
-		if (ActiveUniformSetIndex != e->UniformSetIndex)
-		{
-			ActiveUniformSetIndex = e->UniformSetIndex;
-			(IsLighting ? e->Part->Material->ShaderProgram->ShadowMapProgram : e->Part->Material->ShaderProgram)->Activate(List->UniformSets[ActiveUniformSetIndex], Scene);
-		}
-		me.Mesh->DrawPart(e->Part, me.ModelMatrix, me.NormalMatrix);
-	}
 }
 
 static void ZL_Display3D_InitGL3D(bool RecreateContext)
@@ -1606,16 +1846,17 @@ bool ZL_Display3D::InitShadowMapping()
 	//#define ZL_DISPLAY3D_ORTHOLIGHTSONLY
 
 	#ifdef ZL_DISPLAY3D_ORTHOLIGHTSONLY
-	Varying_ShadowMap = "varying vec3 " Z3SM_LIGHTSPACE ";";
-	VS_ShadowMap_Calc = Z3SM_LIGHTSPACE " = vec3(" Z3U_LIGHT " * vec4(" Z3V_POSITION ",1));";
+	ExternalSource[EXTERN_Varying_ShadowMap] = "varying vec3 " Z3SM_LIGHTSPACE ";";
+	ExternalSource[EXTERN_VS_ShadowMap_Calc] = Z3SM_LIGHTSPACE " = vec3(" Z3U_LIGHT " * vec4(" Z3V_POSITION ",1));";
 	#else
-	Varying_ShadowMap = "varying vec4 " Z3SM_LIGHTUNPROJECTED ";";
-	VS_ShadowMap_Calc = Z3SM_LIGHTUNPROJECTED " = " Z3U_LIGHT " * vec4(" Z3V_POSITION ",1);";
+	ExternalSource[EXTERN_Varying_ShadowMap] = "varying vec4 " Z3SM_LIGHTUNPROJECTED ";";
+	ExternalSource[EXTERN_VS_ShadowMap_Calc] = Z3SM_LIGHTUNPROJECTED " = " Z3U_LIGHT " * vec4(" Z3V_POSITION ",1);";
 	#endif
-	VS_ShadowMap_Defs = "uniform mat4 " Z3U_LIGHT ";";
-	FS_ShadowMap_Defs = "uniform sampler2D " Z3U_SHADOWMAP ";";
-	FS_ShadowMap_Calc =
-			"const float " Z3SM_TXL " = 1./" SHADOWMAP_SIZE_STRING ".;"
+	ExternalSource[EXTERN_VS_ShadowMap_Defs] = "uniform mat4 " Z3U_LIGHT ";";
+	ExternalSource[EXTERN_FS_ShadowMap_Defs] =
+			"uniform sampler2D " Z3U_SHADOWMAP ";"
+			"const float " Z3SM_TXL " = 1./" SHADOWMAP_SIZE_STRING ".;";
+	ExternalSource[EXTERN_FS_ShadowMap_Calc] =
 			"if (i == 0)" 
 			"{" 
 				#ifndef ZL_DISPLAY3D_ORTHOLIGHTSONLY
@@ -1623,9 +1864,8 @@ bool ZL_Display3D::InitShadowMapping()
 				#endif
 				"if (" Z3SM_LIGHTSPACE ".z < 1. && " Z3SM_LIGHTSPACE ".x >= 0. && " Z3SM_LIGHTSPACE ".x <= 1. && " Z3SM_LIGHTSPACE ".y >= 0. && " Z3SM_LIGHTSPACE ".y <= 1.)"
 				"{"
-					"float " Z3SM_BIASDEPTH " = " Z3SM_LIGHTSPACE ".z - .005;" //- (.002 + .004 * " Z3L_DIFFUSE ");" (Z3L_DIFFUSE is Z3L_LIGHTFACTOR before specular)
-					"const float " Z3SM_TXL " = 1./" SHADOWMAP_SIZE_STRING ".;"
-					Z3L_LIGHTFACTOR " *= .4+.12 * (step(" Z3SM_BIASDEPTH ", texture2D(" Z3U_SHADOWMAP ", " Z3SM_LIGHTSPACE ".xy).r)"
+					"float " Z3SM_BIASDEPTH " = " Z3SM_LIGHTSPACE ".z - " Z3U_LIGHTDATA "[3].z;"
+					Z3L_LIGHTFACTOR " *= .2 * (step(" Z3SM_BIASDEPTH ", texture2D(" Z3U_SHADOWMAP ", " Z3SM_LIGHTSPACE ".xy).r)"
 					                         "+step(" Z3SM_BIASDEPTH ", texture2D(" Z3U_SHADOWMAP ", " Z3SM_LIGHTSPACE ".xy + vec2(-" Z3SM_TXL ",-" Z3SM_TXL ")).r)"
 					                         "+step(" Z3SM_BIASDEPTH ", texture2D(" Z3U_SHADOWMAP ", " Z3SM_LIGHTSPACE ".xy + vec2( " Z3SM_TXL ",-" Z3SM_TXL ")).r)"
 					                         "+step(" Z3SM_BIASDEPTH ", texture2D(" Z3U_SHADOWMAP ", " Z3SM_LIGHTSPACE ".xy + vec2(-" Z3SM_TXL ", " Z3SM_TXL ")).r)"
@@ -1633,6 +1873,35 @@ bool ZL_Display3D::InitShadowMapping()
 				"}"
 				"else " Z3L_LIGHTFACTOR " *= " Z3U_LIGHTDATA "[3].y;"
 			"}";
+
+	struct Func
+	{
+		static void SetupShadowMapProgram(ZL_MaterialProgram* ShaderProgram, unsigned int MM, const char* CustomVertexCode = NULL)
+		{
+			using namespace ZL_Display3D_Shaders;
+			bool UseMasked = (MM&MM_DIFFUSEMAP) && (MM&(MO_MASKED|MO_TRANSPARENCY)), UseCustomPosition = !!(MM&(MM_VERTEXFUNC|MM_POSITIONFUNC)), UseCustomMask = (UseMasked && (MM&(MM_UVFUNC)));
+			ZL_MaterialProgram*& UseShadowMapProgram = (UseCustomPosition || UseCustomMask ? ShaderProgram->ShadowMapProgram : (UseMasked ? g_ShadowMapMaskProgram : g_ShadowMapProgram));
+			if (UseShadowMapProgram) UseShadowMapProgram->AddRef();
+			else
+			{
+				unsigned int MMSMRules = MO_UNLIT;
+				if (UseMasked)         MMSMRules |= MO_MASKED | (UseCustomMask ? (MM&(MM_UVFUNC|MM_DIFFUSEMAP|MM_DIFFUSEFUNC)) : MM_DIFFUSEMAP);
+				if (UseCustomPosition) MMSMRules |= (MM&(MM_VERTEXFUNC|MM_POSITIONFUNC));
+				unsigned int MMSMGlobal = MMSMRules | (UseCustomPosition|UseCustomMask ? (MM & MMDEF_REQUESTS) : 0);
+				const char *VS[1+COUNT_OF(SharedRules)+COUNT_OF(VSGlobalRules)+COUNT_OF(VSRules)], *FS[COUNT_OF(SharedRules)+COUNT_OF(FSRules)];
+				GLsizei VSCount = 0;
+				if (MMSMRules & MM_VERTEXFUNC) VS[VSCount++] = "#define " Z3D_SHADOWMAP "\n";
+				        VSCount += BuildList(SharedRules,      COUNT_OF(SharedRules),      MMSMRules,  &VS[VSCount]);
+				        VSCount += BuildList(VSGlobalRules,    COUNT_OF(VSGlobalRules),    MMSMGlobal, &VS[VSCount]);
+				        VSCount += BuildList(VSRules,          COUNT_OF(VSRules),          MMSMRules,  &VS[VSCount], &CustomVertexCode);
+				GLsizei FSCount  = BuildList(SharedRules,      COUNT_OF(SharedRules),      MMSMRules,  &FS[      0]);
+				        FSCount += BuildList(ShadowMapFSRules, COUNT_OF(ShadowMapFSRules), MMSMRules,  &FS[FSCount]);
+				UseShadowMapProgram = new ZL_MaterialProgram(VSCount, VS, FSCount, FS);
+				if (!UseShadowMapProgram->ShaderIDs.Program) { delete UseShadowMapProgram; UseShadowMapProgram = NULL; }
+			}
+			ShaderProgram->ShadowMapProgram = UseShadowMapProgram;
+		}
+	};
 
 	glGenTextures(1, &g_ShadowMap_TEX);
 	glBindTexture(GL_TEXTURE_2D, g_ShadowMap_TEX);
@@ -1652,18 +1921,20 @@ bool ZL_Display3D::InitShadowMapping()
 	glBindTexture(GL_TEXTURE_2D, g_ShadowMap_TEX);
 	glActiveTexture(GL_TEXTURE0);
 
+	g_SetupShadowMapProgram = &Func::SetupShadowMapProgram;
+
 	#if defined(ZILLALOG) && (0||ZL_DISPLAY3D_TEST_VARIOUS_SHADER_TEMPLATES)
 	using namespace ZL_MaterialModes;
-	ZL_Material(MM_STATICCOLOR);
-	ZL_Material(MM_STATICCOLOR|MM_VERTEXCOLOR|MM_DIFFUSEMAP);
-	ZL_Material(MM_STATICCOLOR|MM_LIT);
-	ZL_Material(MM_DIFFUSEMAP|MM_LIT|MM_SHADOWMAP|MM_SPECULARSTATIC|MM_NORMALMAP);
-	ZL_Material(MM_STATICCOLOR|MM_PARALLAXMAP);
-	ZL_Material(MM_STATICCOLOR|MR_POSITION);
-	ZL_Material(MM_STATICCOLOR|MR_TEXCOORD);
-	ZL_Material(MM_STATICCOLOR|MR_NORMALS);
-	ZL_Material(MM_STATICCOLOR|MR_CAMERATANGENT);
-	ZL_Material(MM_STATICCOLOR|MR_PRECISIONTANGENT);
+	ZL_Material(MM_STATICCOLOR|MO_UNLIT);
+	ZL_Material(MM_STATICCOLOR|MM_VERTEXCOLOR|MM_DIFFUSEMAP|MO_UNLIT);
+	ZL_Material(MM_STATICCOLOR|MO_RECEIVENOSHADOW);
+	ZL_Material(MM_DIFFUSEMAP|MM_SPECULARSTATIC|MM_NORMALMAP);
+	ZL_Material(MM_STATICCOLOR|MM_PARALLAXMAP|MO_UNLIT);
+	ZL_Material(MM_DIFFUSEFUNC|MM_STATICCOLOR|MR_POSITION|MO_UNLIT, "vec4 CalcDiffuse() { return vec4(1.); }");
+	ZL_Material(MM_DIFFUSEFUNC|MM_STATICCOLOR|MR_TEXCOORD|MO_UNLIT, "vec4 CalcDiffuse() { return vec4(1.); }");
+	ZL_Material(MM_DIFFUSEFUNC|MM_STATICCOLOR|MR_NORMAL|MO_UNLIT, "vec4 CalcDiffuse() { return vec4(1.); }");
+	ZL_Material(MM_DIFFUSEFUNC|MM_STATICCOLOR|MR_CAMERATANGENT|MO_UNLIT, "vec4 CalcDiffuse() { return vec4(1.); }");
+	ZL_Material(MM_DIFFUSEFUNC|MM_STATICCOLOR|MR_CAMERATANGENT|MO_PRECISIONTANGENT|MO_UNLIT, "vec4 CalcDiffuse() { return vec4(1.); }");
 	#endif
 
 	return true;
@@ -1677,15 +1948,6 @@ void ZL_Display3D::BeginRendering()
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glClear(GL_DEPTH_BUFFER_BIT);
-
-	#if !defined(ZL_VIDEO_OPENGL_ES2) && defined(ZILLALOG) && (0||ZL_DISPLAY3D_TEST_WIREFRAMEMODE)
-	if (ZL_Display::KeyDown[ZLK_LCTRL])
-	{
-		glDisable(GL_CULL_FACE);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	}
-	else if (ZL_Display::KeyDown[ZLK_LALT]) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	#endif
 }
 
 void ZL_Display3D::FinishRendering()
@@ -1708,7 +1970,7 @@ void ZL_Display3D::FinishRendering()
 	GLscalar fullbox[8] = { 0,1 , 1,1 , 0,0 , 1,0 };
 	GLscalar matrix[16] = { 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, -1, 0, -1, -1, 0, 1 };
 	ZLGLSL::_TEXTURE_PROGRAM_ACTIVATE();
-	glVertexAttrib4(ZLGLSL::ATTR_COLOR, .5, .5, .5, 1);
+	glVertexAttrib4(ZLGLSL::ATTR_COLOR, 3, 3, 3, 1);
 	glUniformMatrix4v(ZLGLSL::UNI_MVP, 1, GL_FALSE, matrix);
 	glEnableVertexAttribArrayUnbuffered(ZLGLSL::ATTR_TEXCOORD);
 	glVertexAttribPointerUnbuffered(ZLGLSL::ATTR_POSITION, 2, GL_SCALAR, GL_FALSE, 0, halfscreen);
@@ -1720,16 +1982,18 @@ void ZL_Display3D::FinishRendering()
 
 void ZL_Display3D::DrawLists(const ZL_RenderList*const* RenderLists, size_t NumLists, const ZL_Camera& Camera)
 {
+	for (size_t i = 0; i != NumLists; i++) ZL_ImplFromOwner<ZL_RenderList_Impl>(*RenderLists[i])->Sort();
 	bool TemporaryRendering = (ZLGLSL::ActiveProgram != ZLGLSL::DISPLAY3D);
 	if (TemporaryRendering) BeginRendering();
 	ZL_RenderSceneSetup Scene(ZL_ImplFromOwner<ZL_Camera_Impl>(Camera));
-	for (size_t i = 0; i != NumLists; i++)
-		ZL_Display3D_RenderShaded<false>(ZL_ImplFromOwner<ZL_RenderList_Impl>(*RenderLists[i]), Scene);
+	for (size_t j = 0; j != NumLists; j++)
+		ZL_ImplFromOwner<ZL_RenderList_Impl>(*RenderLists[j])->RenderColor(Scene);
 	if (TemporaryRendering) FinishRendering();
 }
 
 void ZL_Display3D::DrawListsWithLights(const ZL_RenderList*const* RenderLists, size_t NumLists, const ZL_Camera& Camera, const ZL_Light*const* Lights, size_t NumLights)
 {
+	for (size_t i = 0; i != NumLists; i++) ZL_ImplFromOwner<ZL_RenderList_Impl>(*RenderLists[i])->Sort();
 	assert(NumLights <= g_MaxLights);
 	bool TemporaryRendering = (ZLGLSL::ActiveProgram != ZLGLSL::DISPLAY3D);
 	if (TemporaryRendering) BeginRendering();
@@ -1741,7 +2005,6 @@ void ZL_Display3D::DrawListsWithLights(const ZL_RenderList*const* RenderLists, s
 	{
 		if (g_ShadowMap_FBO)
 		{
-			assert(g_ShadowMap_FBO); //check if InitShadowMapping has been called
 			glBindFramebuffer(GL_FRAMEBUFFER, g_ShadowMap_FBO);
 			glViewport(0, 0, SHADOWMAP_SIZE, SHADOWMAP_SIZE);
 			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
@@ -1749,7 +2012,7 @@ void ZL_Display3D::DrawListsWithLights(const ZL_RenderList*const* RenderLists, s
 
 			Scene.Camera = ZL_ImplFromOwner<ZL_Light_Impl>(*Lights[0]);
 			for (size_t i = 0; i != NumLists; i++)
-				ZL_Display3D_RenderShaded<true>(ZL_ImplFromOwner<ZL_RenderList_Impl>(*RenderLists[i]), Scene);
+				ZL_ImplFromOwner<ZL_RenderList_Impl>(*RenderLists[i])->RenderShadowMap(Scene);
 
 			glBindFramebuffer(GL_FRAMEBUFFER, active_framebuffer);
 			glViewport(active_viewport[0], active_viewport[1], active_viewport[2], active_viewport[3]);
@@ -1760,12 +2023,21 @@ void ZL_Display3D::DrawListsWithLights(const ZL_RenderList*const* RenderLists, s
 		for (size_t i = 0, iEnd = MIN(NumLights, ZL_RenderSceneSetup::MAX_LIGHTS); i != iEnd; i++)
 		{
 			ZL_Light_Impl* Light = ZL_ImplFromOwner<ZL_Light_Impl>(*Lights[i]);
-			Scene.LightData[Scene.LightDataCount++] = Light->Pos;
-			Scene.LightData[Scene.LightDataCount++] = Light->Color;
-			Scene.LightData[Scene.LightDataCount++] = ZL_Vector3(Light->Falloff, Light->LightFactorOutside);
+			if (Light->IsDirectionalLight() && g_ShadowMap_FBO)
+			{
+				Scene.LightData[Scene.LightDataCount++] = -Light->Dir;
+				Scene.LightData[Scene.LightDataCount++] = Light->Color;
+				Scene.LightData[Scene.LightDataCount++] = ZL_Vector3(-Light->Pos.GetLength(), Light->LightFactorOutside, Light->ShadowBias);
+			}
+			else
+			{
+				Scene.LightData[Scene.LightDataCount++] = Light->Pos;
+				Scene.LightData[Scene.LightDataCount++] = Light->Color;
+				Scene.LightData[Scene.LightDataCount++] = ZL_Vector3(Light->Falloff, Light->LightFactorOutside, Light->ShadowBias);
+			}
 		}
 	}
-	Scene.LightData[Scene.LightDataCount++].x = 3.4e+38f;
+	Scene.LightData[Scene.LightDataCount++].x = 3.4e+38f; //list end terminator
 	Scene.CalcLightDataChkSum();
 
 	Scene.Camera = ZL_ImplFromOwner<ZL_Camera_Impl>(Camera);
@@ -1777,30 +2049,40 @@ void ZL_Display3D::DrawListsWithLights(const ZL_RenderList*const* RenderLists, s
 		static float DebugDist = 0.0f;
 		static float DebugLastMouseY = ZL_Display::PointerY;
 		if (ZL_Display::KeyDown[ZLK_LCTRL]) DebugDist += 0.1f*(DebugLastMouseY - ZL_Display::PointerY);
+		#if !defined(ZL_VIDEO_OPENGL_ES2)
 		if (ZL_Display::KeyDown[ZLK_LALT]) { glDisable(GL_CULL_FACE); glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); }
+		#endif
 		DebugLastMouseY = ZL_Display::PointerY;
-		DebugCam.SetDirection(-ZL_Vector3::FromRotation((ZL_Display::PointerX-ZLHALFW)/ZLHALFW*PI, -(ZL_Display::PointerY-ZLHALFH)/ZLHALFH*PIHALF*0.99f));
+		DebugCam.SetDirection(ZL_Vector3::Forward.
+			VecRotate(ZL_Vector3::Right, -(ZL_Display::PointerY-ZLHALFH)/ZLHALFH*PIHALF*0.99f).
+			VecRotate(ZL_Vector3::Up,     (ZL_Display::PointerX-ZLHALFW)/ZLHALFW*PI));
 		DebugCam.SetPosition(Camera.GetPosition() + Camera.GetDirection() * 5.0f + DebugCam.GetDirection() * -(5.0f+DebugDist));
 		Scene.Camera = ZL_ImplFromOwner<ZL_Camera_Impl>(DebugCam);
 
 		for (size_t j = 0; j != NumLists; j++)
-			ZL_Display3D_RenderShaded<false>(ZL_ImplFromOwner<ZL_RenderList_Impl>(*RenderLists[j]), Scene);
+			ZL_ImplFromOwner<ZL_RenderList_Impl>(*RenderLists[j])->RenderColor(Scene);
 
 		#if 1
 		if (ZL_Display::KeyDown[ZLK_LCTRL]) glClear(GL_DEPTH_BUFFER_BIT);
 		ZL_Display3D::DrawLine(DebugCam, ZL_Vector3(0,0,0), ZL_Vector3(100,0,0), ZL_Color::Red,   .02f);
 		ZL_Display3D::DrawLine(DebugCam, ZL_Vector3(0,0,0), ZL_Vector3(0,100,0), ZL_Color::Green, .02f);
 		ZL_Display3D::DrawLine(DebugCam, ZL_Vector3(0,0,0), ZL_Vector3(0,0,100), ZL_Color::Blue,  .02f);
-		ZL_Display3D::DrawFrustum(DebugCam, Camera.GetVPMatrix(), ZL_Color::Magenta);
-		if (NumLights && g_ShadowMap_FBO) ZL_Display3D::DrawFrustum(DebugCam, Lights[0]->GetVPMatrix(), ZL_Color::Yellow);
+		ZL_Display3D::DrawFrustum(DebugCam, ZL_ImplFromOwner<ZL_Camera_Impl>(Camera)->VP, ZL_Color::Magenta);
+		ZL_Display3D::DrawLine(DebugCam, ZL_ImplFromOwner<ZL_Camera_Impl>(Camera)->Pos, ZL_ImplFromOwner<ZL_Camera_Impl>(Camera)->Pos + Camera.GetRightDirection() * 100, ZL_Color::Red, .02f);
+		ZL_Display3D::DrawLine(DebugCam, ZL_ImplFromOwner<ZL_Camera_Impl>(Camera)->Pos, ZL_ImplFromOwner<ZL_Camera_Impl>(Camera)->Pos + Camera.GetUpDirection() * 100, ZL_Color::Blue, .02f);
+		if (NumLights && g_ShadowMap_FBO) ZL_Display3D::DrawFrustum(DebugCam, ZL_ImplFromOwner<ZL_Light_Impl>(*Lights[0])->VP, ZL_Color::Yellow);
 		for (size_t k = 0; k != NumLights; k++) ZL_Display3D::DrawLine(DebugCam, Lights[k]->GetPosition(), Lights[k]->GetPosition() + Lights[k]->GetDirection(), ZL_Color::Yellow, 0.02f);
+		for (size_t k = (g_ShadowMap_FBO ? 1 : 0); k != NumLights; k++) for (int dir = 0; dir < 3; dir++) ZL_Display3D::DrawPlane(DebugCam, Lights[k]->GetPosition(), (!dir?ZL_Vector3::Up:dir==1?ZL_Vector3::Right:ZL_Vector3::Forward), ZLV(1.5,1.5), ZL_Color::Yellow);
+		//for (size_t j = 0; j != NumLists; j++) for (ZL_RenderList_Impl::MeshEntry m : ZL_ImplFromOwner<ZL_RenderList_Impl>(*RenderLists[j])->Meshes) m.Mesh->DrawDebug(m.ModelMatrix, DebugCam);
 		#endif
+		#if !defined(ZL_VIDEO_OPENGL_ES2)
 		if (ZL_Display::KeyDown[ZLK_LALT]) { glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); glEnable(GL_CULL_FACE); }
+		#endif
 	}
 	else
 	#endif
 	for (size_t j = 0; j != NumLists; j++)
-		ZL_Display3D_RenderShaded<false>(ZL_ImplFromOwner<ZL_RenderList_Impl>(*RenderLists[j]), Scene);
+		ZL_ImplFromOwner<ZL_RenderList_Impl>(*RenderLists[j])->RenderColor(Scene);
 	if (TemporaryRendering) FinishRendering();
 }
 

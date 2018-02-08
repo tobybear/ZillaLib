@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -119,7 +119,12 @@ ZL_Surface_Impl::ZL_Surface_Impl(int width, int height, bool use_alpha)
 	if (!tex->gltexid) { tex->DelRef(); tex = NULL; return; }
 	CalcUnclippedTexCoordBoxAndContentSize();
 }
-
+ZL_Surface_Impl::ZL_Surface_Impl(ZL_Texture_Impl* tex)
+ : tex(tex), pBatchRender(NULL), hasClipping(false), fRotate(0), fScaleW(1), fScaleH(1), fOpacity(1), orDraw(ZL_Origin::BottomLeft), orRotate(ZL_Origin::Center), color(ZL_Color::White)
+{
+	tex->AddRef();
+	CalcUnclippedTexCoordBoxAndContentSize();
+}
 ZL_Surface_Impl::ZL_Surface_Impl(const ZL_Surface_Impl* src)
 {
 	memcpy((void*)this, (void*)src, sizeof(ZL_Surface_Impl));

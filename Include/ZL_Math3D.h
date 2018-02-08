@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -39,6 +39,7 @@ struct ZL_Vector3
 	inline ZL_Vector3(const ZL_Point &p, scalar z = 0) : x((scalar)p.x), y((scalar)p.y), z(z) { }
 	inline ZL_Vector3(const ZL_Vector &p, scalar z = 0) : x(p.x), y(p.y), z(z) { }
 	inline ZL_Vector3(const ZL_Vector3 &p1, const ZL_Vector3 &p2) : x(p2.x-p1.x), y(p2.y-p1.y), z(p2.z-p1.z) { }
+	ZL_Vector3(const struct ZL_Color &rgb);
 
 	//Comparison operators
 	inline bool operator!() const { return (x == 0 && y == 0 && z == 0); }
@@ -110,6 +111,7 @@ struct ZL_Vector3
 	inline ZL_Vector3 &AddLength(scalar length) { if (!x && !y && !z) { x = length; return *this; } return Mul(length / GetLength() + 1); }
 	inline ZL_Vector3 &SetMaxLength(scalar maximum_length) { if (!x && !y && !z) return *this; scalar lensq = x*x+y*y; return (maximum_length*maximum_length >= lensq ? *this : Mul(maximum_length / ssqrt(lensq))); }
 	inline ZL_Vector3 &SetMinLength(scalar minimum_length) { if (!x && !y && !z) { x = minimum_length; return *this; } scalar lensq = x*x+y*y; return (minimum_length*minimum_length <= lensq ? *this : Mul(minimum_length / ssqrt(lensq))); }
+	inline ZL_Vector3 &Rotate(const ZL_Vector3& NormalizedAxis, scalar AngleRad) { scalar ah = AngleRad*s(.5); ZL_Vector3 q = NormalizedAxis*ssin(ah), t = (q^*this)*2; return *this += (t*scos(ah)) + (q^t); }
 
 	//Modifying operators as functions returning new instances (const call)
 	inline ZL_Vector3 VecNorm() const { if (x==0 && y==0 && z==0) return ZL_Vector3(1,0,0); return *this / GetLength(); }
@@ -121,6 +123,7 @@ struct ZL_Vector3
 	inline ZL_Vector3 VecWithAddLength(scalar length) const { if (!x && !y && !z) return ZL_Vector3(length,0,0); return *this * (length / GetLength() + 1); }
 	inline ZL_Vector3 VecWithMaxLength(scalar maximum_length) const { if (!x && !y && !z) return *this; scalar lensq = x*x+y*y; return (maximum_length*maximum_length >= lensq ? *this : *this * (maximum_length / ssqrt(lensq))); }
 	inline ZL_Vector3 VecWithMinLength(scalar minimum_length) const { if (!x && !y && !z) return ZL_Vector3(minimum_length,0,0); scalar lensq = x*x+y*y; return (minimum_length*minimum_length <= lensq ? *this : *this * (minimum_length / ssqrt(lensq))); }
+	inline ZL_Vector3 VecRotate(const ZL_Vector3& NormalizedAxis, scalar AngleRad) const { scalar ah = AngleRad*s(.5); ZL_Vector3 q = NormalizedAxis*ssin(ah), t = (q^*this)*2; return *this + (t*scos(ah)) + (q^t); }
 
 	//Static functions returning new instances
 	static inline ZL_Vector3 Norm(const ZL_Vector3 &v) { if (v.x==0 && v.y==0 && v.z==0) return ZL_Vector3(1,0,0); return v / v.GetLength(); }
@@ -128,6 +131,7 @@ struct ZL_Vector3
 	static inline ZL_Vector3 Mod(const ZL_Vector3 &a, const ZL_Vector3 &b) { return ZL_Vector3(smod(a.x,b.x), smod(a.y,b.y), smod(a.z,b.z)); }
 	static inline ZL_Vector3 Abs(const ZL_Vector3 &v) { return ZL_Vector3(sabs(v.x), sabs(v.y), sabs(v.z)); }
 	static inline ZL_Vector3 Lerp(const ZL_Vector3 &from, const ZL_Vector3 &to, const scalar f) { return ZL_Vector3(from.x+(to.x-from.x)*f, from.y+(to.y-from.y)*f, from.z+(to.z-from.z)*f); }
+	static inline ZL_Vector3 Rotate(const ZL_Vector3 &v, const ZL_Vector3& NormalizedAxis, scalar AngleRad) { scalar ah = AngleRad*s(.5); ZL_Vector3 q = NormalizedAxis*ssin(ah), t = (q^v)*2; return v + (t*scos(ah)) + (q^t); }
 	static inline ZL_Vector3 FromXY(const ZL_Vector &p, scalar z = 0) { return ZL_Vector3(p.x, p.y, z); }
 	static inline ZL_Vector3 FromXZ(const ZL_Vector &p, scalar y = 0) { return ZL_Vector3(p.x, y, p.y); }
 	static inline ZL_Vector3 FromYZ(const ZL_Vector &p, scalar x = 0) { return ZL_Vector3(x, p.x, p.y); }
@@ -145,9 +149,10 @@ struct ZL_Vector3
 	inline scalar GetRelAbsAngleDeg(const ZL_Vector3 &v) const { scalar d=DotP(v);return(d<0?PI-sacos(-d):sacos(d))*PIUNDER180; }
 
 	//Returns a normal vector created by pitch (horizontal angle) and yaw (vertical angle)
-	static inline ZL_Vector3 FromRotation(scalar HoirzontalAngleRad, scalar VerticalAngleRad) { return ZL_Vector3(scos(HoirzontalAngleRad)*scos(VerticalAngleRad), ssin(VerticalAngleRad), ssin(HoirzontalAngleRad)*scos(VerticalAngleRad));  }
+	static inline ZL_Vector3 FromRotation(scalar HoirzontalAngleRad, scalar VerticalAngleRad) { return ZL_Vector3(scos(HoirzontalAngleRad)*scos(VerticalAngleRad), ssin(HoirzontalAngleRad)*scos(VerticalAngleRad), ssin(VerticalAngleRad));  }
 
-	static const ZL_Vector3 Zero, One, Forward, Right, Up;
+	static const ZL_Vector3 Zero, One; //(0,0,0) and (1,1,1)
+	static ZL_Vector3 Right, Forward, Up; //Modifyable world space directions - Defaults are (1,0,0), (0,1,0) and (0,0,1)
 };
 
 struct ZL_Plane3
@@ -336,28 +341,28 @@ struct ZL_Matrix
 		scalar x = q.x, y = q.y, z = q.z, w = q.w, x2 = x + x, y2 = y + y, z2 = z + z, xx = x*x2, xy = x*y2, xz = x*z2, yy = y*y2, yz = y*z2, zz = z*z2, wx = w*x2, wy = w*y2, wz = w*z2;
 		return ZL_Matrix(1 - (yy + zz), xy + wz, xz - wy, 0, xy - wz, 1 - (xx + zz), yz + wx, 0, xz + wy, yz - wx, 1 - (xx + yy), 0, v.x, v.y, v.z, 1);
 	}
-	static inline ZL_Matrix MakeRotate(const ZL_Vector3& normalized_forward, const ZL_Vector3& normalized_up = ZL_Vector3(0,1,0))
+	static inline ZL_Matrix MakeRotate(const ZL_Vector3& normalized_forward, const ZL_Vector3& normalized_up = ZL_Vector3::Up)
 	{
 		const ZL_Vector3 N = normalized_forward, V = (normalized_up ^ N).VecNorm(), U = (N ^ V);
 		return ZL_Matrix(V.x,V.y,V.z,0,U.x,U.y,U.z,0,N.x,N.y,N.z,0,0,0,0,1);
 	}
-	static inline ZL_Matrix MakeRotateTranslate(const ZL_Vector3& normalized_forward, const ZL_Vector3& location, const ZL_Vector3& normalized_up = ZL_Vector3(0,1,0))
+	static inline ZL_Matrix MakeRotateTranslate(const ZL_Vector3& normalized_forward, const ZL_Vector3& location, const ZL_Vector3& normalized_up = ZL_Vector3::Up)
 	{
 		const ZL_Vector3 N = normalized_forward, V = (normalized_up ^ N).VecNorm(), U = (N ^ V);
 		return ZL_Matrix(V.x,V.y,V.z,0,U.x,U.y,U.z,0,N.x,N.y,N.z,0,location.x,location.y,location.z,1);
 	}
-	static inline ZL_Matrix MakeRotateTranslateScale(const ZL_Vector3& normalized_forward, const ZL_Vector3& location, const ZL_Vector3& scale, const ZL_Vector3& normalized_up = ZL_Vector3(0,1,0))
+	static inline ZL_Matrix MakeRotateTranslateScale(const ZL_Vector3& normalized_forward, const ZL_Vector3& location, const ZL_Vector3& scale, const ZL_Vector3& normalized_up = ZL_Vector3::Up)
 	{
 		const ZL_Vector3 N = normalized_forward * scale.z, V = (normalized_up ^ N).SetLength(scale.x), U = (N ^ V).SetLength(scale.y);
 		return ZL_Matrix(V.x,V.y,V.z,0,U.x,U.y,U.z,0,N.x,N.y,N.z,0,location.x,location.y,location.z,1);
 	}
-	static inline ZL_Matrix MakeCamera(const ZL_Vector3& location, const ZL_Vector3& normalized_forward, const ZL_Vector3& normalized_up = ZL_Vector3(0,1,0))
+	static inline ZL_Matrix MakeCamera(const ZL_Vector3& location, const ZL_Vector3& normalized_forward, const ZL_Vector3& normalized_up = ZL_Vector3::Up)
 	{
 		const ZL_Vector3 N = -normalized_forward, V = (normalized_up ^ N).VecNorm(), U = (N ^ V);
 		const ZL_Vector3 offset(location.x*V.x+location.y*V.y+location.z*V.z, location.x*U.x+location.y*U.y+location.z*U.z, location.x*N.x+location.y*N.y+location.z*N.z);
 		return ZL_Matrix(V.x,U.x,N.x,0,V.y,U.y,N.y,0,V.z,U.z,N.z,0,-offset.x,-offset.y,-offset.z,1);
 	}
-	static inline ZL_Matrix MakeLookAt(const ZL_Vector3& eye, const ZL_Vector3& center, const ZL_Vector3& normalized_up = ZL_Vector3(0,1,0))
+	static inline ZL_Matrix MakeLookAt(const ZL_Vector3& eye, const ZL_Vector3& center, const ZL_Vector3& normalized_up = ZL_Vector3::Up)
 	{
 		const ZL_Vector3 N = (eye - center).VecNorm(), V = (normalized_up ^ N).VecNorm(), U = (N ^ V);
 		const ZL_Vector3 offset(eye.x*V.x+eye.y*V.y+eye.z*V.z, eye.x*U.x+eye.y*U.y+eye.z*U.z, eye.x*N.x+eye.y*N.y+eye.z*N.z);

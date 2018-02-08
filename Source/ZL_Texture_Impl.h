@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -90,6 +90,7 @@ struct ZL_Surface_Impl : ZL_Impl
 	GLscalar TexCoordBox[8];
 	ZL_Surface_Impl(const ZL_FileLink& file);
 	ZL_Surface_Impl(int width, int height, bool use_alpha);
+	ZL_Surface_Impl(ZL_Texture_Impl* tex);
 	ZL_Surface_Impl(const ZL_Surface_Impl* src);
 	~ZL_Surface_Impl();
 	inline scalar GetHCW(const scalar scalew) { return (fScaleW == scalew ? fHCW : (fScaleW == -scalew ? -fHCW : (hasClipping ? fHCW*scalew/fScaleW : tex->w*scalew*s(.5)))); }

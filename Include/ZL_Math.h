@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -81,6 +81,8 @@
 	#define sfloor floor
 	#define sceil ceil
 #endif
+#define DEG2RAD PIOVER180
+#define RAD2DEG PIUNDER180
 
 #if defined(__cplusplus) && (!defined(_MSC_VER) || _MSC_VER > 1200) //c-array element count macro
 template <typename C_ARRAY, size_t N> char (&__COUNT_OF_HELPER(C_ARRAY(&)[N]))[N];
