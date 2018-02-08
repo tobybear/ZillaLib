@@ -29,7 +29,7 @@
 #include <assert.h>
 #include <map>
 
-#define ZL_DISPLAY3D_ALLOW_SHIFT_DEBUG_VIEW
+#define ZL_DISPLAY3D_ENABLE_SHIFT_DEBUG_VIEW
 
 struct ZL_ShaderIDs { GLuint Program; GLubyte UsedAttributeMask; GLint UniformMatrixModel, UniformMatrixNormal; };
 static struct { ZL_ShaderIDs Shader; GLuint BoundTextureChksum, BoundTextures[4], IndexBuffer, VertexBuffer; GLubyte AttributeMask; GLenum Texture; } g_Active3D;
@@ -1188,7 +1188,8 @@ struct ZL_ParticleEmitter_Impl : public ZL_Mesh_Impl
 	sEmitter Emitter;
 	size_t ActiveCount, MaxCount;
 
-	enum { S_COUNT = 100, SD_HEADER = 3, SD_BODY = 3, SD_COUNT = SD_HEADER + S_COUNT * SD_BODY, P_INDEXES = 6 };
+	enum { S_COUNT = 70, SD_HEADER = 3, SD_BODY = 3, SD_COUNT = SD_HEADER + S_COUNT * SD_BODY, P_INDEXES = 6 };
+	#define SD_COUNT_STR "213" //needs to be updated when changing above
 
 	ZL_ParticleEmitter_Impl(scalar LifeTime, size_t MaxParticles, ZL_MaterialModes::Blending BlendMode) : ZL_Mesh_Impl(0), ActiveCount(0), MaxCount(MaxParticles)
 	{
@@ -1208,9 +1209,18 @@ struct ZL_ParticleEmitter_Impl : public ZL_Mesh_Impl
 			Indices[i*P_INDEXES + 3] = i*4 + 0; Indices[i*P_INDEXES + 4] = i*4 + 2; Indices[i*P_INDEXES + 5] = i*4 + 3;
 		}
 
+		#if defined(ZILLALOG)
+		GLint MAX_VERTEX_UNIFORM_VECTORS, MAX_FRAGMENT_UNIFORM_VECTORS;
+		glGetIntegerv(GL_MAX_VERTEX_UNIFORM_VECTORS, &MAX_VERTEX_UNIFORM_VECTORS);
+		glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS, &MAX_FRAGMENT_UNIFORM_VECTORS);
+		//ZL_LOG2("[3D]", "MAX_VERTEX_UNIFORM_VECTORS: %d - MAX_FRAGMENT_UNIFORM_VECTORS: %d", MAX_VERTEX_UNIFORM_VECTORS, MAX_FRAGMENT_UNIFORM_VECTORS);
+		assert(MAX_VERTEX_UNIFORM_VECTORS > SD_COUNT+10);
+		assert(MAX_FRAGMENT_UNIFORM_VECTORS > SD_COUNT+10);
+		#endif
+
 		using namespace ZL_MaterialModes;
 		ZL_Material_Impl* Program = ZL_Material_Impl::GetMaterialReference(MM_VERTEXCOLOR | MM_DIFFUSEMAP | MM_VERTEXFUNC | MO_UNLIT | MO_CASTNOSHADOW | BlendMode, NULL, 
-			"uniform vec3 sd[303];"
+			"uniform vec3 sd[" SD_COUNT_STR "];"
 			"void Vertex()"
 			"{"
 				"int i = int(" Z3A_POSITION ".z);"
@@ -2042,7 +2052,7 @@ void ZL_Display3D::DrawListsWithLights(const ZL_RenderList*const* RenderLists, s
 
 	Scene.Camera = ZL_ImplFromOwner<ZL_Camera_Impl>(Camera);
 
-	#if defined(ZILLALOG) && defined(ZL_DISPLAY3D_ALLOW_SHIFT_DEBUG_VIEW)
+	#if defined(ZILLALOG) && defined(ZL_DISPLAY3D_ENABLE_SHIFT_DEBUG_VIEW)
 	if (ZL_Display::KeyDown[ZLK_LSHIFT])
 	{
 		static ZL_Camera DebugCam;
