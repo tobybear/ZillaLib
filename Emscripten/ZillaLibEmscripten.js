@@ -172,7 +172,7 @@ var LibraryZLJS =
 		}
 		else
 		{
-			var draw_func_ex = function() { window.requestAnimationFrame(draw_func_ex); _ZLFNDraw(); }
+			var draw_func_ex = function() { if (ABORT) return; window.requestAnimationFrame(draw_func_ex); _ZLFNDraw(); }
 			Browser.requestAnimationFrame(draw_func_ex);
 		}
 	},

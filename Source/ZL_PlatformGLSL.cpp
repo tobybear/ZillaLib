@@ -333,6 +333,8 @@ namespace ZLGLSL
 				char* info_log = reinterpret_cast<char*>(malloc(info_len));
 				glGetProgramInfoLog(program_object, info_len, NULL, info_log);
 				ZL_LOG1("ZLGLSL", "Error linking program: %s", info_log);
+				for (GLsizei vi = 0; vi < vertex_shader_srcs_count; vi++) { ZL_LOG2("ZLGLSL", "    VERTEX SHADER #%d: %s", vi, vertex_shader_srcs[vi]); }
+				for (GLsizei fi = 0; fi < fragment_shader_srcs_count; fi++) { ZL_LOG2("ZLGLSL", "    FRAGMENT SHADER #%d: %s", fi, fragment_shader_srcs[fi]); }
 				free(info_log);
 				assert(false);
 			}
