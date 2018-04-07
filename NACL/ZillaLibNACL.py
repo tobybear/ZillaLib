@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2016 Bernhard Schelling
+#  Copyright (C) 2010-2018 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -26,6 +26,7 @@ def get_makefile_int(param,m='Makefile',d=0): return (int((re.findall(param+'\s*
 cmd = ''
 for ln in sys.argv:
 	if ln[0]!='-':cmd = sys.argv.pop(sys.argv.index(ln)).upper();break
+
 if cmd == 'RUN' or cmd == 'WEB':
 	outdir = 'Debug-nacl'
 	for ln in sys.argv:
@@ -85,53 +86,7 @@ if cmd == 'RUN' or cmd == 'WEB':
 	except:pass
 	sys.exit(0)
 
-elif cmd == 'BUILD':
-	nacl_sdk = get_makefile_str('NACL_SDK', nacl_dir+'/ZillaAppLocalConfig.mk');
-	if nacl_sdk != '' and (not os.path.exists(nacl_sdk+'/tools/getos.py') or not os.path.exists(nacl_sdk+'/toolchain')):
-		sys.stderr.write(" \nSubdirectory 'tools' and subdirectory 'toolchain' not found inside "+nacl_sdk+"\n")
-		nacl_sdk = ''
-	if nacl_sdk == '':
-		sys.stderr.write(" \nPlease create the file "+nacl_dir+os.sep+"ZillaAppLocalConfig.mk with the following definitions:\n \n")
-		sys.stderr.write("NACL_SDK = "+('d:' if sys.platform == 'win32' else '')+"/path/to/nacl_sdk/pepper18\n \n")
-		sys.exit(0)
-	os.environ['PATH'] = nacl_sdk+os.sep+'tools' + os.pathsep + os.environ['PATH'] + os.pathsep + os.path.dirname(sys.executable)
-	pargs = ['make', '-f', nacl_dir+'/ZillaLibNACL.mk', '-j', '4', 'PYTHON='+sys.executable]
-	targs = []
-	vc = False;appname = None
-	for ln in sys.argv:
-		if re.match('-CLEAN', ln, re.I) and targs.count('clean') == 0: targs.insert(0, 'clean')
-		elif re.match('-B', ln, re.I): pargs.append('-B')
-		elif re.match('-REL', ln, re.I): pargs.append('BUILD=RELEASE')
-		elif re.match('-VC', ln, re.I): vc = True
-		else: appname = ln
-	if appname:pargs.append('ZillaApp='+appname)
-	if appname and get_makefile_int('ZLNACL_ASSETS_EMBED'): pargs.append('ASSETS_EMBED=1')
-	if appname and get_makefile_str('ZLNACL_ASSETS_OUTFILE'): pargs.append('ASSETS_OUTFILE='+get_makefile_str('ZLNACL_ASSETS_OUTFILE'))
-	if len(targs) == 0: targs.append('')
-	ret = 0
-	for targ in targs:
-		if targ: pargs.append(targ)
-		#sys.stderr.write("# " + string.join(pargs, " ") + "\n");sys.stderr.flush()
-		if not vc:
-			ret |= subprocess.Popen(pargs).wait()
-		else:
-			r1=re.compile(':(\\d+):')
-			r2=re.compile('\\xe2\\x80[\\x98\\x99]|\\r|\\n')
-			r3=re.compile(re.escape('/cygdrive/'+os.getcwd().replace('\\','/').replace(':','')+'/'),re.IGNORECASE)
-			r4=re.compile('/cygdrive/(.)')
-			p = subprocess.Popen(pargs, shell=True, bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-			while True:
-				l = p.stdout.readline()
-				if not l: break
-				sys.stderr.write(r4.sub('\\1:', r3.sub('',r2.sub('',r1.sub('(\\1) :',l)))) + "\n")
-				sys.stderr.flush()
-			ret |= p.wait()
-		if targ: del pargs[len(pargs)-1]
-	sys.stderr.write("\n")
-	sys.exit(ret)
-
 else:
 	print "No command in arguments specified."
-	print "Valid commands are: BUILD, RUN, WEB"
-	print "BUILD: compile, switches: -vc, -B, -rel, -clean"
+	print "Valid commands are: RUN, WEB"
 	print "RUN/WEB: start webserver in output dir run chrome browser to it"

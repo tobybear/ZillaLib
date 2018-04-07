@@ -104,43 +104,43 @@
     <IntDir>Release-vs$(VisualStudioYear)x64\</IntDir>
     <TargetName>ZillaLib</TargetName>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Emscripten-Debug|Win32'">
+  <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Debug'">
     <OutDir>Emscripten\build-debug\</OutDir>
     <IntDir>Emscripten\build-debug\</IntDir>
     <BaseIntermediateOutputPath>Emscripten\build-debug\</BaseIntermediateOutputPath>
-    <NMakeBuildCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -vc</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -vc -B</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -vc -clean</NMakeCleanCommandLine>
+    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f Emscripten/ZillaLibEmscripten.mk MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk clean</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Emscripten-Release|Win32'">
+  <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Release'">
     <OutDir>Emscripten\build\</OutDir>
     <IntDir>Emscripten\build\</IntDir>
     <BaseIntermediateOutputPath>Emscripten\build\</BaseIntermediateOutputPath>
-    <NMakeBuildCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -rel -vc</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -rel -vc -B</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>"$(PythonDir)python.exe" Emscripten/ZillaLibEmscripten.py build -rel -vc -clean</NMakeCleanCommandLine>
+    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f Emscripten/ZillaLibEmscripten.mk BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk BUILD=RELEASE clean</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='NACL-Debug|Win32'">
+  <PropertyGroup Condition="'$(Configuration)'=='NACL-Debug'">
     <OutDir>NACL\build-debug\</OutDir>
     <IntDir>NACL\build-debug\</IntDir>
     <BaseIntermediateOutputPath>NACL\build-debug\</BaseIntermediateOutputPath>
-    <NMakeBuildCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -vc</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -vc -B</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -vc -clean</NMakeCleanCommandLine>
+    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f NACL/ZillaLibNACL.mk MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk clean</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='NACL-Release|Win32'">
+  <PropertyGroup Condition="'$(Configuration)'=='NACL-Release'">
     <OutDir>NACL\build\</OutDir>
     <IntDir>NACL\build\</IntDir>
     <BaseIntermediateOutputPath>NACL\build\</BaseIntermediateOutputPath>
-    <NMakeBuildCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -rel -vc</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -rel -vc -B</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>"$(PythonDir)python.exe" NACL/ZillaLibNACL.py build -rel -vc -clean</NMakeCleanCommandLine>
+    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f NACL/ZillaLibNACL.mk BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk BUILD=RELEASE clean</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Android-Debug|Win32'">
+  <PropertyGroup Condition="'$(Configuration)'=='Android-Debug'">
     <OutDir>Android\build-debug\</OutDir>
     <IntDir>Android\build-debug\</IntDir>
     <BaseIntermediateOutputPath>Android\build-debug\</BaseIntermediateOutputPath>
@@ -149,7 +149,7 @@
     <NMakeCleanCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=1 clean</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Android-Release|Win32'">
+  <PropertyGroup Condition="'$(Configuration)'=='Android-Release'">
     <OutDir>Android\build\</OutDir>
     <IntDir>Android\build\</IntDir>
     <BaseIntermediateOutputPath>Android\build\</BaseIntermediateOutputPath>
@@ -161,6 +161,7 @@
   <PropertyGroup>
     <LocalDebuggerCommand>This is the library, you can't run it. Make sure to set your game project as StartUp Project by right clicking it in the Solution Explorer</LocalDebuggerCommand>
   </PropertyGroup>
+  <ItemDefinitionGroup><BuildLog><Path>nul:</Path></BuildLog></ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>

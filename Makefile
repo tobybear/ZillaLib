@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2016 Bernhard Schelling
+#  Copyright (C) 2010-2018 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -18,6 +18,8 @@
 #     misrepresented as being the original software.
 #  3. This notice may not be removed or altered from any source distribution.
 #
+
+ifndef ZL_IS_APP_MAKE
 
 ZILLALIB_PATH := $(or $(ZILLALIB_PATH),$(subst / *,,$(dir $(subst \,/,$(lastword $(MAKEFILE_LIST)))) *))
 
@@ -174,7 +176,7 @@ linux-run: linux-debug-run
 linux-gdb: linux-debug-gdb
 linux-release linux-release-clean linux-release-run linux-release-gdb: ZLLINUX_BUILD = BUILD=RELEASE
 linux-releasedbg linux-releasedbg-clean linux-releasedbg-run linux-releasedbg-gdb: ZLLINUX_BUILD = BUILD=RELEASEDBG
-ZLLINUX_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/Linux/ZillaLibLinux.mk" $(ZLLINUX_BUILD) "ZillaApp=$(ZillaApp)"$(if $(ZLLINUX_ASSETS_EMBED), "ASSETS_EMBED=$(ZLLINUX_ASSETS_EMBED)")$(if $(ZLLINUX_ASSETS_OUTFILE), "ASSETS_OUTFILE=$(ZLLINUX_ASSETS_OUTFILE)")
+ZLLINUX_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/Linux/ZillaLibLinux.mk" $(ZLLINUX_BUILD) "ZillaApp=$(ZillaApp)"
 linux-debug linux-release linux-releasedbg:; $(ZLLINUX_CMD) $(ZLPARAMS_MAKE)
 linux-debug-clean linux-release-clean linux-releasedbg-clean:; $(ZLLINUX_CMD) clean
 linux-debug-run linux-release-run linux-releasedbg-run:; $(ZLLINUX_CMD) run
@@ -187,7 +189,7 @@ emscripten: emscripten-release
 emscripten-clean: emscripten-release-clean
 emscripten-run: emscripten-release-run
 emscripten-release emscripten-release-clean emscripten-release-run: ZLEMSCRIPTEN_PARAMS = BUILD=RELEASE
-ZLEMSCRIPTEN_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/Emscripten/ZillaLibEmscripten.mk" $(ZLEMSCRIPTEN_PARAMS) "ZillaApp=$(ZillaApp)"$(if $(ZLEMSCRIPTEN_ASSETS_EMBED), "ASSETS_EMBED=$(ZLEMSCRIPTEN_ASSETS_EMBED)")$(if $(ZLEMSCRIPTEN_ASSETS_OUTFILE), "ASSETS_OUTFILE=$(ZLEMSCRIPTEN_ASSETS_OUTFILE)")
+ZLEMSCRIPTEN_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/Emscripten/ZillaLibEmscripten.mk" $(ZLEMSCRIPTEN_PARAMS) "ZillaApp=$(ZillaApp)"
 emscripten-debug emscripten-release:; $(ZLEMSCRIPTEN_CMD) $(ZLPARAMS_MAKE)
 emscripten-debug-clean emscripten-release-clean:; $(ZLEMSCRIPTEN_CMD) clean
 emscripten-debug-run emscripten-release-run:; $(ZLEMSCRIPTEN_CMD) $(ZLPARAMS_MAKE) run
@@ -199,7 +201,7 @@ nacl: nacl-release
 nacl-clean: nacl-release-clean
 nacl-run: nacl-release-run
 nacl-release nacl-release-clean nacl-release-run: ZLNACL_PARAMS = BUILD=RELEASE
-ZLNACL_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/NACL/ZillaLibNACL.mk" $(ZLNACL_PARAMS) "ZillaApp=$(ZillaApp)"$(if $(ZLNACL_ASSETS_EMBED), "ASSETS_EMBED=$(ZLNACL_ASSETS_EMBED)")$(if $(ZLNACL_ASSETS_OUTFILE), "ASSETS_OUTFILE=$(ZLNACL_ASSETS_OUTFILE)")
+ZLNACL_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/NACL/ZillaLibNACL.mk" $(ZLNACL_PARAMS) "ZillaApp=$(ZillaApp)"
 nacl-debug nacl-release:; $(ZLNACL_CMD) $(ZLPARAMS_MAKE)
 nacl-debug-clean nacl-release-clean:; $(ZLNACL_CMD) clean
 nacl-debug-run nacl-release-run:; $(ZLNACL_CMD) $(ZLPARAMS_MAKE) run
@@ -342,3 +344,5 @@ ios-scheme:;$(if $(or $(wildcard $(ZLIOS_SCHEME)),$(wildcard ZillaLib-iOS.xcodep
 #------------------------------------------------------------------------------------------------------
 endif
 #------------------------------------------------------------------------------------------------------
+
+endif

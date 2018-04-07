@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2016 Bernhard Schelling
+#  Copyright (C) 2010-2018 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -26,6 +26,7 @@ def get_makefile_int(param,m='Makefile',d=0): return (int((re.findall(param+'\s*
 cmd = ''
 for ln in sys.argv:
 	if ln[0]!='-':cmd = sys.argv.pop(sys.argv.index(ln)).upper();break
+
 if cmd == 'RUN' or cmd == 'WEB':
 	outdir = 'Debug-emscripten'
 	for ln in sys.argv:
@@ -75,47 +76,8 @@ if cmd == 'RUN' or cmd == 'WEB':
 		except:pass
 	sys.exit(0)
 
-elif cmd == 'BUILD':
-	if sys.platform == 'win32': os.environ['PATH'] += os.pathsep + emscripten_dir+os.sep+'..'+os.sep+'Tools'
-	os.environ['PATH'] += os.pathsep + os.path.dirname(sys.executable)
-	pargs = ['make', '--no-print-directory', '-f', emscripten_dir+'/ZillaLibEmscripten.mk', '-j', '4', 'PYTHON='+sys.executable]
-	targs = []
-	vc = False;appname = None
-	for ln in sys.argv:
-		if re.match('-CLEAN', ln, re.I) and targs.count('clean') == 0: targs.insert(0, 'clean')
-		elif re.match('-B', ln, re.I): pargs.append('-B')
-		elif re.match('-REL', ln, re.I): pargs.append('BUILD=RELEASE')
-		elif re.match('-VC', ln, re.I): vc = True
-		else: appname = ln
-	if appname:pargs.append('ZillaApp='+appname)
-	if appname and get_makefile_int('ZLEMSCRIPTEN_ASSETS_EMBED'): pargs.append('ASSETS_EMBED=1')
-	if appname and get_makefile_str('ZLEMSCRIPTEN_ASSETS_OUTFILE'): pargs.append('ASSETS_OUTFILE='+get_makefile_str('ZLEMSCRIPTEN_ASSETS_OUTFILE'))
-	if len(targs) == 0: targs.append('')
-	ret = 0
-	for targ in targs:
-		if targ: pargs.append(targ)
-		#sys.stderr.write("# " + string.join(pargs, " ") + "\n");sys.stderr.flush()
-		if not vc:
-			ret |= subprocess.Popen(pargs).wait()
-		else:
-			r1=re.compile(':(\\d+):')
-			r2=re.compile('\\xe2\\x80[\\x98\\x99]|\\r|\\n')
-			r3=re.compile(re.escape('/cygdrive/'+os.getcwd().replace('\\','/').replace(':','')+'/'),re.IGNORECASE)
-			r4=re.compile('/cygdrive/(.)')
-			p = subprocess.Popen(pargs, shell=True, bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-			while True:
-				l = p.stdout.readline()
-				if not l: break
-				sys.stderr.write(r4.sub('\\1:', r3.sub('',r2.sub('',r1.sub('(\\1) :',l)))) + "\n")
-				sys.stderr.flush()
-			ret |= p.wait()
-		if targ: del pargs[len(pargs)-1]
-	sys.stderr.write("\n")
-	sys.exit(ret)
-
 else:
 	print "No command in arguments specified."
-	print "Valid commands are: BUILD, RUN, WEB"
-	print "BUILD: compile, switches: -vc, -B, -rel, -clean"
+	print "Valid commands are: RUN, WEB"
 	print "RUN: run browser to output HTML"
 	print "WEB: start webserver in output dir run browser to output HTML"

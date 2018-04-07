@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2016 Bernhard Schelling
+#  Copyright (C) 2010-2018 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -79,7 +79,8 @@ CLANGFLAGS += -fno-vectorize -fno-slp-vectorize
 APPFLAGS += $(subst \\\,$(sp),$(foreach F,$(subst \$(sp),\\\,$(D)),"-D$(F)"))
 
 #global LD flags
-LDFLAGS += --memory-init-file 0 -s "EXPORTED_FUNCTIONS=['_main','_ZLFNDraw','_ZLFNText','_ZLFNKey','_ZLFNMove','_ZLFNMouse','_ZLFNWheel','_ZLFNWindow','_ZLFNAudio','_ZLFNHTTP','_ZLFNWebSocket']"
+LDFLAGS  += --memory-init-file 0
+LD_EXPORTED_FUNCTIONS := '_main','_ZLFNDraw','_ZLFNText','_ZLFNKey','_ZLFNMove','_ZLFNMouse','_ZLFNWheel','_ZLFNWindow','_ZLFNAudio','_ZLFNHTTP','_ZLFNWebSocket'
 
 # Compute tool paths
 ifeq ($(wildcard $(EMSCRIPTEN_ROOT)/emcc),)
@@ -144,7 +145,8 @@ PYTHON := "$(PYTHON_NOQUOTE)"
 # Python one liner to delete all .o files when the dependency files were created empty due to compile error
 CMD_DEL_OLD_OBJ := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.path.getsize(a)==0 and os.path.exists(a.rstrip('d')+'o') and os.remove(a.rstrip('d')+'o') for a in sys.argv[1:]]"
 CMD_DEL_FILES := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.remove(a) for a in sys.argv[1:]]"
-CMD_MAKE_EMBED_JS := $(PYTHON) -u -c "import sys,os;sys.stdout.write('try{this['+chr(34)+'Module'+chr(34)+']=Module;}catch(e){this['+chr(34)+'Module'+chr(34)+']=Module={};}Module.preInit=function(){try{FS}catch(e){return}'+chr(10)+''.join([a and 'FS.createPath('+chr(34)+'/'+os.path.dirname(a)+chr(34)+','+chr(34)+os.path.basename(a)+chr(34)+',!0,!0);'+chr(10) for a in sorted(list(set([os.path.dirname(a) for a in sys.argv[1:]])))]+[os.path.exists(a) and 'FS.createDataFile('+chr(34)+'/'+os.path.dirname(a)+chr(34)+','+chr(34)+os.path.basename(a)+chr(34)+',['+','.join([str(ord(x)) for x in open(a,'rb').read()])+'],!0,!0);'+chr(10) for a in sys.argv[1:]])+'};'+chr(10))"
+CMD_MAKE_EMBED_JS_RAW := $(PYTHON) -u -c "import sys,os;sys.stdout.write('try{this['+chr(34)+'Module'+chr(34)+']=Module;}catch(e){this['+chr(34)+'Module'+chr(34)+']=Module={};}Module.preInit=function(){try{FS}catch(e){return}'+chr(10)+''.join([a and 'FS.createPath('+chr(34)+'/'+os.path.dirname(a)+chr(34)+','+chr(34)+os.path.basename(a)+chr(34)+',!0,!0);'+chr(10) for a in sorted(list(set([os.path.dirname(a) for a in sys.argv[1:]])))]+[os.path.exists(a) and 'FS.createDataFile('+chr(34)+'/'+os.path.dirname(a)+chr(34)+','+chr(34)+os.path.basename(a)+chr(34)+',['+','.join([str(ord(x)) for x in open(a,'rb').read()])+'],!0,!0);'+chr(10) for a in sys.argv[1:]])+'};'+chr(10))"
+CMD_MAKE_EMBED_JS_B64 := $(PYTHON) -u -c "import sys,os,base64;sys.stdout.write('try{this['+chr(34)+'Module'+chr(34)+']=Module;}catch(e){this['+chr(34)+'Module'+chr(34)+']=Module={};}Module.preInit=function(){try{FS}catch(e){return}'+chr(10)+'var T=new Uint8Array(128),i=0;for (;i<64;++i)T['+chr(34)+'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'+chr(34)+'.charCodeAt(i)]=i;T[45]=62;T[95]=63,DEC=function(B){if(!B)return new Uint8Array(0);var L=B.length,PH=(B[L-2]==='+chr(34)+'='+chr(34)+'?2:(B[L-1]==='+chr(34)+'='+chr(34)+'?1:0)),a=new Uint8Array(L*3/4-PH),n=0,i=0,j=(PH>0?L-4:L),t=0;while(i<j){t=(T[B.charCodeAt(i)]<<18)|(T[B.charCodeAt(i+1)]<<12)|(T[B.charCodeAt(i+2)]<<6)|T[B.charCodeAt(i+3)];i+=4;a[n++]=(t>>16)&255;a[n++]=(t>>8)&255;a[n++]=t&255;}if(PH===1){t=(T[B.charCodeAt(i)]<<10)|(T[B.charCodeAt(i+1)]<<4)|(T[B.charCodeAt(i+2)]>>2);a[n]=(t>>8)&255;a[n+1]=t&255;}else if(PH===2)a[n]=((T[B.charCodeAt(i)]<<2)|(T[B.charCodeAt(i+1)]>>4))&255;return a;};'+chr(10)+''.join([a and 'FS.createPath('+chr(34)+'/'+os.path.dirname(a)+chr(34)+','+chr(34)+os.path.basename(a)+chr(34)+',!0,!0);'+chr(10) for a in sorted(list(set([os.path.dirname(a) for a in sys.argv[1:]])))]+[os.path.exists(a) and 'FS.createDataFile('+chr(34)+'/'+os.path.dirname(a)+chr(34)+','+chr(34)+os.path.basename(a)+chr(34)+',DEC('+chr(34)+base64.b64encode(open(a,'rb').read())+chr(34)+'),!0,!0,!0);'+chr(10) for a in sys.argv[1:]])+'};'+chr(10))"
 CMD_MERGE_JS_FILES := $(PYTHON) -u -c "import sys,re;b=chr(92);r=b+'r';n=b+'n';[sys.stdout.write(re.sub(n+n+'+',n,re.sub(n+'//.*'+n,n,re.sub(r,n,open(a,'rb').read())))) for a in sys.argv[1:]]"
 
 # Disable DOS PATH warning when using Cygwin based tools Windows
@@ -152,9 +154,19 @@ CYGWIN ?= nodosfilewarning
 export CYGWIN
 
 #------------------------------------------------------------------------------------------------------
-ifdef ZillaApp
+ifeq ($(MSVC),1)
 #------------------------------------------------------------------------------------------------------
 
+CMD_MSVC_FILTER := $(PYTHON) -u -c "import re,sys,subprocess;r1=re.compile(':(\\d+):');p=subprocess.Popen(sys.argv[1:],shell=False,stdout=subprocess.PIPE,stderr=subprocess.STDOUT); [sys.stderr.write(r1.sub('(\\1) :',l).rstrip()+chr(10)) for l in iter(p.stdout.readline, b'')]; sys.stderr.write(chr(10));sys.exit(p.wait())"
+
+all:;@+$(CMD_MSVC_FILTER) "$(MAKE)" --no-print-directory -f "$(THIS_MAKEFILE)" -j 4 "MSVC=0"
+
+#------------------------------------------------------------------------------------------------------
+else ifdef ZillaApp
+#------------------------------------------------------------------------------------------------------
+
+ZL_IS_APP_MAKE = 1
+-include Makefile
 APPSOURCES := $(wildcard *.cpp)
 -include sources.mk
 APPSOURCES += $(foreach F, $(ZL_ADD_SRC_FILES), $(wildcard $(F)))
@@ -162,13 +174,17 @@ ifeq ($(APPSOURCES),)
   $(error No source files found for $(ZillaApp))
 endif
 
+LDFLAGS += -s "EXPORTED_FUNCTIONS=[$(LD_EXPORTED_FUNCTIONS)$(if $(ZLEMSCRIPTEN_ADD_EXPORTS),$(strip ,)'$(subst $(sp),$(strip ','),$(strip $(ZLEMSCRIPTEN_ADD_EXPORTS)))',)]"
+LDFLAGS += $(if $(ZLEMSCRIPTEN_TOTAL_MEMORY),-s "TOTAL_MEMORY=$(ZLEMSCRIPTEN_TOTAL_MEMORY)")
+LDFLAGS += $(if $(ZLEMSCRIPTEN_ALLOW_MEMORY_GROWTH),-s "ALLOW_MEMORY_GROWTH=1")
+
 -include assets.mk
 ASSET_ALL_PATHS := $(strip $(foreach F,$(ASSETS),$(wildcard ./$(F)) $(wildcard ./$(F)/*) $(wildcard ./$(F)/*/*) $(wildcard ./$(F)/*/*/*) $(wildcard ./$(F)/*/*/*/*) $(wildcard ./$(F)/*/*/*/*/*)))
 ASSET_ALL_STARS := $(if $(ASSET_ALL_PATHS),$(strip $(foreach F,$(subst *./, ,*$(subst $(sp),*,$(ASSET_ALL_PATHS))),$(if $(wildcard $(subst *,\ ,$(F))/.),,$(F)))))
-ASSET_JS        := $(if $(ASSET_ALL_STARS),$(if $(ASSETS_OUTFILE),$(APPOUTDIR)/$(ASSETS_OUTFILE),$(APPOUTDIR)/$(ZillaApp)_Files.js),)
+ASSET_JS        := $(if $(ASSET_ALL_STARS),$(if $(ZLEMSCRIPTEN_ASSETS_OUTFILE),$(APPOUTDIR)/$(ZLEMSCRIPTEN_ASSETS_OUTFILE),$(APPOUTDIR)/$(ZillaApp)_Files.js),)
 
 ifeq ($(BUILD),RELEASE)
-  ifeq ($(if $(ASSET_ALL_STARS),$(ASSETS_EMBED),),1)
+  ifeq ($(if $(ASSET_ALL_STARS),$(ZLEMSCRIPTEN_ASSETS_EMBED),),1)
     APPOUTBIN := $(APPOUTDIR)/$(ZillaApp)_WithData.js.gz
   else
     APPOUTBIN := $(if $(ASSET_ALL_STARS),$(ASSET_JS).gz )$(APPOUTDIR)/$(ZillaApp).js.gz
@@ -211,7 +227,7 @@ $(APPOUTDIR)/$(ZillaApp).js : $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.b
 
 $(ASSET_JS) : $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)))
 	$(info Building $@ with $(words $(ASSET_ALL_STARS)) assets ...)
-	@$(CMD_MAKE_EMBED_JS) $(subst *, ,$(subst $(sp)," ","$(ASSET_ALL_STARS)")) >"$@"
+	@$(CMD_MAKE_EMBED_JS_B64) $(subst *, ,$(subst $(sp)," ","$(ASSET_ALL_STARS)")) >"$@"
 
 $(APPOUTDIR)/$(ZillaApp)_WithData.js : $(APPOUTDIR)/$(ZillaApp).js $(ASSET_JS)
 	$(info Merging $(ZillaApp)_Files.js and $(ZillaApp).js into $@ ...)
@@ -226,7 +242,7 @@ $(APPOUTDIR)/$(ZillaApp).html : $(dir $(THIS_MAKEFILE))ZillaLibEmscripten.html
 	$(info $(if $(wildcard $@),Warning: $^ is newer than $@ - delete the local build file to have it regenerated,Generating $@ ...))
 	@$(if $(wildcard $@),,$(PYTHON) -c "open('$@','wb').write(file('$^','rb').read().replace('{{ZILLAAPP}}','$(ZillaApp)').replace('{{ZILLAAPPSCRIPT}}','$(subst ",'+chr(34)+',$(ZILLAAPPSCRIPT))'))")
 
-run web : all
+run web : $(if $(RUNWITHOUTBUILD),,all)
 	@$(PYTHON) "$(dir $(THIS_MAKEFILE))ZillaLibEmscripten.py" $@ "$(APPOUTDIR)" "$(ZillaApp).html"
 
 #------------------------------------------------------------------------------------------------------

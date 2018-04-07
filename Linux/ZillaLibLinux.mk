@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2016 Bernhard Schelling
+#  Copyright (C) 2010-2018 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -22,6 +22,7 @@
 sp := $(*NOTEXIST*) $(*NOTEXIST*)
 THIS_MAKEFILE := $(subst \,/,$(lastword $(MAKEFILE_LIST)))
 ZILLALIB_DIR = $(subst |,/,$(subst <,,$(subst <.|,,<$(subst /,|,$(dir $(subst $(sp),/,$(strip $(subst /,$(sp),$(if $(filter ./,$(dir $(THIS_MAKEFILE))),../a,$(dir $(THIS_MAKEFILE)))))))))))
+-include $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk
 
 #------------------------------------------------------------------------------------------------------
 
@@ -33,7 +34,7 @@ STRIP:=strip
 
 # Build global settings
 APPFLAGS    := -I$(ZILLALIB_DIR)Include
-ZLFLAGS     := -I$(ZILLALIB_DIR)Include -I$(ZILLALIB_DIR)Source/zlib -I$(ZILLALIB_DIR)Source/sdl/include
+ZLFLAGS     := -I$(ZILLALIB_DIR)Include -I$(ZILLALIB_DIR)Source/zlib
 WARNINGS    := -pedantic -Wall -Wno-long-long -Wno-error=unused-parameter -Wno-pedantic -Wno-unused-local-typedefs -Wno-unused-function
 DEPWARNINGS := -Wno-main -Wno-empty-body -Wno-char-subscripts -Wno-sign-compare -Wno-unused-value -Wno-unused-variable -Wno-unused-but-set-variable -Wno-nonnull -Werror
 CFLAGS      := $(WARNINGS) -pthread -msse -mfpmath=sse -ffast-math -fomit-frame-pointer -fvisibility=hidden -fno-exceptions -fno-non-call-exceptions -ffunction-sections -fdata-sections
@@ -46,8 +47,7 @@ ifeq ($(BUILD),RELEASE)
   APPOUTDIR := Release-linux
   CFLAGS    += -DNDEBUG -O2 -s
   LDFLAGS   += -O2 -s -Wl,--strip-all -fno-ident
-else
-ifeq ($(BUILD),RELEASEDBG)
+else ifeq ($(BUILD),RELEASEDBG)
   ZLOUTDIR  := $(ZILLALIB_DIR)Linux/build-releasedbg
   APPOUTDIR := ReleaseDbg-linux
   CFLAGS    += -DNDEBUG -ggdb -O2
@@ -58,6 +58,18 @@ else
   CFLAGS    += -DDEBUG -D_DEBUG -DZILLALOG -g -O0
   LDFLAGS   += -g -O0
 endif
+
+ifdef USE_EXTERNAL_SDL2
+  ifeq ($(if $(EXTERNAL_SDL2_INCLUDE),$(wildcard $(EXTERNAL_SDL2_INCLUDE)/SDL.h),),)
+    $(error External SDL2 includes not found in set path ($(EXTERNAL_SDL2_INCLUDE)). Fix path in $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with EXTERNAL_SDL2_INCLUDE = /path/to/SDL2/include)
+  endif
+  ifeq ($(if $(EXTERNAL_SDL2_SO),$(wildcard $(EXTERNAL_SDL2_SO)),),)
+    $(error External SDL2 .so file not found in set path ($(EXTERNAL_SDL2_SO)). Fix path in $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with EXTERNAL_SDL2_SO = /path/to/libSDL2.so)
+  endif
+  ZLFLAGS   += -DZL_USE_EXTERNAL_SDL -I$(EXTERNAL_SDL2_INCLUDE)
+  LDFLAGS   += $(EXTERNAL_SDL2_SO)
+else
+  ZLFLAGS   += -I$(ZILLALIB_DIR)Source/sdl/include
 endif
 
 #add defines from the make command line (e.g. D=MACRO=VALUE)
@@ -84,6 +96,8 @@ GCCMFLAG := $(if $(filter $(CPUTYPE),x86_32),-m32,-m64)
 ifdef ZillaApp
 #------------------------------------------------------------------------------------------------------
 
+ZL_IS_APP_MAKE = 1
+-include Makefile
 APPSOURCES := $(wildcard *.cpp)
 -include sources.mk
 APPSOURCES += $(foreach F, $(ZL_ADD_SRC_FILES), $(wildcard $(F)))
@@ -95,10 +109,10 @@ ifeq ($(findstring RELEASE,$(BUILD)),RELEASE)
 -include assets.mk
 ASSET_ALL_PATHS := $(strip $(foreach F,$(ASSETS),$(wildcard ./$(F)) $(wildcard ./$(F)/*) $(wildcard ./$(F)/*/*) $(wildcard ./$(F)/*/*/*) $(wildcard ./$(F)/*/*/*/*) $(wildcard ./$(F)/*/*/*/*/*)))
 ASSET_ALL_STARS := $(if $(ASSET_ALL_PATHS),$(strip $(foreach F,$(subst *./, ,*$(subst $(sp),*,$(ASSET_ALL_PATHS))),$(if $(wildcard $(subst *,\ ,$(F))/.),,$(F)))))
-ASSET_ZIP       := $(if $(ASSET_ALL_STARS),$(if $(ASSETS_OUTFILE),$(APPOUTDIR)/$(ASSETS_OUTFILE),$(APPOUTDIR)/$(ZillaApp).dat),)
+ASSET_ZIP       := $(if $(ASSET_ALL_STARS),$(if $(ZLLINUX_ASSETS_OUTFILE),$(APPOUTDIR)/$(ZLLINUX_ASSETS_OUTFILE),$(APPOUTDIR)/$(ZillaApp).dat),)
 endif
 
-ifeq ($(if $(ASSET_ZIP),$(ASSETS_EMBED),),1)
+ifeq ($(if $(ASSET_ZIP),$(ZLLINUX_ASSETS_EMBED),),1)
 APPOUTBIN := $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE)_WithData
 else
 APPOUTBIN := $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE)
@@ -135,7 +149,7 @@ $(ASSET_ZIP) : $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)
 
 $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE) : $(APPOBJS) $(ZLOUTDIR)/ZillaLib_$(CPUTYPE).a
 	$(info Linking $@ ...)
-	@$(CXX) -o $@ $^ $(GCCMFLAG) $(LDFLAGS)
+	$(CXX) -o $@ $^ $(GCCMFLAG) $(LDFLAGS)
 	@-$(if $(filter RELEASE,$(BUILD)),$(if $(STRIP),$(STRIP) -R .comment $@))
 
 $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE)_WithData : $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE) $(ASSET_ZIP)
@@ -165,7 +179,10 @@ DEPSOURCES := \
 	$(wildcard $(ZILLALIB_DIR)Source/zlib/*.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/libtess2/*.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/enet/*.c) \
-	$(wildcard $(ZILLALIB_DIR)Source/stb/*.cpp) \
+	$(wildcard $(ZILLALIB_DIR)Source/stb/*.cpp)
+
+ifndef USE_EXTERNAL_SDL2
+DEPSOURCES += \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/audio/SDL_audio.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/audio/SDL_audiodev.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/audio/alsa/SDL_alsa_audio.c) \
@@ -180,6 +197,7 @@ DEPSOURCES := \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/video/SDL_rect.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/video/SDL_video.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/video/x11/*.c)
+endif
 
 ZLSOURCES := $(subst $(ZILLALIB_DIR),,$(ZLSOURCES))
 DEPSOURCES := $(subst $(ZILLALIB_DIR),,$(DEPSOURCES))

@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2016 Bernhard Schelling
+#  Copyright (C) 2010-2018 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -41,8 +41,7 @@ ifeq ($(BUILD),RELEASE)
   ZILLAFLAG :=
   DBGCFLAGS := -DNDEBUG
   FINALIZEFLAGS := --compress
-else
-ifeq ($(BUILD),GDB)
+else ifeq ($(BUILD),GDB)
   ZLOUTDIR  := $(ZILLALIB_DIR)NACL/build-gdb
   APPOUTDIR := Debug-nacl-gdb
   ZILLAFLAG := -DZILLALOG
@@ -52,7 +51,6 @@ else
   APPOUTDIR := Debug-nacl
   ZILLAFLAG := -DZILLALOG
   DBGCFLAGS := -DDEBUG -D_DEBUG
-endif
 endif
 
 # Project Build flags
@@ -106,9 +104,19 @@ CYGWIN ?= nodosfilewarning
 export CYGWIN
 
 #------------------------------------------------------------------------------------------------------
-ifdef ZillaApp
+ifeq ($(MSVC),1)
 #------------------------------------------------------------------------------------------------------
 
+CMD_MSVC_FILTER := python -u -c "import re,sys,subprocess;r1=re.compile(':(\\d+):');p=subprocess.Popen(sys.argv[1:],shell=False,stdout=subprocess.PIPE,stderr=subprocess.STDOUT); [sys.stderr.write(r1.sub('(\\1) :',l).rstrip()+chr(10)) for l in iter(p.stdout.readline, b'')]; sys.stderr.write(chr(10));sys.exit(p.wait())"
+
+all:;@+$(CMD_MSVC_FILTER) "$(MAKE)" --no-print-directory -f "$(THIS_MAKEFILE)" -j 4 "MSVC=0"
+
+#------------------------------------------------------------------------------------------------------
+else ifdef ZillaApp
+#------------------------------------------------------------------------------------------------------
+
+ZL_IS_APP_MAKE = 1
+-include Makefile
 APPSOURCES := $(wildcard *.cpp)
 -include sources.mk
 APPSOURCES += $(foreach F, $(ZL_ADD_SRC_FILES), $(wildcard $(F)))
@@ -119,11 +127,11 @@ endif
 -include assets.mk
 ASSET_ALL_PATHS := $(strip $(foreach F,$(ASSETS),$(wildcard ./$(F)) $(wildcard ./$(F)/*) $(wildcard ./$(F)/*/*) $(wildcard ./$(F)/*/*/*) $(wildcard ./$(F)/*/*/*/*) $(wildcard ./$(F)/*/*/*/*/*)))
 ASSET_ALL_STARS := $(if $(ASSET_ALL_PATHS),$(strip $(foreach F,$(subst *./, ,*$(subst $(sp),*,$(ASSET_ALL_PATHS))),$(if $(wildcard $(subst *,\ ,$(F))/.),,$(F)))))
-ASSET_ZIP       := $(if $(ASSET_ALL_STARS),$(if $(ASSETS_OUTFILE),$(APPOUTDIR)/$(ASSETS_OUTFILE),$(APPOUTDIR)/$(ZillaApp)_Files.dat))
-ASSET_LOADFILE  := $(if $(ASSET_ALL_STARS),$(if $(ASSETS_OUTFILE),$(ASSETS_OUTFILE),$(ZillaApp)_Files.dat))
+ASSET_ZIP       := $(if $(ASSET_ALL_STARS),$(if $(ZLNACL_ASSETS_OUTFILE),$(APPOUTDIR)/$(ZLNACL_ASSETS_OUTFILE),$(APPOUTDIR)/$(ZillaApp)_Files.dat))
+ASSET_LOADFILE  := $(if $(ASSET_ALL_STARS),$(if $(ZLNACL_ASSETS_OUTFILE),$(ZLNACL_ASSETS_OUTFILE),$(ZillaApp)_Files.dat))
 
 ifeq ($(BUILD),RELEASE)
-  ifeq ($(if $(ASSET_ALL_STARS),$(ASSETS_EMBED),),1)
+  ifeq ($(if $(ASSET_ALL_STARS),$(ZLNACL_ASSETS_EMBED),),1)
     APPOUTBINS := $(APPOUTDIR)/$(ZillaApp)_WithData.pexe.gz
     undefine ASSET_LOADFILE
   else
@@ -195,16 +203,16 @@ else
 	@python -c "open('$@','wb').write('{\"program\":{\"portable\":{\"pnacl-translate\":{\"url\":\"$(firstword $(APPOUTBINS:$(APPOUTDIR)/%=%))\"},\"pnacl-debug\":{\"url\":\"$(ZillaApp)_unstripped.bc\"}}}}')"
 endif
 
-web run : all
+web run : $(if $(RUNWITHOUTBUILD),,all)
 	@python "$(dir $(THIS_MAKEFILE))ZillaLibNACL.py" $@ "$(APPOUTDIR)" "$(ZillaApp).html"
 
 #------------------------------------------------------------------------------------------------------
 else
 #------------------------------------------------------------------------------------------------------
 
-.PHONY: clean
-
 all: $(ZLOUTDIR)/ZillaLib.a
+
+.PHONY: clean
 
 clean:
 	$(info Removing all build files ...)

@@ -51,10 +51,15 @@
 #endif
 
 extern "C" {
+#ifdef ZL_USE_EXTERNAL_SDL
+#include <sdl.h>
+#define SDL_internal_h_
+#include <../src/video/SDL_sysvideo.h>
+#else
 #include "sdl/video/SDL_sysvideo.h"
 #include "sdl/joystick/SDL_sysjoystick.h"
-#include "sdl/timer/SDL_timer_c.h"
 void SDL_ResetMouse(void);
+#endif
 }
 
 //for ZL_OpenExternalUrl
@@ -224,13 +229,16 @@ void ZL_Delay(ticks_t ms)
 
 void ZL_StartTicks()
 {
-	SDL_TicksInit();
 }
 
 //Joystick
 bool ZL_InitJoystickSubSystem()
 {
+	#ifndef ZL_USE_EXTERNAL_SDL
 	return (SDL_JoystickInit() ? true : false);
+	#else
+	return (SDL_Init(SDL_INIT_JOYSTICK) ? true : false);
+	#endif
 }
 
 int ZL_NumJoysticks()
@@ -267,11 +275,12 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	if (SDL_VideoInit(NULL) < 0) { ZL_SDL_ShowError("Could not initialize video display"); return false; }
 
 	//limit window size to desktop resolution of primary display (if data can be acquired via SDL)
-	SDL_VideoDevice *device = SDL_GetVideoDevice();
-	if (device && device->displays)
+	SDL_DisplayMode DesktopMode = { 0, 0, 0, 0, 0 };
+	SDL_GetDesktopDisplayMode(0, &DesktopMode);
+	if (DesktopMode.w)
 	{
-		if (device->displays->desktop_mode.w > 500 && width > device->displays->desktop_mode.w) width = device->displays->desktop_mode.w;
-		if (device->displays->desktop_mode.h > 400 && height > device->displays->desktop_mode.h) height = device->displays->desktop_mode.h;
+		if (DesktopMode.w > 500 && width > DesktopMode.w) width = DesktopMode.w;
+		if (DesktopMode.h > 400 && height > DesktopMode.h) height = DesktopMode.h;
 	}
 
 	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
@@ -351,9 +360,10 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 
 void ZL_UpdateTPFLimit()
 {
-	SDL_VideoDevice *device = SDL_GetVideoDevice();
-	if (!device) return;
-	bool UseVSync = (device->displays && ZL_TPF_Limit && ZL_TPF_Limit == (unsigned short)((1000.0f / (float)device->displays->desktop_mode.refresh_rate)-0.0495f));
+	SDL_DisplayMode DisplayMode = { 0, 0, 0, 0, 0 };
+	SDL_GetCurrentDisplayMode(0, &DisplayMode);
+	if (!DisplayMode.refresh_rate) return;
+	bool UseVSync = (ZL_TPF_Limit && ZL_TPF_Limit == (unsigned int)((1000.0f / (float)DisplayMode.refresh_rate)-0.0495f));
 	SDL_GL_SetSwapInterval(UseVSync ? 1 : 0);
 	ZL_MainApplicationFlags = (UseVSync ? ZL_MainApplicationFlags & ~ZL_APPLICATION_NOVSYNC : ZL_MainApplicationFlags | ZL_APPLICATION_NOVSYNC);
 }
@@ -466,9 +476,11 @@ void ProcessSDLEvents()
 					//linux SDL loses input focus when switching to fullscreen
 					if (ZL_SDL_Window->flags & SDL_WINDOW_FULLSCREEN) ZL_SDL_Window->flags |= SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_MOUSE_FOCUS;
 				}
+				#ifndef ZL_USE_EXTERNAL_SDL
 				if ((out.window.event == ZL_WINDOWEVENT_MINIMIZED || out.window.event == ZL_WINDOWEVENT_FOCUS) && !ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS)) SDL_ResetMouse();
+				#endif
 				break;
-			#if defined(ZILLALOG)
+			#if 0 //defined(ZILLALOG)
 			case SDL_APP_TERMINATING: printf("UNUSED SDL EVENT [SDL_APP_TERMINATING]\n"); break;
 			case SDL_APP_LOWMEMORY: printf("UNUSED SDL EVENT [SDL_APP_LOWMEMORY]\n"); break;
 			case SDL_APP_WILLENTERBACKGROUND: printf("UNUSED SDL EVENT [SDL_APP_WILLENTERBACKGROUND]\n"); break;
@@ -496,8 +508,6 @@ void ProcessSDLEvents()
 			case SDL_RENDER_TARGETS_RESET: printf("UNUSED SDL EVENT [SDL_RENDER_TARGETS_RESET]\n"); break;
 			case SDL_USEREVENT: printf("UNUSED SDL EVENT [SDL_USEREVENT]\n"); break;
 			#endif
-			default:
-				continue;
 		}
 		ZL_Display_Process_Event(out);
 	}
@@ -505,9 +515,10 @@ void ProcessSDLEvents()
 
 void ZL_SetFullscreen(bool toFullscreen)
 {
+	#if 0 //#ifndef ZL_USE_EXTERNAL_SDL
 	SDL_VideoDevice *device = SDL_GetVideoDevice();
 	SDL_VideoDisplay *display = SDL_GetDisplayForWindow(ZL_SDL_Window);
-	if(toFullscreen)
+	if (toFullscreen)
 	{
 		ZL_SDL_Window->flags |= SDL_WINDOW_FULLSCREEN;
 		ZL_SDL_Window->x = 0;
@@ -527,12 +538,22 @@ void ZL_SetFullscreen(bool toFullscreen)
 	device->SetWindowFullscreen(device, ZL_SDL_Window, display, (SDL_bool)toFullscreen);
 	if(toFullscreen) SDL_OnWindowResized(ZL_SDL_Window);
 	else SDL_SetWindowSize(ZL_SDL_Window, ZL_SDL_Window->windowed.w, ZL_SDL_Window->windowed.h);
+	#else
+	if (toFullscreen)
+	{
+		SDL_SetWindowFullscreen(ZL_SDL_Window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+	}
+	else
+	{
+		SDL_SetWindowFullscreen(ZL_SDL_Window, 0);
+		SDL_SetWindowSize(ZL_SDL_Window, ZL_SDL_Window->windowed.w, ZL_SDL_Window->windowed.h);
+	}
+	#endif
 }
 
 void ZL_SetPointerLock(bool doLockPointer)
 {
 	ZL_SDL_Window->flags = (doLockPointer ? (ZL_SDL_Window->flags|ZL_WINDOW_POINTERLOCK) : (ZL_SDL_Window->flags&~ZL_WINDOW_POINTERLOCK));
-	//SDL_ShowCursor(doLockPointer ? 0 : 1);
 	SDL_SetRelativeMouseMode((SDL_bool)doLockPointer);
 }
 
@@ -553,7 +574,7 @@ bool ZL_AudioOpen()
 	desired.freq = 44100;
 	desired.format = AUDIO_S16LSB;
 	desired.channels = 2;
-	desired.samples = 4096;
+	desired.samples = 1024; //Used to be 4096, PCs are faster now
 	desired.callback = ZL_SdlAudioMix;
 	desired.userdata = NULL;
 	if (SDL_OpenAudio(&desired, NULL) < 0) return false;
@@ -744,7 +765,9 @@ void ZL_Init3DGLExtensionEntries()
 }
 #endif
 
+#ifndef ZL_USE_EXTERNAL_SDL
 #define ZL_SDL_DO_OVERRIDE_IMPLEMENTATIONS
 #include <SDL_config_zillalib.h>
+#endif
 
 #endif

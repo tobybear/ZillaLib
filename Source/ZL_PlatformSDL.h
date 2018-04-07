@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -22,7 +22,7 @@
 #ifndef __ZL_PLATFORM_SDL__
 #define __ZL_PLATFORM_SDL__
 
-#include "sdl/include/SDL_opengl.h"
+#include <SDL_opengl.h>
 
 #ifdef __cplusplus
 

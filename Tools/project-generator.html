@@ -359,6 +359,7 @@ function generate_project_zip(form)
 	var for_nacl           = form['for_nacl'].checked;
 	var for_emscripten     = form['for_emscripten'].checked;
 
+	var gen_makefile    = form['gen_makefile'].checked;
 	var package_identifier = (package_identifier_base+'.'+proj.toLowerCase());
 	var android_targetsdk = (form['android_targetsdk'] && form['android_targetsdk'].value && (form['android_targetsdk'].value|0) ? (form['android_targetsdk'].value|0) : 15);
 	var smp_internet    = form['smp_internet'].checked;

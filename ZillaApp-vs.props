@@ -66,44 +66,44 @@
     <OutDir>Debug-emscripten\</OutDir>
     <IntDir>Debug-emscripten\</IntDir>
     <BaseIntermediateOutputPath>Debug-emscripten\</BaseIntermediateOutputPath>
-    <NMakeBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -vc "$(ProjectName)"</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -vc -B "$(ProjectName)"</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -vc -clean "$(ProjectName)"</NMakeCleanCommandLine>
-    <LocalDebuggerCommand>$(PythonDir)python.exe</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>"$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" run</LocalDebuggerCommandArguments>
+    <NMakeBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" -B --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" clean</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Release'">
     <OutDir>Release-emscripten\</OutDir>
     <IntDir>Release-emscripten\</IntDir>
     <BaseIntermediateOutputPath>Release-emscripten\</BaseIntermediateOutputPath>
-    <NMakeBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -rel -vc "$(ProjectName)"</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -rel -vc -B "$(ProjectName)"</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" build -rel -vc -clean "$(ProjectName)"</NMakeCleanCommandLine>
-    <LocalDebuggerCommand>$(PythonDir)python.exe</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>"$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.py" run -rel</LocalDebuggerCommandArguments>
+    <NMakeBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" -B --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE clean</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='NACL-Debug'">
     <OutDir>Debug-nacl\</OutDir>
     <IntDir>Debug-nacl\</IntDir>
     <BaseIntermediateOutputPath>Debug-nacl\</BaseIntermediateOutputPath>
-    <NMakeBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -vc "$(ProjectName)"</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -vc -B "$(ProjectName)"</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -vc -clean "$(ProjectName)"</NMakeCleanCommandLine>
-    <LocalDebuggerCommand>$(PythonDir)python.exe</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>"$(ZillaLibDir)/NACL/ZillaLibNACL.py" run</LocalDebuggerCommandArguments>
+    <NMakeBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" -B --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" clean</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='NACL-Release'">
     <OutDir>Release-nacl\</OutDir>
     <IntDir>Release-nacl\</IntDir>
     <BaseIntermediateOutputPath>Release-nacl\</BaseIntermediateOutputPath>
-    <NMakeBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -rel -vc "$(ProjectName)"</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -rel -vc -B "$(ProjectName)"</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>"$(PythonDir)python.exe" "$(ZillaLibDir)/NACL/ZillaLibNACL.py" build -rel -vc -clean "$(ProjectName)"</NMakeCleanCommandLine>
-    <LocalDebuggerCommand>$(PythonDir)python.exe</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>"$(ZillaLibDir)/NACL/ZillaLibNACL.py" run -rel</LocalDebuggerCommandArguments>
+    <NMakeBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" -B --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE clean</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Android-Debug'">
@@ -128,9 +128,7 @@
     <LocalDebuggerCommandArguments>-f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=0 "ZillaApp=$(ProjectName)" -k install pauseatend</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Android-Debug' Or '$(Configuration)'=='Android-Release'">
-    <BuildLog><Path>nul:</Path></BuildLog>
-  </ItemDefinitionGroup>
+  <ItemDefinitionGroup><BuildLog><Path>nul:</Path></BuildLog></ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
