@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -507,7 +507,7 @@ static void ZL_IOS_Deactivate()
 	else if (fpscount == 10)
 	{
 		int tpf = ([displayLink timestamp] - lastfps) / 0.010;
-		if (lastfps && tpf > 17 && tpf > ZL_TPF_Limit + 1) [displayLink setFrameInterval:6];
+		if (lastfps && tpf > 17 && tpf > (int)ZL_TPF_Limit + 1) [displayLink setFrameInterval:6];
 		else { lastfps = [displayLink timestamp]; fpscount = 1; }
 	}
 	else fpscount++;

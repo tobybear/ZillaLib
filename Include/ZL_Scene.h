@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -62,7 +62,7 @@ public:
 	static void DeInit();
 	static ZL_Scene* Get(ZL_SceneType SceneType);
 	static ZL_Scene* GetCurrent();
-	static bool GoToScene(ZL_SceneType SceneType, void* data = NULL);
+	static bool GoToScene(ZL_SceneType SceneType, void* data = NULL, bool SwitchImmediately = false);
 };
 
 #endif //__ZL_SCENE__

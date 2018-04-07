@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -27,7 +27,7 @@
 enum { ZLI_KEYMAP_SIZE = (ZLK_LAST)/8 };
 typedef unsigned int zlipointer_t; //use 30 bits = 5 buttons, 6 mice/touches
 static unsigned char ZLI_Inited, ZLI_MaxPointers, ZLI_Lock, ZLI_Unlock, ZLI_KeyHeld[ZLI_KEYMAP_SIZE];
-struct sZLI_Data { unsigned char KeyDown[ZLI_KEYMAP_SIZE], KeyUp[ZLI_KEYMAP_SIZE], PointerGotMove; zlipointer_t PointerDown, PointerUp; scalar WheelY; };
+struct sZLI_Data { unsigned char KeyDown[ZLI_KEYMAP_SIZE], KeyUp[ZLI_KEYMAP_SIZE], PointerGotMove; zlipointer_t PointerDown, PointerUp; scalar RelX, RelY, WheelY; };
 static sZLI_Data ZLI_Incoming, ZLI_Now;
 static ZL_Vector ZLI_PointerNow[6], ZLI_PointerOld[6], ZLI_PointerClicked[6];
 static zlipointer_t ZLI_PointerHeld;
@@ -42,7 +42,8 @@ static void ZLI_OnKeyDownUp(ZL_KeyboardEvent& e)
 
 static void ZLI_OnPointerDownUp(ZL_PointerPressEvent& e)
 {
-	if (e.which >= 6 || !e.button || e.button >= 6) return;
+	if (e.which >= ZLI_MaxPointers) { if (e.which >= 6) return; ZLI_MaxPointers = e.which+1; }
+	if (!e.button || e.button >= 6) return;
 	zlipointer_t mask = 1 << (e.which * 5 + e.button - 1);
 	if (e.is_down) { ZLI_Incoming.PointerDown |= mask; ZLI_PointerHeld |=  mask; ZLI_PointerClicked[e.which] = e; }
 	else           { ZLI_Incoming.PointerUp   |= mask; ZLI_PointerHeld &= ~mask; }
@@ -54,6 +55,8 @@ static void ZLI_OnPointerMove(ZL_PointerMoveEvent& e)
 	if (e.which >= ZLI_MaxPointers) { if (e.which >= 6) return; ZLI_MaxPointers = e.which+1; }
 	if (!(ZLI_Incoming.PointerGotMove & (1 << e.which))) { ZLI_Incoming.PointerGotMove |= 1<<e.which; ZLI_PointerOld[e.which] = ZLI_PointerNow[e.which]; }
 	ZLI_PointerNow[e.which] = e;
+	ZLI_Incoming.RelX += e.xrel;
+	ZLI_Incoming.RelY += e.yrel;
 }
 
 static void ZLI_OnMouseWheel(ZL_MouseWheelEvent& e)
@@ -241,6 +244,8 @@ ZL_Vector ZL_Input::PointerDelta(int pointernum)
 {
 	return (ZLI_Lock == ZLI_Unlock && pointernum && pointernum <= 6 && (ZLI_Now.PointerGotMove & (1 << (pointernum-1))) ? ZLI_PointerNow[pointernum-1] - ZLI_PointerOld[pointernum-1] : ZL_Vector::Zero);
 }
+
+ZL_Vector ZL_Input::MouseDelta() { return ZL_Vector(ZLI_Now.RelX, ZLI_Now.RelY); }
 
 scalar ZL_Input::MouseWheel() { return (ZLI_Lock == ZLI_Unlock ? ZLI_Now.WheelY : 0); }
 

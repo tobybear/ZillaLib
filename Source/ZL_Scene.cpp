@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -158,7 +158,7 @@ static void SceneManagerDraw()
 	ZL_MainApplication->AfterFrame();
 }
 
-bool ZL_SceneManager::GoToScene(ZL_SceneType SceneType, void* data)
+bool ZL_SceneManager::GoToScene(ZL_SceneType SceneType, void* data, bool SwitchImmediately)
 {
 	ZL_Scene *pScene = Get(SceneType);
 	if (!pScene) { ZL_LOG1("SceneManager", "Unknown scene type: %d", SceneType); return false; }
@@ -168,6 +168,7 @@ bool ZL_SceneManager::GoToScene(ZL_SceneType SceneType, void* data)
 	pSceneTransitionTo = pScene;
 	pSceneTransitionData = data;
 	TransitionStepCount = 1;
+	if (SwitchImmediately) CalculateSceneTransition();
 	return true;
 }
 

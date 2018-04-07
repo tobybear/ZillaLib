@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -33,7 +33,7 @@ struct ZL_JSON_Impl : public ZL_Impl
 	char* ObjectKey;
 	union { char* DataString; std::vector<ZL_JSON_Impl*>* DataChildren; scalar DataNumber; ZL_JSON_Impl* DataProxy; };
 
-	ZL_JSON_Impl() : TypeAndFlags(NULL), ObjectKey(NULL), DataChildren(NULL) { ZL_STATIC_ASSERT(ZL_Json::TYPE_NULL==0, null_type_must_be_zero_for_TypeAndFlags_init); }
+	ZL_JSON_Impl() : TypeAndFlags(NULL), ObjectKey(NULL), DataChildren(NULL) { ZL_STATIC_ASSERTMSG(ZL_Json::TYPE_NULL==0, null_type_must_be_zero_for_TypeAndFlags_init); }
 	ZL_JSON_Impl(const char* src) { Construct(src, strlen(src)); }
 	ZL_JSON_Impl(const ZL_String& src) { Construct(src.c_str(), src.length()); }
 	~ZL_JSON_Impl() { KeepStringsIfReferenced(); ResetValue(); if (KeyNeedFree) { free(ObjectKey); } }
@@ -849,6 +849,77 @@ bool ZL_Base64::IsBase64(const ZL_String& Base64Data)
 }
 
 #include "zlib/zlib.h"
+
+size_t ZL_Compression::Compress(const void* InBuf, size_t InSize, std::vector<unsigned char> &out, int Level, bool ReserveMaxCompressSize)
+{
+	z_stream z;
+	memset(&z, 0, sizeof(z));
+	out.clear();
+	if (sizeof(InSize) != sizeof(z.total_in) && !ZL_VERIFY(InSize <= 0xFFFFFFFF)) return 0; //zlib limit
+	if (deflateInit(&z, Level) != Z_OK) return 0;
+	if (ReserveMaxCompressSize) out.reserve(deflateBound(&z, InSize));
+	for (;;)
+	{
+		if (!z.avail_in && InSize) { z.next_in = (unsigned char*)InBuf + z.total_in; InSize -= (z.avail_in = (InSize < 1048576 ? (unsigned int)InSize : 1048576)); }
+		if (!z.avail_out) { out.resize(out.size() - z.avail_out + 1024); z.next_out = &out[z.total_out]; z.avail_out = (unsigned int)(out.size() - z.total_out); }
+		int status = deflate(&z, (InSize ? Z_NO_FLUSH : Z_FINISH));
+		if (status == Z_OK) continue;
+		if (!ZL_VERIFY(status == Z_STREAM_END)) z.avail_out = out.size();
+		break;
+	}
+	out.resize(out.size() - z.avail_out);
+	ZL_ASSERT(deflateEnd(&z) == Z_OK);
+	return out.size();
+}
+
+size_t ZL_Compression::CompressMaxSize(size_t DecompressedSize)
+{
+	return compressBound(DecompressedSize);
+}
+
+bool ZL_Compression::Compress(const void* InBuffer, size_t InSize, const void* OutBuffer, size_t* OutSize, int Level)
+{
+	if (sizeof(InSize) != sizeof(unsigned long) && !ZL_VERIFY(InSize <= 0xFFFFFFFF)) return false; //zlib limit
+	if (sizeof(*OutSize) != sizeof(unsigned long) && !ZL_VERIFY(*OutSize <= 0xFFFFFFFF)) *OutSize = 0xFFFFFFFF; //zlib limit
+	unsigned long DestSize = (unsigned long)*OutSize;
+	bool Success = (compress2((unsigned char*)OutBuffer, &DestSize, (unsigned char*)InBuffer, (unsigned long)InSize, Level) == Z_OK);
+	*OutSize = DestSize;
+	return Success;
+}
+
+size_t ZL_Compression::Decompress(const void* InBuf, size_t InSize, std::vector<unsigned char> &out, size_t Hint)
+{
+	z_stream z;
+	memset(&z, 0, sizeof(z));
+	out.clear();
+	if (sizeof(InSize) != sizeof(z.total_in) && !ZL_VERIFY(InSize <= 0xFFFFFFFF)) return 0; //zlib limit
+	if (sizeof(Hint) != sizeof(z.avail_out) && !ZL_VERIFY(Hint <= 0xFFFFFFFF)) Hint = 0xFFFFFFFF; //zlib limit
+	if (inflateInit(&z) != Z_OK) return 0;
+	if (Hint) { out.resize(z.avail_out = Hint); z.next_out = &out[0]; }
+	for (;;)
+	{
+		if (!z.avail_in && InSize) { z.next_in = (unsigned char*)InBuf + z.total_in; InSize -= (z.avail_in = (InSize < 1048576 ? (unsigned int)InSize : 1048576)); }
+		if (!z.avail_out) { out.resize(out.size() - z.avail_out + 1024); z.next_out = &out[z.total_out]; z.avail_out = (unsigned int)(out.size() - z.total_out); }
+		int status = inflate(&z, Z_NO_FLUSH);
+		if (status == Z_OK) continue;
+		if (!ZL_VERIFY(status == Z_STREAM_END)) z.avail_out = out.size();
+		break;
+	}
+	out.resize(out.size() - z.avail_out);
+	ZL_ASSERT(inflateEnd(&z) == Z_OK);
+	return out.size();
+}
+
+bool ZL_Compression::Decompress(const void* InBuffer, size_t InSize, const void* OutBuffer, size_t* OutSize)
+{
+	if (sizeof(InSize) != sizeof(unsigned long) && !ZL_VERIFY(InSize <= 0xFFFFFFFF)) return false; //zlib limit
+	if (sizeof(*OutSize) != sizeof(unsigned long) && !ZL_VERIFY(*OutSize <= 0xFFFFFFFF)) *OutSize = 0xFFFFFFFF; //zlib limit
+	unsigned long DestSize = (unsigned long)*OutSize;
+	bool Success = (uncompress((unsigned char*)OutBuffer, &DestSize, (unsigned char*)InBuffer, (unsigned long)InSize) == Z_OK);
+	*OutSize = DestSize;
+	return Success;
+}
+
 unsigned int ZL_Checksum::CRC32(const void* Data, size_t DataSize)
 {
 	return crc32(0, (unsigned char*)Data, DataSize);

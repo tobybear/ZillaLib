@@ -530,11 +530,10 @@ bool ZL_Math::CircleRotBBSweep(const ZL_Vector& c1, const ZL_Vector& c2, const s
 ZL_Vector ZL_Rand::PointIn(const ZL_Rectf& rec) { return ZL_Vector(Range(rec.left, rec.right), Range(rec.low, rec.high)); }
 ZL_Vector ZL_SeededRand::PointIn(const ZL_Rectf& rec) { return ZL_Vector(Range(rec.left, rec.right), Range(rec.low, rec.high)); }
 
-ZL_SeededRand::ZL_SeededRand(unsigned int rand_seed) : w(rand_seed), z((rand_seed ^ 362436069) ^ 521288629), base_w(w), base_z(z) { }
-ZL_SeededRand::ZL_SeededRand(unsigned int rand_seed, int seed_xor) : w(rand_seed), z((rand_seed ^ 362436069) ^ seed_xor), base_w(w), base_z(z) { }
-void ZL_SeededRand::Seed(unsigned int rand_seed) { w = base_w = rand_seed, z = base_z = (rand_seed ^ 362436069) ^ 521288629; }
-void ZL_SeededRand::Seed(unsigned int rand_seed, int seed_xor) { w = base_w = rand_seed, z = base_z = (rand_seed ^ 362436069) ^ seed_xor; }
-void ZL_SeededRand::Reset() { w = base_w; z = base_z; }
+ZL_SeededRand::ZL_SeededRand(unsigned int rand_seed) : w(rand_seed), z((rand_seed ^ 362436069) ^ 521288629) { }
+ZL_SeededRand::ZL_SeededRand(unsigned int rand_seed, int seed_xor) : w(rand_seed), z((rand_seed ^ 362436069) ^ seed_xor) { }
+ZL_SeededRand& ZL_SeededRand::Seed(unsigned int rand_seed) { w = rand_seed, z = (rand_seed ^ 362436069) ^ 521288629; return *this; }
+ZL_SeededRand& ZL_SeededRand::Seed(unsigned int rand_seed, int seed_xor) { w = rand_seed, z = (rand_seed ^ 362436069) ^ seed_xor; return *this; }
 
 unsigned int ZL_SeededRand::UInt()
 {

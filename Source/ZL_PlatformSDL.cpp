@@ -311,7 +311,11 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 
 	glClear(GL_COLOR_BUFFER_BIT);
 	SDL_GL_SwapWindow(ZL_SDL_Window);
-	ZL_UpdateTPFLimit();
+
+	if (ZL_Requested_FPS < 0)
+		ZL_MainApplication->SetFpsLimit(DesktopMode.refresh_rate > 0 ? (unsigned short)DesktopMode.refresh_rate : 60);
+	else
+		ZL_UpdateTPFLimit();
 
 	//const GLubyte* pstrGlVendor = glGetString(GL_VENDOR);
 	//if (pstrGlVendor[0] == 'A' && pstrGlVendor[1] == 'T' && pstrGlVendor[2] == 'I') ZL_MainApplicationFlags |= ZL_APPLICATION_VSYNCHACK;

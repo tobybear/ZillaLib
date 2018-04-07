@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -50,8 +50,9 @@ struct ZL_Input
 	static int DragAnywhere(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT);
 	static int Hover(const ZL_Rectf& rec);
 	static void Consume(int pointernum = 1, int btn = ZL_BUTTON_LEFT);
-	static ZL_Vector Pointer(int pointernum = 1);
-	static ZL_Vector PointerDelta(int pointernum = 1);
+	static ZL_Vector Pointer(int pointernum = 1); //touch or mouse screen position
+	static ZL_Vector PointerDelta(int pointernum = 1); //touch or mouse move delta this frame
+	static ZL_Vector MouseDelta(); //accumulated movement this frame, works for locked mouse pointer
 	static scalar MouseWheel();
 
 	//input locking (i.e. for modal ui)

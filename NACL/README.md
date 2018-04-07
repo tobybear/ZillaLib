@@ -66,16 +66,6 @@ All other settings can be optional, depending on your environment.
 # Building
 
 ## Building from Visual Studio on Windows
-First we need to tell Visual Studio where Python is located. To do so, follow these steps:
-  1. Open up your ZillaLib game project with Visual Studio
-  2. Go to the Property Manager with the "VIEW" menu, "Other Windows", then selecting "Property Manager"
-  3. In the Property Manager screen, open up "ZillaLib" -> "Emscripten-Debug | Win32" -> "Microsoft.Cpp.Win32.user" (double click on it)
-  4. Switch to the "User Macro" sub-category of "Common Properties"
-  5. Click "Add Macro" and enter `PythonDir` as the name
-  6. For the value, enter the full path to the directory where python.exe is located (without specifying python.exe but with a backslash at the end, i.e. `D:\dev\python\`)
-  7. You don't need to check "Set this macro as an environment variable in the build environment"
-  8. Press both "OK" buttons to confirm and save the user macro
-
 In Visual Studio, select "NACL-Debug" (faster build, bigger output, outputs logging data) or "NACL-Release" (optimized build) from the build configuration selection drop down menu at the top. The platform selection (Win32/x64) is irrelevant for NACL builds.
 
 Now you can press "Build Solution" under the "Build" menu and (if everything is setup correctly) get a PEXE file created under your project directory under Debug-nacl or Release-nacl.  

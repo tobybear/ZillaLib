@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -87,45 +87,14 @@ void ZL_Audio::HookMusicMix(bool (*pFuncAudioMix)(char*, int))
 	funcAudioMix = pFuncAudioMix;
 }
 
-bool ZL_PlatformAudioMix(char *stream, int len)
-{
-	bool didFuncAudioMix;
-	if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_MINIMIZED) || !((didFuncAudioMix = (funcAudioMix && funcAudioMix(stream, len))) || ZL_AudioActive->size()))
-	{
-		nothingtomix:
-		memset(stream, 0, len);
-		return false;
-	}
-	if (didFuncAudioMix && !ZL_AudioActive->size()) return true;
-
-	bool haveNothingToMix = false;
-	ZL_MutexLock(ZL_AudioActiveMutex);
-	std::vector<ZL_AudioPlayingHandle>::iterator it = ZL_AudioActive->begin();
-	while (it != ZL_AudioActive->end() && it->paused) ++it;
-	if (it == ZL_AudioActive->end()) haveNothingToMix = true;
-	else
-	{
-		if (!it->mix_into(stream, len, didFuncAudioMix)) ++it;
-		else it = ZL_AudioActive->erase(it);
-
-		while (it != ZL_AudioActive->end())
-		{
-			if (it->paused || !it->mix_into(stream, len, true)) ++it;
-			else it = ZL_AudioActive->erase(it);
-		}
-	}
-	ZL_MutexUnlock(ZL_AudioActiveMutex);
-	if (haveNothingToMix) goto nothingtomix;
-	return true;
-}
-
 struct ZL_Sound_Impl : ZL_Impl
 {
 	ZL_File_Impl* stream_fh;
+	ZL_Sound_Impl* clone_base;
 	void *decoder; //audio decoder handle
 	char* audiodata;
 	size_t audiolen;
-	int audiofixshift;
+	int numactive, audiofixshift;
 	float audiofactor, audiovol;
 	#if defined(__IPHONEOS__)
 	void *IOS_AudioPlayer;
@@ -137,20 +106,20 @@ struct ZL_Sound_Impl : ZL_Impl
 	#define ZL_SOUND_IMPL_PLATFORM_INIT
 	#endif
 
-	ZL_Sound_Impl() : stream_fh(NULL), decoder(NULL), audiodata(NULL), audiolen(0), audiofixshift(0), audiofactor(1), audiovol(1) ZL_SOUND_IMPL_PLATFORM_INIT {}
+	ZL_Sound_Impl() : stream_fh(NULL), clone_base(NULL), decoder(NULL), audiodata(NULL), audiolen(0), numactive(0), audiofixshift(0), audiofactor(1), audiovol(1) ZL_SOUND_IMPL_PLATFORM_INIT {}
 
-	ZL_Sound_Impl(ZL_Sound_Impl* b) : stream_fh(NULL), decoder(NULL), audiodata(NULL), audiolen(b->audiolen), audiofixshift(b->audiofixshift), audiofactor(b->audiofactor), audiovol(b->audiovol) ZL_SOUND_IMPL_PLATFORM_INIT
-		{ if (audiolen) { audiodata = (char*)malloc(b->audiolen); memcpy(audiodata, b->audiodata, audiolen); } }
+	ZL_Sound_Impl(ZL_Sound_Impl* b) : stream_fh(NULL), clone_base(b), decoder(NULL), audiodata(b->audiodata), audiolen(b->audiolen), numactive(0), audiofixshift(b->audiofixshift), audiofactor(b->audiofactor), audiovol(b->audiovol) ZL_SOUND_IMPL_PLATFORM_INIT { b->AddRef(); }
 
 	~ZL_Sound_Impl()
 	{
-		if (ZL_AudioActive) Stop();
+		if (ZL_AudioActive && numactive) Stop();
 		#if defined(__IPHONEOS__)
 		if (IOS_AudioPlayer) { ZL_AudioPlayerRelease(IOS_AudioPlayer); IOS_AudioPlayer = NULL; }
 		#elif defined(__ANDROID__)
 		if (Android_AudioPlayer) { ZL_AudioAndroidRelease(Android_AudioPlayer); Android_AudioPlayer = NULL; return; }
 		#endif
-		if (audiodata) free(audiodata);
+		if (clone_base) clone_base->DelRef();
+		else if (audiodata) free(audiodata);
 		#if defined(STB_VORBIS_INCLUDE_STB_VORBIS_H)
 		if ((stb_vorbis*)decoder) stb_vorbis_close((stb_vorbis*)decoder);
 		#elif defined(_OV_FILE_H_)
@@ -166,7 +135,8 @@ struct ZL_Sound_Impl : ZL_Impl
 		#elif defined(__ANDROID__)
 		if (Android_AudioPlayer) { ZL_AudioAndroidPlay(Android_AudioPlayer, looped); if (startPaused) ZL_AudioAndroidPause(Android_AudioPlayer); return; }
 		#endif
-		if (decoder) Stop(); //stop streamed file before playing it again
+		if (decoder && numactive) Stop(); //stop streamed file before playing it again
+		numactive++;
 		ZL_AudioPlayingHandle a;
 		a.snd = this;
 		a.loop = looped;
@@ -184,13 +154,13 @@ struct ZL_Sound_Impl : ZL_Impl
 		#elif defined(__ANDROID__)
 		if (Android_AudioPlayer) { ZL_AudioAndroidStop(Android_AudioPlayer); return; }
 		#endif
-		bool was_playing = false;
+		const int old_numactive = numactive;
 		ZL_MutexLock(ZL_AudioActiveMutex);
 		for (std::vector<ZL_AudioPlayingHandle>::iterator it = ZL_AudioActive->begin(); it != ZL_AudioActive->end(); )
-			if (it->snd == this) { it = ZL_AudioActive->erase(it); was_playing = true; }
+			if (it->snd == this) { it = ZL_AudioActive->erase(it); numactive--; }
 			else ++it;
 		ZL_MutexUnlock(ZL_AudioActiveMutex);
-		if (was_playing && decoder) OGG_SEEKRESET(decoder);
+		if (numactive < old_numactive && decoder) OGG_SEEKRESET(decoder);
 	}
 
 	void Pause()
@@ -220,16 +190,48 @@ struct ZL_Sound_Impl : ZL_Impl
 	}
 };
 
+bool ZL_PlatformAudioMix(char *stream, int len)
+{
+	bool didFuncAudioMix;
+	if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_MINIMIZED) || !((didFuncAudioMix = (funcAudioMix && funcAudioMix(stream, len))) || ZL_AudioActive->size()))
+	{
+		nothingtomix:
+		memset(stream, 0, len);
+		return false;
+	}
+	if (didFuncAudioMix && !ZL_AudioActive->size()) return true;
+
+	bool haveNothingToMix = false;
+	ZL_MutexLock(ZL_AudioActiveMutex);
+	std::vector<ZL_AudioPlayingHandle>::iterator it = ZL_AudioActive->begin();
+	while (it != ZL_AudioActive->end() && (it->paused || !it->snd->audiofactor)) ++it;
+	if (it == ZL_AudioActive->end()) haveNothingToMix = true;
+	else
+	{
+		if (!it->mix_into(stream, len, didFuncAudioMix)) ++it;
+		else { it->snd->numactive--; it = ZL_AudioActive->erase(it); }
+
+		while (it != ZL_AudioActive->end())
+		{
+			if (it->paused || !it->snd->audiofactor || !it->mix_into(stream, len, true)) ++it;
+			else { it->snd->numactive--; it = ZL_AudioActive->erase(it); }
+		}
+	}
+	ZL_MutexUnlock(ZL_AudioActiveMutex);
+	if (haveNothingToMix) goto nothingtomix;
+	return true;
+}
+
 bool ZL_AudioPlayingHandle::mix_into(char* buf, int rem, bool add)
 {
 	char tmpbuf[512];
 	float factor = audio_global_factor * snd->audiofactor;
 	float vol = snd->audiovol;
-	int fixshift = (factor == 1.0f ? snd->audiofixshift : 0), read, write;
 	if (snd->audiofixshift) factor /= s(1<<snd->audiofixshift);
-	if (factor < 1.0f && factor > 0.98f) factor = 1.0f; //round factor (avoid issues with direct_write)
+	if (factor < 1.0f && factor > 0.99f) factor = 1.0f; //round factor (avoid issues with direct_write)
 	bool rescale = (factor != 1.0f);
 	bool allow_direct_write = (!add && factor <= 1.0f && vol == 1.0f); //no need for tmpbuf
+	int fixshift = (rescale ? 0 : snd->audiofixshift), read, write;
 	short stmp, *ssrc = (short*)buf;
 	do //until no bytes are remaining (or the audio stream is finished without loop)
 	{
@@ -256,7 +258,7 @@ bool ZL_AudioPlayingHandle::mix_into(char* buf, int rem, bool add)
 
 		if (rescale)
 		{
-			write = (int)(read/factor);
+			write = (int)((read+.499f)/factor);
 			if (!write || write & 3) write += 4-(write & 3); //align to shorts per 2 channels
 			if (write > rem) write = rem;
 		}
@@ -265,22 +267,22 @@ bool ZL_AudioPlayingHandle::mix_into(char* buf, int rem, bool add)
 		short *s = (short*)buf, *send = (short*)(buf + write);
 		if (allow_direct_write)
 		{
-			if (!snd->decoder && !rescale) memcpy(buf, ssrc, write);
-			else if (rescale)
+			if (rescale) for (float f = 0; send != s; send-=2, f+=factor)
 			{
-				if (fixshift) for (unsigned int count = write / sizeof(short); count--;) s[count] = ssrc[count>>fixshift];
-				//else          while (total--) s[total] = ssrc[(int)(total*factor)];
-				else for (float f = 0; send != s; send-=2, f+=factor)
-				{
-					int off = (read>>1)-(((int)f)<<1);
-					send[-2] = ssrc[off-2];
-					send[-1] = ssrc[off-1];
-				}
+				int off = (read>>1)-(((int)f)<<1);
+				send[-2] = ssrc[off-2];
+				send[-1] = ssrc[off-1];
 			}
+			else if (fixshift) for (unsigned int count = write / sizeof(short); count--;) s[count] = ssrc[count>>fixshift];
+			else if (s != ssrc) memcpy(buf, ssrc, write);
 		}
 		else if (vol != 1.0f)
 		{
-			if (add) for (float f = 0; s != send; s+=2, f+=factor)
+			if (vol == 0.0f)
+			{
+				if (!add) memset(s, 0, write);
+			}
+			else if (add) for (float f = 0; s != send; s+=2, f+=factor)
 			{
 				int off = ((int)f)<<1;
 				if ((stmp = ssrc[  off])) { int tmp = s[0] + (int)(stmp * vol); s[0] = (tmp > 0x7FFF ? 0x7FFF : (tmp < -0x7FFF ? -0x7FFF : (short)tmp)); }
@@ -335,9 +337,10 @@ bool ZL_AudioPlayingHandle::mix_into(char* buf, int rem, bool add)
 	return (rem > 0); //rem > 0 means the audio stopped during play and is not looped and needs to be removed from the list of playing samples
 }
 
-ZL_Sound_Impl* ZL_Sound_Load(ZL_File_Impl* file_impl, bool stream)
+static ZL_Sound_Impl* ZL_Sound_Load(ZL_File_Impl* file_impl, bool stream)
 {
-	if (!file_impl) return NULL;
+	ZL_ASSERTMSG(ZL_AudioActive, "ZL_Audio::Init needs to be called before using audio functions");
+	if (!file_impl || !ZL_AudioActive) return NULL;
 
 	#ifdef __ANDROID__
 	if (stream && file_impl->archive == ZL_ImplFromOwner<ZL_FileContainer_Impl>(ZL_File::DefaultReadFileContainer))
@@ -459,25 +462,25 @@ const ZL_Sound& ZL_Sound::Play(bool looping, bool startPaused) const
 
 const ZL_Sound& ZL_Sound::Stop() const
 {
-	if (impl) impl->Stop();
+	if (impl && impl->numactive) impl->Stop();
 	return *this;
 }
 
 const ZL_Sound& ZL_Sound::Pause() const
 {
-	if (impl) impl->Pause();
+	if (impl && impl->numactive) impl->Pause();
 	return *this;
 }
 
 const ZL_Sound& ZL_Sound::Resume() const
 {
-	if (impl) impl->Resume();
+	if (impl && impl->numactive) impl->Resume();
 	return *this;
 }
 
 ZL_Sound& ZL_Sound::SetSpeedFactor(scalar factor)
 {
-	if (impl) impl->audiofactor = MAX(0.001f, (float)factor);
+	if (impl) impl->audiofactor = MAX(0.f, (float)factor);
 	#ifdef __IPHONEOS__
 	if (impl && impl->IOS_AudioPlayer) ZL_AudioPlayerRate(impl->IOS_AudioPlayer, (float)factor);
 	#endif
@@ -505,17 +508,12 @@ scalar ZL_Sound::GetVolume()
 
 ZL_Sound ZL_Sound::Clone() const
 {
-	ZL_Sound ret;
-	if (impl) ret.impl = (impl->stream_fh ? ZL_Sound_Load(impl->stream_fh, true) : new ZL_Sound_Impl(impl));
-	return ret;
+	return ZL_ImplMakeOwner<ZL_Sound>((impl ? (impl->stream_fh ? ZL_Sound_Load(impl->stream_fh, true) : new ZL_Sound_Impl(impl)) : NULL), false);
 }
 
 bool ZL_Sound::IsPlaying() const
 {
-	if (!impl || impl->stream_fh) return false;
-	for (std::vector<ZL_AudioPlayingHandle>::iterator it = ZL_AudioActive->begin(); it != ZL_AudioActive->end(); ++it)
-		if (it->snd == impl) return !it->paused;
-	return false;
+	return (impl && impl->numactive && !impl->stream_fh);
 }
 
 #ifdef __IPHONEOS__

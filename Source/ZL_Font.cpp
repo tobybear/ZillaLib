@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -798,6 +798,7 @@ struct ZL_TextBuffer_Impl : ZL_Impl
 		GLsizei newlen = (text && text[0] && fnt ? fnt->CountBuffer(text, vecTTFTexLastIndex) : 0);
 		if (!fnt || newlen > lenmax)
 		{
+			ZL_ASSERTMSG(fnt || !text || !text[0], "The font needs to be loaded before rendering to a text buffer with it");
 			if (vertices) { delete vertices; vertices = NULL; }
 			if (texcoords) { delete texcoords; texcoords = NULL; }
 		}

@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -98,10 +98,9 @@ struct ZL_Sound_Impl;
 struct ZL_Event;
 extern struct ZL_Application* ZL_MainApplication;
 extern int ZL_DoneReturn;
-extern unsigned int ZL_LastFPSTicks;
 enum ZL_ApplicationFlagsInternal { ZL_APPLICATION_DONE = 0x0800, ZL_APPLICATION_NOVSYNC = 0x1000, ZL_APPLICATION_VSYNCFAILED = 0x2000, ZL_APPLICATION_VSYNCHACK = 0x4000 };
-extern unsigned short ZL_TPF_Limit, ZL_Requested_FPS;
-extern unsigned int ZL_MainApplicationFlags;
+extern short ZL_Requested_FPS;
+extern unsigned int ZL_LastFPSTicks, ZL_TPF_Limit, ZL_MainApplicationFlags;
 extern unsigned int *pZL_WindowFlags;
 extern int native_width, native_height, window_viewport[4], window_framebuffer, *active_viewport, active_framebuffer;
 extern bool native_aspectcorrection;
@@ -112,7 +111,6 @@ extern void _ZL_Display_KeepAlive();
 extern void ZL_Display_Process_Event(ZL_Event& event);
 extern void (*funcSceneManagerCalculate)(), (*funcSceneManagerDraw)();
 extern bool (*funcProcessEventsJoystick)(ZL_Event&);
-extern ZL_Sound_Impl* ZL_Sound_Load(ZL_File_Impl* file_impl, bool stream);
 extern ZL_Sound_Impl* ZL_Sound_LoadPlatform(void* data);
 extern bool ZL_PlatformAudioMix(char *stream, int len);
 extern bool (*funcAudioMix)(char*, int);

@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -286,7 +286,7 @@ static void HandleMessage(PP_Instance instance, PP_Var msg)
 	else if (!memcmp(utf8msg, "RUN", 3) && inited_ && !running_)
 	{
 		ZL_LOG2("NACL", "Running with %s callback (%d)", ((ZL_TPF_Limit > (unsigned short)(1000/55)) ? "tpf" : "asap"), ZL_TPF_Limit);
-		if (ZL_TPF_Limit > (unsigned short)(1000/55)) update_tpf_callback(NULL, 0);
+		if (ZL_TPF_Limit > (unsigned int)(1000/55)) update_tpf_callback(NULL, 0);
 		else { update_asap_callback(NULL, 0); ZL_TPF_Limit = 0; }
 		running_ = true;
 	}

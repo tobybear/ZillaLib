@@ -26,7 +26,7 @@
 
 #define ZLV3(x,y,z) ZL_Vector3(s(x), s(y), s(z))
 
-//Float based 3d vector (also used as points, positions and any kind of 2d coordinates)
+//Float based 3d vector (also used as points, positions and any kind of 3d coordinates)
 struct ZL_Vector3
 {
 	scalar x, y, z;

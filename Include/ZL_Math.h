@@ -90,6 +90,7 @@ template <typename C_ARRAY, size_t N> char (&__COUNT_OF_HELPER(C_ARRAY(&)[N]))[N
 #else //same without c++, a bit less safe (runs without error given certain pointers)
 #define COUNT_OF(arr) ((sizeof(arr)/sizeof(0[arr]))/((size_t)(!(sizeof(arr) % sizeof(0[arr])))))
 #endif
+#define OFFSET_OF(type, member) ((size_t)(ptrdiff_t)&(const volatile char&)((type*)0)->member)
 
 // This header can be included by c code solely for the scalar definition
 #ifdef __cplusplus
@@ -505,12 +506,11 @@ struct ZL_SeededRand
 {
 	ZL_SeededRand(unsigned int rand_seed = ZL_Rand::UInt());
 	ZL_SeededRand(unsigned int rand_seed, int seed_xor);
-	void Seed(unsigned int rand_seed = ZL_Rand::UInt());
-	void Seed(unsigned int rand_seed, int seed_xor);
-	void Reset();
-	unsigned int UInt();
-	scalar Factor();    // >= 0.0 && <= 1.0
-	scalar FactorEx();  // >= 0.0 && <  1.0
+	ZL_SeededRand& Seed(unsigned int rand_seed = ZL_Rand::UInt());
+	ZL_SeededRand& Seed(unsigned int rand_seed, int seed_xor);
+	unsigned int UInt(); // >= 0 && <= 0xFFFFFFFF
+	scalar Factor();     // >= 0.0 && <= 1.0
+	scalar FactorEx();   // >= 0.0 && <  1.0
 
 	inline int Int(const int max) { return (int)(FactorEx()*(max + 1)); }                                   // >= 0    && <= max
 	inline int Int(const int min, const int max) { return min + (int)(FactorEx()*(max + 1 - min)); }        // >= min  && <= max
@@ -534,7 +534,7 @@ struct ZL_SeededRand
 	template <typename O> void ShuffleArray(O& arr) { for (int i = (int)COUNT_OF(arr) - 1; i > 0; i--) std::swap(arr[i], arr[Int(i)]); }
 	template <typename O> void Shuffle(O& arr, size_t count) { for (int i = (int)count - 1; i > 0; i--) std::swap(arr[i], arr[Int(i)]); }
 
-	unsigned int w, z, base_w, base_z;
+	unsigned int w, z;
 };
 
 #endif //__cplusplus

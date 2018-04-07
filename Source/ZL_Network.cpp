@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -23,7 +23,6 @@
 #include "ZL_Application.h"
 #include "ZL_Impl.h"
 #include "ZL_Platform.h"
-#include <assert.h>
 
 #ifdef ZL_USE_ENET
 
@@ -44,7 +43,7 @@ struct ZL_Connection_Impl : ZL_Impl
 
 static void OpenConnectionsAdd(ZL_Connection_Impl* c)
 {
-	assert(OpenConnections || (ZL_Application::Log("NETWORK", "*** ERROR: ZL_Network::Init has not been run!"), 0));
+	ZL_ASSERTMSG(OpenConnections, "ZL_Network::Init needs to be called before using network functions");
 	ZL_MutexLock(ZL_OpenConnectionsMutex);
 	for (std::vector<ZL_Connection_Impl*>::iterator it = OpenConnections->begin(); it != OpenConnections->end(); ++it)
 		if (*it == c) goto skipadd;
@@ -122,7 +121,7 @@ struct ZL_Server_Impl : ZL_Connection_Impl
 
 	void Open(int server_port, unsigned short num_connections, const char *bind_host, unsigned char num_channels)
 	{
-		assert(OpenConnections || (ZL_Application::Log("NETWORK", "Tried to open a connection without initializing with ZL_Network::Init first"), 0));
+		ZL_ASSERTMSG(OpenConnections, "ZL_Network::Init needs to be called before using network functions");
 		if (host) Close(0, true);
 
 		ENetAddress address;
@@ -150,7 +149,7 @@ struct ZL_Server_Impl : ZL_Connection_Impl
 
 	void OpenP2P(const char *p2prelay_host, int p2prelay_port, unsigned short num_connections, const void* relaykey, unsigned char relaykey_length, unsigned char num_channels)
 	{
-		assert(OpenConnections || (ZL_Application::Log("NETWORK", "Tried to open a connection without initializing with ZL_Network::Init first"), 0));
+		ZL_ASSERTMSG(OpenConnections, "ZL_Network::Init needs to be called before using network functions");
 		if (host) Close(0, true);
 
 		host = enet_host_create(NULL, num_connections, num_channels, 0, 0);
@@ -203,7 +202,8 @@ struct ZL_Server_Impl : ZL_Connection_Impl
 		{
 			if (ZLSINCE(self->P2P->time_open) >= ENET_PEER_TIMEOUT_MAXIMUM)
 			{
-				ZL_Peer peer = { SWAPBE32(self->P2P->relay_server.host), self->P2P->relay_server.port, NULL, NULL };
+				void* DummyData = NULL;
+				ZL_Peer peer = { SWAPBE32(self->P2P->relay_server.host), self->P2P->relay_server.port, &DummyData, NULL };
 				self->sigDisconnected.call(peer);
 				self->P2P->doKeepAlive = NULL;
 				return false;
@@ -240,8 +240,7 @@ struct ZL_Server_Impl : ZL_Connection_Impl
 
 	bool KeepAlive()
 	{
-		assert(host);
-		if (!host) return false;
+		if (!ZL_VERIFY(host)) return false;
 		if (P2P && P2P->doKeepAlive && P2P->doKeepAlive(this)) return true;
 		ENetEvent event;
 		while (enet_host_service(host, &event, 0) > 0)
@@ -433,7 +432,7 @@ struct ZL_Client_Impl : ZL_Connection_Impl
 
 	void Connect(const char *connect_host, int port, unsigned char num_channels)
 	{
-		assert(OpenConnections || (ZL_Application::Log("NETWORK", "Tried to open a connection without initializing with ZL_Network::Init first"),0));
+		ZL_ASSERTMSG(OpenConnections, "ZL_Network::Init needs to be called before using network functions");
 		if (host) Disconnect(0, true);
 
 		host = enet_host_create(NULL, 1, num_channels, 0, 0);
@@ -460,8 +459,7 @@ struct ZL_Client_Impl : ZL_Connection_Impl
 
 	bool KeepAlive()
 	{
-		assert(host);
-		if (!host) return false;
+		if (!ZL_VERIFY(host)) return false;
 		ENetEvent event;
 		while (enet_host_service(host, &event, 0) > 0)
 		{
@@ -587,8 +585,7 @@ struct ZL_RawSocket_Impl : ZL_Connection_Impl
 
 	bool KeepAlive()
 	{
-		assert(socket);
-		if (!socket) return false;
+		if (!ZL_VERIFY(socket)) return false;
 		while (1)
 		{
 			unsigned int waitCondition = ENET_SOCKET_WAIT_RECEIVE | ENET_SOCKET_WAIT_SEND;
@@ -713,7 +710,7 @@ struct ZL_BasicTCPConnection_Impl : ZL_Connection_Impl
 		if (host_end == ZL_String::npos) host_end = url.length();
 
 		ZL_String::size_type auth_split = url.find("@", host_begin);
-		if (auth_split != ZL_String::npos && auth_split < host_end) { assert(false); return false; } //http authentication not supported
+		if (auth_split != ZL_String::npos && auth_split < host_end) { ZL_ASSERT(false); return false; } //http authentication not supported
 
 		int port;
 		ZL_String::size_type port_split = url.find(":", host_begin);

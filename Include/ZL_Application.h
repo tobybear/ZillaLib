@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -67,15 +67,22 @@
  #endif
 #endif
 
-//Logging functions that only do something on debug builds and are empty on release builds
+//Logging and assert functions that only do something on debug builds and are empty on release builds
 #if defined(ZILLALOG)
 #define ZL_LOG0(tag,fmt) do { ZL_Application::Log(tag, fmt); } while (false)
 #define ZL_LOG1(tag,fmt,a) do { ZL_Application::Log(tag, fmt, a); } while (false)
 #define ZL_LOG2(tag,fmt,a,b) do { ZL_Application::Log(tag, fmt, a, b); } while (false)
 #define ZL_LOG3(tag,fmt,a,b,c) do { ZL_Application::Log(tag, fmt, a, b, c); } while (false)
 #define ZL_LOG4(tag,fmt,a,b,c,d) do { ZL_Application::Log(tag, fmt, a, b, c,d); } while (false)
+#define ZL_VERIFY(cond) ((cond) ? true : !(*(volatile int*)0 = 0xbad|ZL_Application::Log("FAILED VERIFY", #cond)))
+#define ZL_VERIFYMSG(cond,msg) ((cond) ? true : !(*(volatile int*)0 = 0xbad|ZL_Application::Log("FAILED VERIFY", #cond "\n[MESSAGE] " msg "\n")))
+#define ZL_ASSERT(cond) ((cond) ? ((int)0) : *(volatile int*)0 = 0xbad|ZL_Application::Log("FAILED ASSERT", #cond "\n"))
+#define ZL_ASSERTMSG(cond,msg) ((cond) ? ((int)0) : *(volatile int*)0 = 0xbad|ZL_Application::Log("FAILED ASSERT", #cond "\n[MESSAGE] " msg "\n"))
+#define ZL_ASSERTMSG1(cond,fmt,p1) ((cond) ? ((int)0) : *(volatile int*)0 = 0xbad|ZL_Application::Log("FAILED ASSERT", #cond "\n[MESSAGE] " fmt "\n", (p1)))
+#define ZL_ASSERTMSG2(cond,fmt,p1,p2) ((cond) ? ((int)0) : *(volatile int*)0 = 0xbad|ZL_Application::Log("FAILED ASSERT", #cond "\n[MESSAGE] " fmt "\n", (p1), (p2)))
 #if (!defined(_MSC_VER) || (_MSC_VER >= 1400))
-#define ZL_LOG(tag,fmt, ...) do { ZL_Application::Log(tag, fmt, ##__VA_ARGS__); } while (false)
+#define ZL_LOG(tag,...) do { ZL_Application::Log(tag, __VA_ARGS__); } while (false)
+#define ZL_ASSERTMSGF(cond,fmt,...) ((cond) ? ((int)0) : *(volatile int*)0 = 0xbad|ZL_Application::Log("FAILED ASSERT", #cond "\n[MESSAGE] " fmt "\n", ##__VA_ARGS__))
 #endif
 #else
 #define ZL_LOG0(tag,f) ((void)0)
@@ -83,10 +90,19 @@
 #define ZL_LOG2(tag,f,a,b) ((void)0)
 #define ZL_LOG3(tag,f,a,b,c) ((void)0)
 #define ZL_LOG4(tag,f,a,b,c,d) ((void)0)
+#define ZL_VERIFY(cond) (!!(cond))
+#define ZL_VERIFYMSG(cond,msg) (!!(cond))
+#define ZL_ASSERT(cond) ((void)0)
+#define ZL_ASSERTMSG(cond,msg) ((void)0)
+#define ZL_ASSERTMSG1(cond,fmt,p1) ((void)0)
+#define ZL_ASSERTMSG2(cond,fmt,p1,p2) ((void)0)
 #if (!defined(_MSC_VER) || (_MSC_VER > 1200))
-#define ZL_LOG(tag,fmt, ...) ((void)0)
+#define ZL_LOG(tag,...) ((void)0)
+#define ZL_ASSERTMSGF(cond,fmt,...) ((void)0)
 #endif
 #endif
+#define ZL_STATIC_ASSERT(cond) typedef char static_assertion_##__LINE__[(cond)?1:-1]
+#define ZL_STATIC_ASSERTMSG(cond,msg) typedef char static_assertion_##msg[(cond)?1:-1]
 
 //Used type for timing ticks (one tick is one millisecond)
 typedef unsigned int ticks_t;
@@ -107,7 +123,7 @@ typedef unsigned int ticks_t;
 //The core of initialization and the game loop. Needs to be subclassed in any application using ZillaLib.
 struct ZL_Application
 {
-	ZL_Application(unsigned short fpslimit = 60);
+	ZL_Application(short fpslimit = -1);
 
 	//Will be called upon initialization of the program, should call Init() on required submodules, load initial assets and switch to the first scene if scene manager is used.
 	virtual void Load(int argc, char *argv[]) = 0;
@@ -119,9 +135,9 @@ struct ZL_Application
 
 	//Static functions
 	static ZL_Application& GetApplication();
-	static void SetFpsLimit(unsigned short fps);
+	static void SetFpsLimit(short fps);
 	static void Quit(int Return = 0);
-	static void Log(const char *logtag, const char *format, ...);
+	static int Log(const char *logtag, const char *format, ...);
 
 	//Only smartphone targets have a system to generate a unique ID, other platforms should store a random ID in the settings
 	static ZL_String DeviceUniqueID();
@@ -161,10 +177,10 @@ private:
 class ZL_ApplicationConstantTicks : public ZL_Application
 {
 protected:
-	ZL_ApplicationConstantTicks(unsigned short fps = 60, unsigned short tps = 60);
+	ZL_ApplicationConstantTicks(short fps = -1, unsigned short tps = 60);
 	virtual void Frame();
 	virtual void AfterCalculate() { }
-	static void SetFpsTps(unsigned short fps = 60, unsigned short tps = 60);
+	static void SetFpsTps(short fps = -1, unsigned short tps = 60);
 };
 
 #endif //__ZL_APPLICATION__

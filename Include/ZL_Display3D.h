@@ -176,6 +176,7 @@ struct ZL_ParticleEmitter : public ZL_Mesh
 
 	ZL_ParticleEmitter& SetLifeTime(scalar LifeTime);
 	ZL_ParticleEmitter& SetGravity(const ZL_Vector3& Gravity);
+	ZL_ParticleEmitter& SetSpawnChance(float Chance);
 	ZL_ParticleEmitter& SetSpawnVelocity(const ZL_Vector3& Velocity);
 	ZL_ParticleEmitter& SetSpawnVelocityRanges(const ZL_Vector3& VelocityMin, const ZL_Vector3& VelocityMax);
 	ZL_ParticleEmitter& SetColor(const ZL_Color& Color, bool IncludeAlpha = true);
@@ -187,8 +188,11 @@ struct ZL_ParticleEmitter : public ZL_Mesh
 	ZL_ParticleEmitter& SetSize(scalar Size);
 	ZL_ParticleEmitter& SetSpawnSizeRange(scalar SizeMin, scalar SizeMax);
 	ZL_ParticleEmitter& SetLifetimeSize(scalar SizeStart, scalar SizeEnd);
-	ZL_ParticleEmitter& SetAnimationSheet(const ZL_Surface& srf, int NumTilesCols, int NumTilesRows);
-	ZL_ParticleEmitter& SetTexture(const ZL_Surface& srf, int NumTilesCols = 1, int NumTilesRows = 1);
+	ZL_ParticleEmitter& SetTile(int TileIndex);
+	ZL_ParticleEmitter& SetSpawnTileRange(int TileIndexMin, int TileIndexMax);
+	ZL_ParticleEmitter& SetLifetimeTile(int TileIndexStart, int TileIndexEnd);
+	ZL_ParticleEmitter& SetTexture(const ZL_Surface& srf, int NumTilesCols = 1, int NumTilesRows = 1); //auto sets SpawnTile range
+	ZL_ParticleEmitter& SetAnimationSheet(const ZL_Surface& srf, int NumTilesCols, int NumTilesRows); //auto sets LifetimeTile range
 
 	ZL_ParticleEmitter& Spawn(const ZL_Vector3& Pos);
 	ZL_ParticleEmitter& Update(const struct ZL_Camera& Camera);

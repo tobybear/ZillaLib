@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -22,12 +22,18 @@
 #ifndef __ZL_IMPL__
 #define __ZL_IMPL__
 
+#if defined(ZILLALOG)
+#define ZL_IMPL_ASSERT(cond,msg) ((cond) ? ((int)0) : *(volatile int*)0 = 0xbad|printf("[FAILED ASSERT] " #cond "\n[MESSAGE] " msg "\n"))
+#else
+#define ZL_IMPL_ASSERT(cond,msg) ((void)0)
+#endif
+
 struct ZL_Impl
 {
 	inline ZL_Impl() : RefCount(1) { }
 	inline virtual ~ZL_Impl() {}
-	inline void AddRef() { RefCount++; }
-	inline void DelRef() { if (!(--RefCount)) delete this; }
+	inline void AddRef() { ZL_IMPL_ASSERT(RefCount > 0 && RefCount < 0xFFFFFF, "Broken reference"); RefCount++; }
+	inline void DelRef() { ZL_IMPL_ASSERT(RefCount > 0 && RefCount < 0xFFFFFF, "Broken reference"); if (!(--RefCount)) delete this; }
 	inline int GetRefCount() { return RefCount; }
 	static void CopyRef(ZL_Impl* source, ZL_Impl*& target)
 	{
@@ -60,8 +66,6 @@ private:
 	ZL_CLASS::ZL_CLASS(const ZL_CLASS &source) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); } \
 	ZL_CLASS & ZL_CLASS::operator=(const ZL_CLASS &source) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); return *this; }
 
-#define ZL_STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
-
 #if defined(_MSC_VER) && (_MSC_VER <= 1200)
 #define ZL_STATIC_ISSAME(TYPE1,TYPE2) true
 #else
@@ -69,26 +73,21 @@ private:
 template<typename T, typename U> struct ZL_STATIC_ISSAME_TEMPLATE { static const bool value = false; };
 template<typename T> struct ZL_STATIC_ISSAME_TEMPLATE<T,T> { static const bool value = true; };
 #endif
-
-#ifdef ZILLALOG
-#define ZL_DEBUG_ASSERT(COND,MSG) (COND)?0:(*(int*)0)++
-#else
-#define ZL_DEBUG_ASSERT(COND,MSG)
-#endif
+#define ZL_IMPL_STATIC_ASSERT(cond,msg) typedef char static_assertion_##msg[(cond)?1:-1]
 
 template<class ImplType, class OwnerType> static inline ImplType* ZL_ImplFromOwner(OwnerType* owner); //no implementation, use the one below
 
 template<class ImplType, class OwnerType> static inline ImplType* ZL_ImplFromOwner(OwnerType& owner)
 {
-	ZL_STATIC_ASSERT(sizeof(OwnerType) == sizeof(ImplType*), OwnerType_Is_Bad);
+	ZL_IMPL_STATIC_ASSERT(sizeof(OwnerType) == sizeof(ImplType*), OwnerType_Is_Bad);
 	return (*(ImplType**)&owner);
 }
 
 template<class OwnerType, class ImplType> static inline OwnerType ZL_ImplMakeOwner(ImplType* impl, bool countNewReference)
 {
-	ZL_STATIC_ASSERT(sizeof(OwnerType) == sizeof(ImplType*), OwnerType_Is_Bad);
+	ZL_IMPL_STATIC_ASSERT(sizeof(OwnerType) == sizeof(ImplType*), OwnerType_Is_Bad);
 	OwnerType ret;
-	ZL_DEBUG_ASSERT(!*(ImplType**)&ret, Owner_Default_Constructor_Needs_Null_Impl);
+	ZL_IMPL_ASSERT(!*(ImplType**)&ret, "Owner default constructor needs to init impl with NULL");
 	if (impl) { *(ImplType**)&ret = impl; if (countNewReference) impl->AddRef(); }
 	return ret;
 }

@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2018 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -29,9 +29,8 @@
 #endif
 
 ZL_Application* ZL_MainApplication = 0;
-unsigned int ZL_LastFPSTicks = 0;
-unsigned short ZL_TPF_Limit = 0, ZL_Requested_FPS = 0;
-unsigned int ZL_MainApplicationFlags = 0;
+short ZL_Requested_FPS = 0;
+unsigned int ZL_LastFPSTicks = 0, ZL_TPF_Limit = 0, ZL_MainApplicationFlags = 0;
 int ZL_DoneReturn;
 void (*funcSceneManagerCalculate)() = NULL;
 void (*funcSceneManagerDraw)() = NULL;
@@ -49,7 +48,7 @@ scalar ZL_Application::Elapsed = s(0);
 #define WINDOWFLAGS_INVALID ((unsigned int*)&native_width)
 unsigned int *pZL_WindowFlags = WINDOWFLAGS_INVALID;
 
-void _ZL_ApplicationUpdateTimingFps()
+static void _ZL_ApplicationUpdateTimingFps()
 {
 	ticks_t last = ZL_Application::Ticks;
 	ZL_Application::Ticks = ZL_GetTicks();
@@ -62,9 +61,9 @@ void _ZL_ApplicationUpdateTimingFps()
 		if (ZL_Application::FPS < 1) ZL_Application::FPS = 1; //<= 0 is bad for code like: x / FPS
 		FPS_Frame_Count = 0;
 		ZL_LastFPSTicks += 1000;
-		if (ZL_TPF_Limit && (ZL_Application::FPS > (1000/ZL_TPF_Limit)+5 || ZL_Application::FPS < (1000/ZL_TPF_Limit)-7)) ZL_MainApplicationFlags |= ZL_APPLICATION_VSYNCFAILED;
+		if (ZL_TPF_Limit && (ZL_Application::FPS > (1000/ZL_TPF_Limit)+5 || ZL_Application::FPS < (1000/(ZL_TPF_Limit+1))-5)) ZL_MainApplicationFlags |= ZL_APPLICATION_VSYNCFAILED;
 		else ZL_MainApplicationFlags &= ~ZL_APPLICATION_VSYNCFAILED;
-		//ZL_LOG3("FPS", "FPS: %d - AVGFPS: %d - VSYNC: %d", FPS, FrameCount / (Ticks/1000), !(ZL_MainApplicationFlags & ZL_APPLICATION_VSYNCFAILED));
+		//ZL_LOG3("FPS", "FPS: %d - AVGFPS: %d - VSYNC: %d", ZL_Application::FPS, ZL_Application::FrameCount / (ZL_Application::Ticks/1000), !(ZL_MainApplicationFlags & (ZL_APPLICATION_NOVSYNC|ZL_APPLICATION_VSYNCFAILED)));
 	}
 
 	if (!ZL_TPF_Limit || (ZL_MainApplicationFlags & (ZL_APPLICATION_NOVSYNC|ZL_APPLICATION_VSYNCFAILED)))
@@ -97,15 +96,15 @@ void _ZL_ApplicationUpdateTimingFps()
 	ZL_Application::FrameCount++;
 }
 
-ZL_Application::ZL_Application(unsigned short fpslimit)
+ZL_Application::ZL_Application(short fpslimit)
 {
 	assert(!ZL_MainApplication);
 	ZL_MainApplication = this;
 	SetFpsLimit(fpslimit);
-	FPS = fpslimit;
+	FPS = (ZL_Requested_FPS > 0 ? (unsigned short)ZL_Requested_FPS : 0);
 }
 
-void ZL_Application::SetFpsLimit(unsigned short fps)
+void ZL_Application::SetFpsLimit(short fps)
 {
 	ZL_Requested_FPS = fps;
 	if (fps < 1) ZL_TPF_Limit = 0;
@@ -143,7 +142,7 @@ ZL_Application& ZL_Application::GetApplication()
 	return *ZL_MainApplication;
 }
 
-void ZL_Application::Log(const char *logtag, const char *format, ...)
+int ZL_Application::Log(const char *logtag, const char *format, ...)
 {
 	va_list ap;
 	va_start(ap, format);
@@ -153,7 +152,9 @@ void ZL_Application::Log(const char *logtag, const char *format, ...)
 	ZL_LOG_PRINT(logtag, logtext.c_str());
 	#else
 	printf("[%4u.%03u] [%10s] %s\n", Ticks/1000, Ticks%1000, logtag, logtext.c_str());
+	//printf("[%5u] [%10s] %s\n", FrameCount, logtag, logtext.c_str());
 	#endif
+	return (int)logtext.size();
 }
 
 ZL_String ZL_Application::DeviceUniqueID()
@@ -204,7 +205,7 @@ bool ZL_Application::LoadReleaseDesktopDataBundle(const char* DataBundleFileName
 
 static double ZL_TickDuration, ZL_TickSum, ZL_TickExcess;
 
-ZL_ApplicationConstantTicks::ZL_ApplicationConstantTicks(unsigned short fps, unsigned short tps) : ZL_Application(fps)
+ZL_ApplicationConstantTicks::ZL_ApplicationConstantTicks(short fps, unsigned short tps) : ZL_Application(fps)
 {
 	Elapsed = s(1)/s(tps > 0 ? tps : 60);
 	ZL_TickDuration = (tps > 0 ? (1000.0/(double)tps) : 0.0);
@@ -213,7 +214,7 @@ ZL_ApplicationConstantTicks::ZL_ApplicationConstantTicks(unsigned short fps, uns
 	Ticks = 0;
 }
 
-void ZL_ApplicationConstantTicks::SetFpsTps(unsigned short fps, unsigned short tps)
+void ZL_ApplicationConstantTicks::SetFpsTps(short fps, unsigned short tps)
 {
 	SetFpsLimit(fps);
 	Elapsed = s(1)/s(tps > 0 ? tps : 60);
@@ -224,11 +225,11 @@ void ZL_ApplicationConstantTicks::Frame()
 {
 	assert(funcSceneManagerCalculate);
 	_ZL_ApplicationUpdateTimingFps();
-	sigKeepAlive.call();
 	ticks_t now = Ticks;
 	ZL_TickExcess += (double)ElapsedTicks;
 	if (ZL_TickDuration == 0)
 	{
+		sigKeepAlive.call();
 		funcSceneManagerCalculate();
 		AfterCalculate();
 		ZL_TickSum = (double)now;
@@ -247,6 +248,7 @@ void ZL_ApplicationConstantTicks::Frame()
 			ZL_TickSum += ZL_TickDuration;
 			Ticks = (ticks_t)ZL_TickSum;
 			ElapsedTicks = Ticks - OldTicks;
+			sigKeepAlive.call();
 			funcSceneManagerCalculate();
 			AfterCalculate();
 			//calcticks++;
