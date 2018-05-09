@@ -834,9 +834,9 @@ struct ZL_Polygon_Impl : ZL_Impl
 				tessAddContour(t, 2, &*it->begin(), sizeof(scalar)*2, (int)it->size());
 	}
 
-	static void CreateContourMulti(TESStesselator* t, ZL_Polygon::PointList** contours, int vnum)
+	static void CreateContourMulti(TESStesselator* t, const ZL_Polygon::PointList*const* contours, int vnum)
 	{
-		for (ZL_Polygon::PointList **it = contours, **itEnd = it+vnum; it != itEnd; ++it)
+		for (const ZL_Polygon::PointList *const*it = contours, *const*itEnd = it+vnum; it != itEnd; ++it)
 			if ((*it)->size() >= 3)
 				tessAddContour(t, 2, &*(*it)->begin(), sizeof(scalar)*2, (int)(*it)->size());
 	}
@@ -972,10 +972,10 @@ struct ZL_Polygon_Impl : ZL_Impl
 		CreateTesselation(intersect, (funcCreateContour)&CreateContourVector, &contours, 0, TotalCount);
 	}
 
-	void AddMultiContour(ZL_Polygon::PointList** contours, int vnum, ZL_Polygon::IntersectMode intersect)
+	void AddMultiContour(const ZL_Polygon::PointList*const* contours, int vnum, ZL_Polygon::IntersectMode intersect)
 	{
 		size_t TotalCount = 0;
-		for (ZL_Polygon::PointList **it = contours, **itEnd = it+vnum; it != itEnd; ++it)
+		for (const ZL_Polygon::PointList *const*it = contours, *const*itEnd = it+vnum; it != itEnd; ++it)
 			if ((*it)->size() >= 3) TotalCount += (*it)->size();
 		CreateTesselation(intersect, (funcCreateContour)&CreateContourMulti, contours, vnum, TotalCount);
 	}
@@ -1142,7 +1142,7 @@ ZL_Polygon::ZL_Polygon(const ZL_Surface& surface, bool withBorder) : impl(new ZL
 ZL_Polygon& ZL_Polygon::Add(const ZL_Vector *p, int pnum, IntersectMode selfintersect)  { if (impl) impl->AddSingleContour(p, pnum, selfintersect); return *this; }
 ZL_Polygon& ZL_Polygon::Add(const PointList &contour, IntersectMode selfintersect) { if (impl) impl->AddSingleContour((contour.empty() ? NULL : &contour[0]), (int)contour.size(), selfintersect); return *this; }
 ZL_Polygon& ZL_Polygon::Add(const std::vector<PointList> &contours, IntersectMode intersect) { if (impl) impl->AddVectorContour(contours, intersect); return *this; }
-ZL_Polygon& ZL_Polygon::Add(PointList** contours, int cnum, IntersectMode intersect) { if (impl) impl->AddMultiContour(contours, cnum, intersect); return *this; }
+ZL_Polygon& ZL_Polygon::Add(const PointList*const* contours, int cnum, IntersectMode intersect) { if (impl) impl->AddMultiContour(contours, cnum, intersect); return *this; }
 ZL_Polygon& ZL_Polygon::Extrude(const ZL_Vector *p, int pnum, scalar offsetout, scalar offsetin, bool offsetjoints, bool loop, bool ccw, scalar capscale) { if (impl && p) impl->AddExtrudedOutline(p, pnum, (ccw ? offsetout : -offsetout), (ccw ? offsetin : -offsetin), offsetjoints, loop, capscale); return *this; }
 ZL_Polygon& ZL_Polygon::Extrude(const PointList &contour, scalar offsetout, scalar offsetin, bool offsetjoints, bool loop, bool ccw, scalar capscale) { if (impl && !contour.empty()) impl->AddExtrudedOutline(&contour[0], (int)contour.size(), (ccw ? offsetout : -offsetout), (ccw ? offsetin : -offsetin), offsetjoints, loop, capscale); return *this; }
 ZL_Polygon& ZL_Polygon::ExtrudeFromBorder(const ZL_Polygon& source, scalar offsetout, scalar offsetin, bool offsetjoints, bool loop, bool ccw, scalar capscale) { if (impl && source.impl) impl->AddExtrudedOutlineFromOtherBorder(source.impl, (ccw ? offsetout : -offsetout), (ccw ? offsetin : -offsetin), offsetjoints, loop, capscale); return *this; }
@@ -1203,5 +1203,5 @@ bool ZL_Polygon::GetBorder(std::vector<ZL_Vector>& out) const { return (impl ? i
 
 size_t ZL_Polygon::GetBorders(const std::vector<PointList>& contours, std::vector<PointList>& out, IntersectMode intersect)      { ZL_Polygon_Impl impl(false, true); impl.AddVectorContour(contours, intersect);      return impl.GetBorders(out); }
 bool ZL_Polygon::GetBorder(const std::vector<PointList>& contours, std::vector<ZL_Vector>& out, IntersectMode intersect)         { ZL_Polygon_Impl impl(false, true); impl.AddVectorContour(contours, intersect);      return impl.GetBorder(out);  }
-size_t ZL_Polygon::GetBorders(std::vector<ZL_Vector>** contours, int cnum, std::vector<PointList>& out, IntersectMode intersect) { ZL_Polygon_Impl impl(false, true); impl.AddMultiContour(contours, cnum, intersect); return impl.GetBorders(out); }
-bool ZL_Polygon::GetBorder(std::vector<ZL_Vector>** contours, int cnum, std::vector<ZL_Vector>& out, IntersectMode intersect)    { ZL_Polygon_Impl impl(false, true); impl.AddMultiContour(contours, cnum, intersect); return impl.GetBorder(out); }
+size_t ZL_Polygon::GetBorders(const std::vector<ZL_Vector>*const* contours, int cnum, std::vector<PointList>& out, IntersectMode intersect) { ZL_Polygon_Impl impl(false, true); impl.AddMultiContour(contours, cnum, intersect); return impl.GetBorders(out); }
+bool ZL_Polygon::GetBorder(const std::vector<ZL_Vector>*const* contours, int cnum, std::vector<ZL_Vector>& out, IntersectMode intersect)    { ZL_Polygon_Impl impl(false, true); impl.AddMultiContour(contours, cnum, intersect); return impl.GetBorder(out); }

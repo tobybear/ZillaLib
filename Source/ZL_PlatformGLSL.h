@@ -70,7 +70,7 @@ namespace ZLGLSL
 	void Unproject(GLSLscalar& x, GLSLscalar& y);
 
 	#ifndef ZL_VIDEO_DIRECT3D
-	GLuint CreateProgramFromVertexAndFragmentShaders(GLsizei vertex_shader_srcs_count, const char **vertex_shader_srcs, GLsizei fragment_shader_srcs_count, const char **fragment_shader_srcs, GLsizei bind_attribs_count, const char *const*bind_attribs);
+	GLuint CreateProgramFromVertexAndFragmentShaders(GLsizei vertex_shader_srcs_count, const char*const* vertex_shader_srcs, GLsizei fragment_shader_srcs_count, const char*const* fragment_shader_srcs, GLsizei bind_attribs_count, const char*const* bind_attribs);
 	bool CreateShaders();
 	#endif
 }

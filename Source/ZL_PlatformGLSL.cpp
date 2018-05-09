@@ -240,7 +240,7 @@ namespace ZLGLSL
 	GLuint _TEXTURE_PROGRAM = 0;
 	GLuint TEXTURE_UNI_MVP;
 
-	GLuint CreateShaderOfType(GLenum type, GLsizei count, const char **shader_src)
+	GLuint CreateShaderOfType(GLenum type, GLsizei count, const char*const* shader_src)
 	{
 		GLuint shader;
 		GLint compiled;
@@ -264,7 +264,7 @@ namespace ZLGLSL
 		#endif
 
 		//Load and compile the shader source
-		glShaderSource(shader, count, shader_src, NULL);
+		glShaderSource(shader, count, (const GLchar**)shader_src, NULL);
 		glCompileShader(shader);
 
 		//Check the compile status
@@ -282,7 +282,7 @@ namespace ZLGLSL
 				ZL_LOG0("ZLGLSL", "Shader Source:");
 				int i = 1; for (const char *lb = src.c_str(), *le; (le = strchr(lb, '\n')); lb = le+1) { ZL_LOG3("ZLGLSL", "%3d: %.*s", i++, le-lb, lb); }
 				free(info_log);
-				assert(false);
+				ZL_ASSERT(false);
 			}
 			#endif
 			glDeleteShader(shader);
@@ -299,7 +299,7 @@ namespace ZLGLSL
 		return shader;
 	}
 
-	GLuint CreateProgramFromVertexAndFragmentShaders(GLsizei vertex_shader_srcs_count, const char **vertex_shader_srcs, GLsizei fragment_shader_srcs_count, const char **fragment_shader_srcs, GLsizei bind_attribs_count, const char *const*bind_attribs)
+	GLuint CreateProgramFromVertexAndFragmentShaders(GLsizei vertex_shader_srcs_count, const char*const* vertex_shader_srcs, GLsizei fragment_shader_srcs_count, const char*const* fragment_shader_srcs, GLsizei bind_attribs_count, const char*const* bind_attribs)
 	{
 		GLuint vertex_shader;
 		GLuint fragment_shader;
@@ -336,7 +336,7 @@ namespace ZLGLSL
 				for (GLsizei vi = 0; vi < vertex_shader_srcs_count; vi++) { ZL_LOG2("ZLGLSL", "    VERTEX SHADER #%d: %s", vi, vertex_shader_srcs[vi]); }
 				for (GLsizei fi = 0; fi < fragment_shader_srcs_count; fi++) { ZL_LOG2("ZLGLSL", "    FRAGMENT SHADER #%d: %s", fi, fragment_shader_srcs[fi]); }
 				free(info_log);
-				assert(false);
+				ZL_ASSERT(false);
 			}
 			#endif
 			glDeleteProgram(program_object);

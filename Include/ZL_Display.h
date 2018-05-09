@@ -237,7 +237,7 @@ struct ZL_Polygon
 	ZL_Polygon& Add(const ZL_Vector *p, int pnum, IntersectMode selfintersect = NONZERO); //append contour to this polygon set
 	ZL_Polygon& Add(const PointList& contour, IntersectMode selfintersect = NONZERO); //append contour to this polygon set
 	ZL_Polygon& Add(const std::vector<PointList>& contours, IntersectMode intersect = NONZERO); //append multiple contours to this polygon set
-	ZL_Polygon& Add(PointList** contours, int cnum, IntersectMode intersect = NONZERO); //append multiple contours to this polygon set
+	ZL_Polygon& Add(const PointList*const* contours, int cnum, IntersectMode intersect = NONZERO); //append multiple contours to this polygon set
 	ZL_Polygon& Extrude(const ZL_Vector *p, int pnum, scalar offsetout, scalar offsetin = 0, bool offsetjoints = false, bool loop = true, bool ccw = false, scalar capscale = 1); //append extruded outline
 	ZL_Polygon& Extrude(const PointList& contour, scalar offsetout, scalar offsetin = 0, bool offsetjoints = false, bool loop = true, bool ccw = false, scalar capscale = 1); //append extruded outline
 	ZL_Polygon& ExtrudeFromBorder(const ZL_Polygon& source, scalar offsetout, scalar offsetin = 0, bool offsetjoints = false, bool loop = true, bool ccw = false, scalar capscale = 1); //append extruded outline from other polygon border
@@ -259,8 +259,8 @@ struct ZL_Polygon
 
 	static size_t GetBorders(const std::vector<PointList>& contours, std::vector<PointList>& out, IntersectMode intersect = NONZERO);
 	static bool GetBorder(const std::vector<PointList>& contours, std::vector<ZL_Vector>& out, IntersectMode intersect = NONZERO);
-	static size_t GetBorders(PointList** contours, int cnum, std::vector<PointList>& out, IntersectMode intersect = NONZERO);
-	static bool GetBorder(PointList** contours, int cnum, std::vector<ZL_Vector>& out, IntersectMode intersect = NONZERO);
+	static size_t GetBorders(const PointList*const* contours, int cnum, std::vector<PointList>& out, IntersectMode intersect = NONZERO);
+	static bool GetBorder(const PointList*const* contours, int cnum, std::vector<ZL_Vector>& out, IntersectMode intersect = NONZERO);
 
 	private: struct ZL_Polygon_Impl* impl;
 };
