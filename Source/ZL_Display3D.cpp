@@ -259,8 +259,8 @@ struct ZL_Camera_Impl : public ZL_CameraBase_Impl
 	void UpdateMatrix()
 	{
 		scalar ar = (Aspect > 0 ? Aspect : ZLWIDTH/ZLHEIGHT);
-		if (IsOrtho) VP = ZL_Matrix::MakeCamera(Pos, Dir) * ZL_Matrix::MakeOrtho(-Size * ar, Size * ar, -Size, Size, Near, Far);
-		else         VP = ZL_Matrix::MakeCamera(Pos, Dir) * ZL_Matrix::MakePerspectiveHorizontal(Size, ar, Near, Far);
+		if (IsOrtho) VP = ZL_Matrix::MakeOrtho(-Size * ar, Size * ar, -Size, Size, Near, Far) * ZL_Matrix::MakeCamera(Pos, Dir);
+		else         VP = ZL_Matrix::MakePerspectiveHorizontal(Size, ar, Near, Far) * ZL_Matrix::MakeCamera(Pos, Dir);
 		UpdateCount += 0x10000;
 	}
 };
@@ -274,9 +274,9 @@ struct ZL_Light_Impl : public ZL_CameraBase_Impl
 	void UpdateMatrix()
 	{
 		if (!Size)        VP = ZL_Matrix::MakeCamera(Pos, Dir);
-		else if (!Aspect) VP = ZL_Matrix::MakeCamera(Pos, Dir) * ZL_Matrix::MakeOrtho(-Size, Size, -Size, Size, Near, Far);
-		else              VP = ZL_Matrix::MakeCamera(Pos, Dir) * ZL_Matrix::MakePerspectiveHorizontal(Size, Aspect, Near, Far);
-		BiasedLightMatrix = VP * ZL_Matrix(.5f, 0, 0, 0, 0, .5f, 0, 0, 0, 0, .5f, 0, .5f, .5f, .5f, 1);
+		else if (!Aspect) VP = ZL_Matrix::MakeOrtho(-Size, Size, -Size, Size, Near, Far) * ZL_Matrix::MakeCamera(Pos, Dir);
+		else              VP = ZL_Matrix::MakePerspectiveHorizontal(Size, Aspect, Near, Far) * ZL_Matrix::MakeCamera(Pos, Dir);
+		BiasedLightMatrix = ZL_Matrix(.5f, 0, 0, 0, 0, .5f, 0, 0, 0, 0, .5f, 0, .5f, .5f, .5f, 1) * VP;
 		UpdateCount += 0x10000;
 	}
 	bool IsDirectionalLight() { return Size && VP.m[15] == 1; }

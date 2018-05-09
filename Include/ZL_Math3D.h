@@ -161,6 +161,7 @@ struct ZL_Plane3
 	scalar D; //distance from the plane to the origin from a normal and a point
 	ZL_Plane3() : N(ZL_Vector3::Forward), D(0) {}
 	ZL_Plane3(const ZL_Vector3& N, scalar D = 0) : N(N), D(D) {}
+	ZL_Plane3(const ZL_Vector3& a, const ZL_Vector3& b, const ZL_Vector3& c) : N(((b-a)^(c-a)).VecNorm()), D(a|N) { }
 	inline ZL_Plane3& Invert() { N *= -1; D *= -1; return *this; }
 	inline ZL_Plane3 PlaneInvert() const { return ZL_Plane3(-N, -D); }
 	scalar GetDistanceToPoint(const ZL_Vector3& p) const { return (N|p) + D; }
@@ -267,10 +268,10 @@ struct ZL_Matrix
 	inline ZL_Matrix operator*(const ZL_Matrix& Other) const
 	{
 		const scalar *b = Other.m;
-		return ZL_Matrix(m[ 0]*b[0]+m[ 1]*b[4]+m[ 2]*b[8]+m[ 3]*b[12], m[ 0]*b[1]+m[ 1]*b[5]+m[ 2]*b[9]+m[ 3]*b[13], m[ 0]*b[2]+m[ 1]*b[6]+m[ 2]*b[10]+m[ 3]*b[14], m[ 0]*b[3]+m[ 1]*b[7]+m[ 2]*b[11]+m[ 3]*b[15],
-		                 m[ 4]*b[0]+m[ 5]*b[4]+m[ 6]*b[8]+m[ 7]*b[12], m[ 4]*b[1]+m[ 5]*b[5]+m[ 6]*b[9]+m[ 7]*b[13], m[ 4]*b[2]+m[ 5]*b[6]+m[ 6]*b[10]+m[ 7]*b[14], m[ 4]*b[3]+m[ 5]*b[7]+m[ 6]*b[11]+m[ 7]*b[15],
-		                 m[ 8]*b[0]+m[ 9]*b[4]+m[10]*b[8]+m[11]*b[12], m[ 8]*b[1]+m[ 9]*b[5]+m[10]*b[9]+m[11]*b[13], m[ 8]*b[2]+m[ 9]*b[6]+m[10]*b[10]+m[11]*b[14], m[ 8]*b[3]+m[ 9]*b[7]+m[10]*b[11]+m[11]*b[15],
-		                 m[12]*b[0]+m[13]*b[4]+m[14]*b[8]+m[15]*b[12], m[12]*b[1]+m[13]*b[5]+m[14]*b[9]+m[15]*b[13], m[12]*b[2]+m[13]*b[6]+m[14]*b[10]+m[15]*b[14], m[12]*b[3]+m[13]*b[7]+m[14]*b[11]+m[15]*b[15]);
+		return ZL_Matrix(m[0]*b[ 0]+m[4]*b[ 1]+m[8]*b[ 2]+m[12]*b[ 3], m[1]*b[ 0]+m[5]*b[ 1]+m[9]*b[ 2]+m[13]*b[ 3], m[2]*b[ 0]+m[6]*b[ 1]+m[10]*b[ 2]+m[14]*b[ 3], m[3]*b[ 0]+m[7]*b[ 1]+m[11]*b[ 2]+m[15]*b[ 3],
+		                 m[0]*b[ 4]+m[4]*b[ 5]+m[8]*b[ 6]+m[12]*b[ 7], m[1]*b[ 4]+m[5]*b[ 5]+m[9]*b[ 6]+m[13]*b[ 7], m[2]*b[ 4]+m[6]*b[ 5]+m[10]*b[ 6]+m[14]*b[ 7], m[3]*b[ 4]+m[7]*b[ 5]+m[11]*b[ 6]+m[15]*b[ 7],
+		                 m[0]*b[ 8]+m[4]*b[ 9]+m[8]*b[10]+m[12]*b[11], m[1]*b[ 8]+m[5]*b[ 9]+m[9]*b[10]+m[13]*b[11], m[2]*b[ 8]+m[6]*b[ 9]+m[10]*b[10]+m[14]*b[11], m[3]*b[ 8]+m[7]*b[ 9]+m[11]*b[10]+m[15]*b[11],
+		                 m[0]*b[12]+m[4]*b[13]+m[8]*b[14]+m[12]*b[15], m[1]*b[12]+m[5]*b[13]+m[9]*b[14]+m[13]*b[15], m[2]*b[12]+m[6]*b[13]+m[10]*b[14]+m[14]*b[15], m[3]*b[12]+m[7]*b[13]+m[11]*b[14]+m[15]*b[15]);
 	}
 
 	//Transform position operator
@@ -386,18 +387,18 @@ inline ZL_Quat::ZL_Quat(struct ZL_Matrix& m)
 {
 	if (m.m[0] > m.m[5] && m.m[0] > m.m[10])
 	{
-		scalar r = sqrtf(s(1)+m.m[0]-m.m[5]-m.m[10]), rr = s(.5)/r;
-		if (r) { x = r/2, y = (m.m[4]+m.m[1])*rr, z = (m.m[2]+m.m[8])*rr, w = (m.m[6]-m.m[9])*rr; return; }
+		scalar r = sqrtf(s(1)+m.m[0]-m.m[5]-m.m[10]), rr;
+		if (r) { rr = s(.5)/r; x = r/2, y = (m.m[4]+m.m[1])*rr, z = (m.m[2]+m.m[8])*rr, w = (m.m[6]-m.m[9])*rr; return; }
 	}
 	else if(m.m[5] > m.m[0] && m.m[5] > m.m[10])
 	{
-		scalar r = sqrtf(s(1)+m.m[5]-m.m[10]-m.m[0]), rr = s(.5)/r;
-		if (r) { x = (m.m[4]+m.m[1])*rr, y = r/2, z = (m.m[9]+m.m[6])*rr, w = (m.m[8]-m.m[2])*rr; return; }
+		scalar r = sqrtf(s(1)+m.m[5]-m.m[10]-m.m[0]), rr;
+		if (r) { rr = s(.5)/r; x = (m.m[4]+m.m[1])*rr, y = r/2, z = (m.m[9]+m.m[6])*rr, w = (m.m[8]-m.m[2])*rr; return; }
 	}
 	else
 	{
-		float r = sqrtf(s(1)+m.m[10]-m.m[0]-m.m[5]), rr = s(.5)/r;
-		if (r) { x = (m.m[2]+m.m[8])*rr, y = (m.m[9]+m.m[6])*rr, z = r/2, w = (m.m[1]-m.m[4])*rr; return; }
+		float r = sqrtf(s(1)+m.m[10]-m.m[0]-m.m[5]), rr;
+		if (r) { rr = s(.5)/r; x = (m.m[2]+m.m[8])*rr, y = (m.m[9]+m.m[6])*rr, z = r/2, w = (m.m[1]-m.m[4])*rr; return; }
 	}
 	x = 0, y = 0, z = 0, w = 1;
 }
