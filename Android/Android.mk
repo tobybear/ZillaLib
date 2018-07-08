@@ -39,6 +39,7 @@ LOCAL_SRC_FILES := $(subst ZL_SynthImc.cpp,ZL_SynthImc.cpp.arm,$(LOCAL_SRC_FILES
 LOCAL_CPP_EXTENSION := .cpp
 LOCAL_C_INCLUDES    := $(ZILLALIB_ANDROID)/stlport/stlport $(ZILLALIB_ROOT)Include
 LOCAL_CFLAGS        := -ffunction-sections -fdata-sections -fno-exceptions -fno-non-call-exceptions -fno-rtti
+LOCAL_CPPFLAGS      := -std=gnu++11
 
 NDK_APP_OPTIM := $(if $(filter true,$(APP_DEBUGGABLE)),debug,$(NDK_APP_OPTIM))
 ifeq ($(NDK_APP_OPTIM),debug)
