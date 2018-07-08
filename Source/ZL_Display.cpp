@@ -729,7 +729,7 @@ void ZL_Display::DeviceVibrate(int duration)
 	#endif
 }
 
-bool ZL_Rectf::Overlaps( const ZL_Vector& c, scalar r ) const
+bool ZL_Rectf::Overlaps(const ZL_Vector& c, scalar r) const
 {
 	scalar s, d = 0;
 	if      (c.x < left) { s = c.x - left; d += s*s; }
@@ -758,6 +758,16 @@ ZL_Vector ZL_Rectf::GetCorner(ZL_Origin::Type orCorner) const
 			y = high - (high -low )*ZL_Origin::FromCustomGetY(orCorner);
 	}
 	return ZL_Vector(x, y);
+}
+
+ZL_Vector ZL_Rectf::ClosestPointOnBorder(const ZL_Vector& p) const
+{
+	scalar x = ZL_Math::Clamp(p.x, left, right), y = ZL_Math::Clamp(p.y, low, high), dl = sabs(x - left), dr = sabs(x - right), dt = sabs(y - high), db = sabs(y - low);
+	if (dl < dr && dl < dt && dl < db) x = left;
+	else if (dr < dt && dr < db) x = right;
+	else if (dt < db) y = high;
+	else y = low;
+	return ZLV(x, y);
 }
 
 // ------------------------------------------------------------------------------------------

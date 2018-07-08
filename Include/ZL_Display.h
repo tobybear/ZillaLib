@@ -117,6 +117,8 @@ struct ZL_Rect
 struct ZL_Rectf
 {
 	static ZL_Rectf BySize(scalar x, scalar y, scalar width, scalar height) { return ZL_Rectf(x, y, x+width, y+height); }
+	static ZL_Rectf BySize(const ZL_Vector &pos, const ZL_Vector &size) { return ZL_Rectf(pos.x, pos.y, pos.x+size.x, pos.y+size.y); }
+	static ZL_Rectf ByCorners(const ZL_Vector &left_low, const ZL_Vector &right_high) { return ZL_Rectf(left_low.x, left_low.y, right_high.x, right_high.y); }
 	static ZL_Rectf FromCenter(scalar x, scalar y, scalar extend_x, scalar extend_y) { return ZL_Rectf(x-extend_x, y-extend_y, x+extend_x, y+extend_y); }
 	ZL_Rectf() : left(0), low(0), right(0), high(0) { }
 	ZL_Rectf(scalar left, scalar low, scalar right, scalar high) : left(left), low(low), right(right), high(high) { }
@@ -157,16 +159,23 @@ struct ZL_Rectf
 	ZL_Vector LowRight() const { return ZL_Vector(right, low); }
 	ZL_Vector HighLeft() const { return ZL_Vector(left, high); }
 	ZL_Vector HighRight() const { return ZL_Vector(right, high); }
-	ZL_Vector Center() const { return ZL_Vector((left+right)/s(2), (low+high)/s(2)); }
-	scalar MidX() const { return (right+left)/s(2); }
-	scalar MidY() const { return (low+high)/s(2); }
+	ZL_Vector Center() const { return ZL_Vector((left+right)*s(.5), (low+high)*s(.5)); }
+	scalar MidX() const { return (right+left)*s(.5); }
+	scalar MidY() const { return (low+high)*s(.5); }
 	ZL_Vector Clamp(const ZL_Vector& p) const { return ZL_Vector(ZL_Math::Clamp(p.x, left, right), ZL_Math::Clamp(p.y, low, high)); }
-	ZL_Vector Extents() const { return ZL_Vector((right-left)/s(2), (high-low)/s(2)); }
+	ZL_Vector Extents() const { return ZL_Vector((right-left)*s(.5), (high-low)*s(.5)); }
 	void Expand(const ZL_Vector& p) { if (p.x < left) left = p.x; else if (p.x > right) right = p.x; if (p.y < low) low = p.y; else if (p.y > high) high = p.y; }
 	ZL_Vector Distance(const ZL_Vector& p) const { return ZL_Vector((p.x < left ? p.x - left : (p.x > right ? p.x - right : 0)), (p.y < low ? p.y - low : (p.y > high ? p.y - high : 0))); }
+	ZL_Vector LerpPos(const ZL_Vector& pos0to1) const { return ZL_Vector(left+(right-left)*pos0to1.x, high-(high-low)*pos0to1.y); }
+	ZL_Vector InverseLerpPos(const ZL_Vector& pos) const { return ZL_Vector((pos.x-left)/(right-left), (pos.y-low)/(high-low)); }
 	ZL_Vector GetCorner(ZL_Origin::Type orCorner) const;
+	ZL_Vector ClosestPointOnBorder(const ZL_Vector& p) const;
 
+	//Linear interpolate between two rectangles
 	static ZL_Rectf Lerp(const ZL_Rectf& recFrom, const ZL_Rectf& recTo, const scalar f) { return ZL_Rectf(ZL_Math::Lerp(recFrom.left, recTo.left, f), ZL_Math::Lerp(recFrom.low, recTo.low, f), ZL_Math::Lerp(recFrom.right, recTo.right, f), ZL_Math::Lerp(recFrom.high, recTo.high, f)); }
+
+	//Map a point on one rectangle onto another rectangle
+	static ZL_Vector Map(const ZL_Vector& p, const ZL_Rectf& src, const ZL_Rectf& dst) { return ZL_Vector(ZL_Math::Map(p.x, src.left, src.right, dst.left, dst.right), ZL_Math::Map(p.y, src.low, src.high, dst.low, dst.high)); }
 };
 
 //A color consisting of red, green, blue and alpha values in floats
@@ -198,6 +207,7 @@ struct ZL_Color
 	ZL_Color() : r(1), g(1), b(1), a(1) { }
 	ZL_Color(const scalar r, const scalar g, const scalar b, const scalar a = 1) : r(r), g(g), b(b), a(a) { }
 	ZL_Color(const scalar a) : r(1), g(1), b(1), a(a) { }
+	ZL_Color& Norm() { r=(r<0?0:(r>1?1:r)); g=(g<0?0:(g>1?1:g)); b=(b<0?0:(b>1?1:b)); a=(a<0?0:(a>1?1:a)); return *this; }
 	static inline ZL_Color LUM(const scalar LUM) { return ZL_Color(LUM, LUM, LUM); }
 	static inline ZL_Color LUMA(const scalar LUM, const scalar A) { return ZL_Color(LUM, LUM, LUM, A); }
 	static inline ZL_Color HSVA(const scalar H, const scalar S, const scalar V, const scalar A = s(1)) { return ZL_Color(V<=0?0:S<=0?V:H<s(1/6.)?V:H<s(2/6.)?V*(1-S*(H*s(6)-s(1))):H<s(4/6.)?V*(1-S):H<s(5/6.)?V*(1-S*(1-(H*s(6)-s(4)))):V,V<=0?0:S<=0?V:H<s(1/6.)?V*(1-S*(1-(H*s(6)))):H<s(3/6.)?V:H<s(4/6.)?V*(1-S*(H*s(6)-s(3))):V*(1-S),V<=0?0:S<=0?V:H<s(2/6.)?V*(1-S):H<s(3/6.)?V*(1-S*(1-(H*s(6)-s(2)))):H<s(5/6.)?V:V*(1-S*(H*s(6)-s(5))),A); }
