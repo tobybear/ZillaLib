@@ -28,24 +28,41 @@
 
 struct ZL_JSON_Impl : public ZL_Impl
 {
-	enum { PARSE_ERROR = -1, TYPE_PROXY = -2 };
-	union { struct { char Type, KeyNeedFree, StringNeedFree, IsRoot; }; void* TypeAndFlags; };
+	enum { TYPE_PROXY = 14, PARSE_ERROR = 15, FLAG_KEYNEEDFREE = 1, FLAG_STRINGNEEDFREE = 2, FLAG_ISROOT = 4 };
+	union { struct { char Type, Flags; unsigned short ObjectKeyLen; }; unsigned int TypeAndFlags; };
 	char* ObjectKey;
 	union { char* DataString; std::vector<ZL_JSON_Impl*>* DataChildren; scalar DataNumber; ZL_JSON_Impl* DataProxy; };
 
-	ZL_JSON_Impl() : TypeAndFlags(NULL), ObjectKey(NULL), DataChildren(NULL) { ZL_STATIC_ASSERTMSG(ZL_Json::TYPE_NULL==0, null_type_must_be_zero_for_TypeAndFlags_init); }
+	ZL_JSON_Impl() : TypeAndFlags(0), ObjectKey(NULL), DataChildren(NULL) { ZL_STATIC_ASSERTMSG(ZL_Json::TYPE_NULL==0, null_type_must_be_zero_for_TypeAndFlags_init); }
 	ZL_JSON_Impl(const char* src) { Construct(src, strlen(src)); }
+	ZL_JSON_Impl(const char *src, size_t len) { Construct(src, len); }
 	ZL_JSON_Impl(const ZL_String& src) { Construct(src.c_str(), src.length()); }
-	~ZL_JSON_Impl() { KeepStringsIfReferenced(); ResetValue(); if (KeyNeedFree) { free(ObjectKey); } }
+	~ZL_JSON_Impl() { KeepStringsIfReferenced(); ResetValue(); if (Flags & FLAG_KEYNEEDFREE) { free(ObjectKey); } }
 	static ZL_JSON_Impl* GetProxyTarget(ZL_JSON_Impl* impl) { while (impl && impl->Type == TYPE_PROXY) { impl = impl->DataProxy; } return impl; }
 
 	ZL_JSON_Impl* AddChild()
 	{
 		ZL_JSON_Impl* Object = new ZL_JSON_Impl;
-		assert(Type == ZL_Json::TYPE_ARRAY || Type == ZL_Json::TYPE_OBJECT);
+		ZL_ASSERT(Type == ZL_Json::TYPE_ARRAY || Type == ZL_Json::TYPE_OBJECT);
 		if (!DataChildren) DataChildren = new std::vector<ZL_JSON_Impl*>();
 		DataChildren->push_back(Object);
 		return DataChildren->back();
+	}
+
+	ZL_JSON_Impl* FindChild(const char* key, bool ResolveProxyTarget)
+	{
+		if (!key || Type != ZL_Json::TYPE_OBJECT || !DataChildren) return NULL;
+		unsigned short KeyLen = strlen(key);
+		for (std::vector<ZL_JSON_Impl*>::iterator it = DataChildren->begin(); it != DataChildren->end(); ++it)
+			if ((*it)->ObjectKeyLen == KeyLen && !strcmp((*it)->ObjectKey, key)) return (ResolveProxyTarget ? GetProxyTarget(*it) : *it);
+		return NULL;
+	}
+
+	ZL_JSON_Impl* FindChild(size_t index, bool ResolveProxyTarget)
+	{
+		if ((Type != ZL_Json::TYPE_OBJECT && Type != ZL_Json::TYPE_ARRAY) || !DataChildren || index >= DataChildren->size()) return NULL;
+		ZL_JSON_Impl* it = DataChildren->operator[](index);
+		return (ResolveProxyTarget ? GetProxyTarget(it) : it);
 	}
 
 	void ToString(ZL_String& out, bool pretty_print, int indent = 0)
@@ -87,32 +104,32 @@ struct ZL_JSON_Impl : public ZL_Impl
 	{
 		if ((Type == ZL_Json::TYPE_OBJECT || Type == ZL_Json::TYPE_ARRAY) && DataChildren) DeleteChildren();
 		else if (Type == TYPE_PROXY) DataProxy->DelRef();
-		else if (Type == ZL_Json::TYPE_STRING && StringNeedFree) free(DataString);
+		else if (Type == ZL_Json::TYPE_STRING && (Flags & FLAG_STRINGNEEDFREE)) free(DataString);
 		Type = NewType; DataChildren = NULL;
 	}
 
 private:
 	void Construct(const char* src, size_t srclen)
 	{
-		if (!src || !*src) { Type = ZL_Json::TYPE_NULL; TypeAndFlags = NULL; ObjectKey = NULL; DataChildren = NULL; return; }
-		Type = TYPE_PROXY, KeyNeedFree = true, IsRoot = true, ObjectKey = (char*)malloc(srclen + 1), DataProxy = new ZL_JSON_Impl;
+		if (!src || !*src) { Type = ZL_Json::TYPE_NULL; TypeAndFlags = 0; ObjectKey = NULL; DataChildren = NULL; return; }
+		Type = TYPE_PROXY, Flags |= FLAG_KEYNEEDFREE|FLAG_ISROOT, ObjectKey = (char*)malloc(srclen + 1), ObjectKeyLen = srclen, DataProxy = new ZL_JSON_Impl;
 		memcpy(ObjectKey, src, srclen + 1);
 		char *end = ObjectKey + srclen, *parseend = DataProxy->Parse(EndOfWhitespace(ObjectKey), end);
 		if (DataProxy->Type != PARSE_ERROR && EndOfWhitespace(parseend) == end) return; //success
 
 		ZL_LOG2("JSON", "Parsing Error - Offset: %d - Error At: %.100s\n", parseend - ObjectKey, parseend);
-		free(ObjectKey); ObjectKey = NULL; KeyNeedFree = false; ResetValue(); //cleanup
+		free(ObjectKey); ObjectKey = NULL; ObjectKeyLen = 0; Flags &= ~FLAG_KEYNEEDFREE; ResetValue(); //cleanup
 	}
 
 	void KeepStringsIfReferenced(bool parent_is_referenced = false)
 	{
-		if (IsRoot) return; //is a referenced separately allocated tree
+		if (Flags & FLAG_ISROOT) return; //is a referenced separately allocated tree
 		if ((Type == ZL_Json::TYPE_OBJECT || Type == ZL_Json::TYPE_ARRAY) && DataChildren)
 			for (std::vector<ZL_JSON_Impl*>::iterator it = DataChildren->begin(); it != DataChildren->end(); ++it)
 				(*it)->KeepStringsIfReferenced(GetRefCount() > 1);
 		if (!parent_is_referenced && GetRefCount() <= 1) return;
-		if (ObjectKey && !KeyNeedFree)                       { KeyNeedFree = true;    char* src = ObjectKey;  size_t ln = strlen(src); memcpy((ObjectKey  = (char*)malloc(ln + 1)), src, ln + 1); }
-		if (Type == ZL_Json::TYPE_STRING && !StringNeedFree) { StringNeedFree = true; char* src = DataString; size_t ln = strlen(src); memcpy((DataString = (char*)malloc(ln + 1)), src, ln + 1); }
+		if (ObjectKey && !(Flags & FLAG_KEYNEEDFREE))                       { Flags |= FLAG_KEYNEEDFREE;    char* src = ObjectKey;  size_t ln = strlen(src); memcpy((ObjectKey  = (char*)malloc(ln + 1)), src, ln + 1); }
+		if (Type == ZL_Json::TYPE_STRING && !(Flags & FLAG_STRINGNEEDFREE)) { Flags |= FLAG_STRINGNEEDFREE; char* src = DataString; size_t ln = strlen(src); memcpy((DataString = (char*)malloc(ln + 1)), src, ln + 1); }
 	}
 
 	void AppendJsonString(ZL_String& out, char* jstr)
@@ -124,6 +141,7 @@ private:
 			else if (*jstr == '\t') out << '\\' <<  't'; else out << *jstr;
 		out << '"';
 	}
+
 	char* Parse(char* p, char *end)
 	{
 		#define CLC(c) (c|0x60) //char to lower case
@@ -164,65 +182,48 @@ private:
 			Type = PARSE_ERROR;
 			return p;
 		}
-		ZL_JSON_Impl* Child;
-		if (*p == '[')
-		{
-			Type = ZL_Json::TYPE_ARRAY;
-			p = EndOfWhitespace(p+1);
-			if (*p == ']') { Type = ZL_Json::TYPE_ARRAY; DataChildren = NULL; return p+1; }
-			for (DataChildren = new std::vector<ZL_JSON_Impl*>(), Type = PARSE_ERROR; (Child = new ZL_JSON_Impl); p = EndOfWhitespace(p+1))
-			{
-				p = Child->Parse(p, end);
-				if (Child->Type == PARSE_ERROR) break;
-				DataChildren->push_back(Child);
-				Child = NULL;
+		const char ListEndChar = (*p == '[' ? ']' : (*p == '{' ?  '}' : 0));
+		if (!ListEndChar) { Type = PARSE_ERROR; return p; }
 
-				p = EndOfWhitespace(p);
-				if (*p == ']') { Type = ZL_Json::TYPE_ARRAY; break; }
-				else if (*p != ',') break; //error
-			}
-			if (Type == PARSE_ERROR) { if (Child) delete Child; DeleteChildren(); return p; }
-			return p+1;
-		}
-		if (*p == '{')
+		p = EndOfWhitespace(p+1);
+		if (*p == ListEndChar) { Type = (ListEndChar == ']' ? ZL_Json::TYPE_OBJECT : ZL_Json::TYPE_OBJECT); DataChildren = NULL; return p+1; }
+		ZL_JSON_Impl* Child;
+		for (DataChildren = new std::vector<ZL_JSON_Impl*>(), Type = PARSE_ERROR; (Child = new ZL_JSON_Impl); p = EndOfWhitespace(p+1))
 		{
-			p = EndOfWhitespace(p+1);
-			if (*p == '}') { Type = ZL_Json::TYPE_OBJECT; DataChildren = NULL; return p+1; }
-			for (DataChildren = new std::vector<ZL_JSON_Impl*>(), Type = PARSE_ERROR; (Child = new ZL_JSON_Impl); p = EndOfWhitespace(p+1))
+			if (ListEndChar == '}')
 			{
 				p = Child->Parse(p, end);
 				if (Child->Type != ZL_Json::TYPE_STRING) break;
 				Child->ObjectKey = Child->DataString;
+				Child->ObjectKeyLen = strlen(Child->ObjectKey); //can't just count bytes consumed by parse due to escaped chars
 
 				p = EndOfWhitespace(p);
 				if (*p != ':') break;
 				p = EndOfWhitespace(p+1);
-
-				p = Child->Parse(p, end);
-				if (Child->Type == PARSE_ERROR) break;
-				DataChildren->push_back(Child);
-				Child = NULL;
-
-				p = EndOfWhitespace(p);
-				if (*p == '}') { Type = ZL_Json::TYPE_OBJECT; break; }
-				else if (*p != ',') break; //error
 			}
-			if (Type == PARSE_ERROR) { if (Child) delete Child; DeleteChildren(); return p; }
-			return p+1;
+
+			p = Child->Parse(p, end);
+			if (Child->Type == PARSE_ERROR) break;
+			DataChildren->push_back(Child);
+			Child = NULL;
+
+			p = EndOfWhitespace(p);
+			if (*p == ListEndChar) { Type = (ListEndChar == ']' ? ZL_Json::TYPE_OBJECT : ZL_Json::TYPE_OBJECT); break; }
+			else if (*p != ',') break;
 		}
-		Type = PARSE_ERROR;
-		return p;
+		if (Type == PARSE_ERROR) { if (Child) delete Child; DeleteChildren(); return p; }
+		return p+1;
 	}
 	void DeleteChildren() { for (std::vector<ZL_JSON_Impl*>::iterator it = DataChildren->begin(); it != DataChildren->end(); ++it) (*it)->DelRef(); delete DataChildren; }
 	char* EndOfWhitespace(char* p) { while (*p == ' ' || *p == '\n' || *p == '\r' || *p == '\t') p++; return p; }
-	char* EndOfString(char* start, char* end) { for (char*p = start; p < end-1; p++) if (p[1] == '"' && (p[0] != '\\' || p == start)) return p+1; return NULL; }
 };
 
 ZL_IMPL_OWNER_NOASSIGNMENT_IMPLEMENTATIONS(ZL_Json)
 ZL_Json::ZL_Json(const char *json) : impl(new ZL_JSON_Impl(json)) {}
+ZL_Json::ZL_Json(const char *json, size_t len) : impl(new ZL_JSON_Impl(json, len)) {}
 ZL_Json::ZL_Json(const ZL_String &json) : impl(new ZL_JSON_Impl(json)) {}
 ZL_Json::ZL_Json(const ZL_File &file) : impl(new ZL_JSON_Impl(file.GetContents())) {}
-ZL_Json::ZL_Json(ZL_JSON_Impl *fromimpl) : impl(fromimpl) { impl->AddRef(); }
+ZL_Json::ZL_Json(ZL_JSON_Impl *fromimpl) : impl(fromimpl) { if (impl) impl->AddRef(); }
 
 ZL_Json::eType ZL_Json::GetType() const
 {
@@ -258,35 +259,38 @@ std::vector<ZL_Json> ZL_Json::GetChildren() const
 ZL_Json ZL_Json::GetChild(size_t index) const
 {
 	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
-	if (!imp || (imp->Type != TYPE_OBJECT && imp->Type != TYPE_ARRAY) || !imp->DataChildren || index >= imp->DataChildren->size()) return ZL_Json();
-	return ZL_Json(imp->DataChildren->operator[](index));
+	return ZL_Json(imp ? imp->FindChild(index, false) : NULL);
+}
+
+ZL_Json ZL_Json::GetChildOf(const char* child_key, size_t index) const
+{
+	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
+	if (imp) imp = imp->FindChild(child_key, true);
+	return ZL_Json(imp ? imp->FindChild(index, false) : NULL);
 }
 
 ZL_Json ZL_Json::GetByKey(const char* key) const
 {
 	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
-	if (imp && imp->DataChildren && imp->Type == TYPE_OBJECT && key)
-		for (std::vector<ZL_JSON_Impl*>::iterator it = imp->DataChildren->begin(); it != imp->DataChildren->end(); ++it)
-			if (!strcmp((*it)->ObjectKey, key)) return ZL_Json(*it);
-	return ZL_Json();
+	return ZL_Json(imp ? imp->FindChild(key, false) : NULL);
 }
 
-const char* ZL_Json::GetString() const
+const char* ZL_Json::GetString(const char* default_value) const
 {
 	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
-	return (imp && imp->Type == TYPE_STRING ? imp->DataString : NULL);
+	return (imp && imp->Type == TYPE_STRING ? imp->DataString : default_value);
 }
 
-scalar ZL_Json::GetFloat() const
+scalar ZL_Json::GetFloat(scalar default_value) const
 {
 	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
-	return (imp && imp->Type == TYPE_NUMBER ? (scalar)imp->DataNumber : 0.0f);
+	return (imp && imp->Type == TYPE_NUMBER ? (scalar)imp->DataNumber : default_value);
 }
 
-int ZL_Json::GetInt() const
+int ZL_Json::GetInt(int default_value) const
 {
 	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
-	return (imp && imp->Type == TYPE_NUMBER ? (int)imp->DataNumber : 0);
+	return (imp && imp->Type == TYPE_NUMBER ? (int)imp->DataNumber : default_value);
 }
 
 bool ZL_Json::GetBool() const
@@ -304,10 +308,7 @@ bool ZL_Json::IsNull() const
 bool ZL_Json::HasKey(const char* key) const
 {
 	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
-	if (imp && imp->DataChildren && imp->Type == TYPE_OBJECT && key)
-		for (std::vector<ZL_JSON_Impl*>::iterator it = imp->DataChildren->begin(); it != imp->DataChildren->end(); ++it)
-			if (!strcmp((*it)->ObjectKey, key)) return true;
-	return false;
+	return (imp && imp->FindChild(key, false));
 }
 
 const char* ZL_Json::GetKey() const
@@ -315,18 +316,76 @@ const char* ZL_Json::GetKey() const
 	return (impl ? impl->ObjectKey : NULL);
 }
 
+const char* ZL_Json::GetStringOf(const char* child_key, const char* default_value) const
+{
+	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
+	if (imp) imp = imp->FindChild(child_key, true);
+	return (imp && imp->Type == TYPE_STRING ? imp->DataString : default_value);
+}
+
+const char* ZL_Json::GetStringOf(size_t child_index, const char* default_value) const
+{
+	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
+	if (imp) imp = imp->FindChild(child_index, true);
+	return (imp && imp->Type == TYPE_STRING ? imp->DataString : default_value);
+}
+
+scalar ZL_Json::GetFloatOf(const char* child_key, scalar default_value) const
+{
+	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
+	if (imp) imp = imp->FindChild(child_key, true);
+	return (imp && imp->Type == TYPE_NUMBER ? (scalar)imp->DataNumber : default_value);
+}
+
+scalar ZL_Json::GetFloatOf(size_t child_index, scalar default_value) const
+{
+	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
+	if (imp) imp = imp->FindChild(child_index, true);
+	return (imp && imp->Type == TYPE_NUMBER ? (scalar)imp->DataNumber : default_value);
+}
+
+int ZL_Json::GetIntOf(const char* child_key, int default_value) const
+{
+	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
+	if (imp) imp = imp->FindChild(child_key, true);
+	return (imp && imp->Type == TYPE_NUMBER ? (int)imp->DataNumber : default_value);
+}
+
+int ZL_Json::GetIntOf(size_t child_index, int default_value) const
+{
+	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
+	if (imp) imp = imp->FindChild(child_index, true);
+	return (imp && imp->Type == TYPE_NUMBER ? (int)imp->DataNumber : default_value);
+}
+
+bool ZL_Json::GetBoolOf(const char* child_key) const
+{
+	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
+	if (imp) imp = imp->FindChild(child_key, true);
+	return (imp && imp->Type == TYPE_TRUE);
+}
+
+bool ZL_Json::GetBoolOf(size_t child_index) const
+{
+	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
+	if (imp) imp = imp->FindChild(child_index, true);
+	return (imp && imp->Type == TYPE_TRUE);
+}
+
 ZL_Json ZL_Json::operator[](const char* key)
 {
 	ZL_JSON_Impl *imp = (impl ? ZL_JSON_Impl::GetProxyTarget(impl) : (impl = new ZL_JSON_Impl));
 	if (imp->Type == TYPE_NULL) imp->ResetValue(TYPE_OBJECT);
 	if (imp->Type != TYPE_OBJECT || !key) return ZL_Json();
-	if (imp->DataChildren)
-		for (std::vector<ZL_JSON_Impl*>::iterator it = imp->DataChildren->begin(); it != imp->DataChildren->end(); ++it)
-			if (!strcmp((*it)->ObjectKey, key)) return ZL_Json(*it);
-	ZL_JSON_Impl* child = imp->AddChild();
-	child->KeyNeedFree = true;
-	size_t len = strlen(key);
-	memcpy((child->ObjectKey = (char*)malloc(len + 1)), key, len + 1);
+	ZL_JSON_Impl* child = imp->FindChild(key, false);
+	if (!child)
+	{
+		child = imp->AddChild();
+		child->Flags |= ZL_JSON_Impl::FLAG_KEYNEEDFREE;
+		size_t len = strlen(key);
+		memcpy((child->ObjectKey = (char*)malloc(len + 1)), key, len + 1);
+		child->ObjectKeyLen = len;
+	}
 	return ZL_Json(child);
 }
 
@@ -343,7 +402,7 @@ void ZL_Json::SetString(const char* NewString)
 	if (!NewString) { SetNull(); return; }
 	ZL_JSON_Impl *imp = (impl ? impl : (impl = new ZL_JSON_Impl));
 	imp->ResetValue(TYPE_STRING);
-	imp->StringNeedFree = true;
+	imp->Flags |= ZL_JSON_Impl::FLAG_STRINGNEEDFREE;
 	size_t len = strlen(NewString);
 	memcpy((imp->DataString = (char*)malloc(len + 1)), NewString, len + 1);
 }
@@ -374,7 +433,7 @@ void ZL_Json::SetNull()
 
 void ZL_Json::SetReference(const ZL_Json &source)
 {
-	if (!impl || impl->IsRoot) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); return; }
+	if (!impl || (impl->Flags & ZL_JSON_Impl::FLAG_ISROOT) || (impl->TypeAndFlags == source.impl->TypeAndFlags && impl->ObjectKey == source.impl->ObjectKey)) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); return; }
 	if (source.impl->CheckIfHasChild(impl)) { SetNull(); return; }
 	impl->ResetValue(ZL_JSON_Impl::TYPE_PROXY);
 	impl->DataProxy = source.impl;
@@ -383,11 +442,12 @@ void ZL_Json::SetReference(const ZL_Json &source)
 
 void ZL_Json::SetKey(const char* NewKey)
 {
-	if (!impl || impl->IsRoot) return;
-	if (impl->KeyNeedFree) free(impl->ObjectKey);
-	impl->KeyNeedFree = true;
+	if (!impl || (impl->Flags & ZL_JSON_Impl::FLAG_ISROOT)) return;
+	if (impl->Flags & ZL_JSON_Impl::FLAG_KEYNEEDFREE) free(impl->ObjectKey);
+	impl->Flags |= ZL_JSON_Impl::FLAG_KEYNEEDFREE;
 	size_t len = strlen(NewKey);
 	memcpy((impl->ObjectKey = (char*)malloc(len + 1)), NewKey, len + 1);
+	impl->ObjectKeyLen = len;
 }
 
 ZL_Json::Iterator ZL_Json::Erase(Iterator it)
@@ -413,9 +473,10 @@ bool ZL_Json::Erase(const ZL_Json &child)
 bool ZL_Json::Erase(const char* key)
 {
 	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
-	if (imp && imp->DataChildren && (imp->Type == TYPE_OBJECT || imp->Type == TYPE_ARRAY) && key)
-		for (std::vector<ZL_JSON_Impl*>::iterator it = imp->DataChildren->begin(); it != imp->DataChildren->end(); ++it)
-			if ((*it)->ObjectKey && !strcmp((*it)->ObjectKey, key)) { (*it)->DelRef(); imp->DataChildren->erase(it); return true; }
+	if (!imp || !key || imp->Type != ZL_Json::TYPE_OBJECT || !imp->DataChildren) return false;
+	unsigned short KeyLen = strlen(key);
+	for (std::vector<ZL_JSON_Impl*>::iterator it = imp->DataChildren->begin(); it != imp->DataChildren->end(); ++it)
+		if ((*it)->ObjectKeyLen == KeyLen && !strcmp((*it)->ObjectKey, key)) { (*it)->DelRef(); imp->DataChildren->erase(it); return true; }
 	return false;
 }
 

@@ -48,6 +48,7 @@ struct ZL_Json
 
 	ZL_Json();
 	ZL_Json(const char *json);
+	ZL_Json(const char *json, size_t len);
 	ZL_Json(const ZL_String &json);
 	ZL_Json(const ZL_File &file);
 	~ZL_Json();
@@ -70,15 +71,27 @@ struct ZL_Json
 	Iterator GetIterator() const;
 	std::vector<ZL_Json> GetChildren() const;
 	ZL_Json GetChild(size_t index) const;
+	ZL_Json GetChildOf(const char* child_key, size_t index) const; //returns child of child
 	ZL_Json GetByKey(const char* key) const; //returns uninitialized element if not exist (checkable with ! operator)
 
-	const char* GetString() const;
-	scalar GetFloat() const;
-	int GetInt() const;
+	//get the value of this element
+	const char* GetString(const char* default_value = NULL) const; //return default_value if not TYPE_STRING
+	scalar GetFloat(scalar default_value = 0) const; //return default_value if not TYPE_NUMBER
+	int GetInt(int default_value = 0) const; //return default_value if not TYPE_NUMBER
 	bool GetBool() const;
 	bool IsNull() const;
 	bool HasKey(const char* key) const;
 	const char* GetKey() const; //if value in object
+
+	//get a value of a child element
+	const char* GetStringOf(const char* child_key, const char* default_value = NULL) const;
+	const char* GetStringOf(size_t child_index, const char* default_value = NULL) const;
+	scalar GetFloatOf(const char* child_key, scalar default_value = 0) const;
+	scalar GetFloatOf(size_t child_index, scalar default_value = 0) const;
+	int GetIntOf(const char* child_key, int default_value = 0) const;
+	int GetIntOf(size_t child_index, int default_value = 0) const;
+	bool GetBoolOf(const char* child_key) const;
+	bool GetBoolOf(size_t child_index) const;
 
 	ZL_Json operator()(size_t index) const { return GetChild(index); } //get nth child
 	ZL_Json operator[](const char* key); //get/create object key-value
