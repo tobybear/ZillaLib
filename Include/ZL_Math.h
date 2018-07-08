@@ -91,6 +91,7 @@ template <typename C_ARRAY, size_t N> char (&__COUNT_OF_HELPER(C_ARRAY(&)[N]))[N
 #define COUNT_OF(arr) ((sizeof(arr)/sizeof(0[arr]))/((size_t)(!(sizeof(arr) % sizeof(0[arr])))))
 #endif
 #define OFFSET_OF(type, member) ((size_t)(ptrdiff_t)&(const volatile char&)((type*)0)->member)
+#define ALIGN_UP(value, alignment) (((value) + (alignment) - 1) & ~((alignment) - 1))
 
 // This header can be included by c code solely for the scalar definition
 #ifdef __cplusplus
@@ -102,6 +103,7 @@ template <typename C_ARRAY, size_t N> char (&__COUNT_OF_HELPER(C_ARRAY(&)[N]))[N
 
 #include <algorithm>
 #include <vector>
+#include "ZL_String.h"
 
 #define s(a) ((scalar)(a))
 #define ssign(a) ((a) < 0 ? -1 : 1)
@@ -195,6 +197,8 @@ struct ZL_Vector
 	inline ZL_Vector operator/(const scalar f) const { return ZL_Vector(x / f, y / f); }
 	inline scalar operator|(const ZL_Vector &p) const { return x * p.x + y * p.y; } //dot product
 	inline scalar operator^(const ZL_Vector &p) const { return x * p.y - y * p.x; } //cross product
+	inline scalar operator[](int i) const { return (&x)[i]; } //array access
+	inline scalar& operator[](int i) { return (&x)[i]; } //array access
 
 	//Length comparison operators  (faster than calling and comparing GetLength())
 	bool operator<(const ZL_Vector &b) const { return ((x*x + y*y) < (b.x*b.x + b.y*b.y)); }
@@ -220,6 +224,7 @@ struct ZL_Vector
 	inline bool Far(const ZL_Vector &p, scalar l) const { return (x-p.x)*(x-p.x) + (y-p.y)*(y-p.y) > (l*l); }
 	inline bool AlmostZero(scalar ErrorTolerance = SMALL_NUMBER) const { return sabs(x)<ErrorTolerance && sabs(y)<ErrorTolerance; }
 	inline bool AlmostEqual(const ZL_Vector &v, scalar ErrorTolerance = SMALL_NUMBER) const { return sabs(x-v.x)<ErrorTolerance && sabs(y-v.y)<ErrorTolerance; }
+	inline ZL_String ToString() const { return ZL_String::format("{ x: %f, y: %f }", x, y); }
 
 	//Self modifying operators as functions (non const call)
 	inline ZL_Vector &Set(scalar x, scalar y) { this->x = x; this->y = y; return *this; }
@@ -424,16 +429,20 @@ struct ZL_Math
 	static inline scalar Abs(const scalar val) { return (val < 0 ? -val : val); }
 
 	//Clamp value between min and max
-	static inline scalar Clamp(const scalar val, const scalar min, const scalar max) { return Min(Max(val, min), max); }
+	static inline scalar Clamp(const scalar val, const scalar min, const scalar max) { return (val > max ? max : (val < min ? min : val)); }
 
 	//Clamp value between 0 and 1
-	static inline scalar Clamp01(const scalar val) { return Max(0, Min(val, 1)); }
+	static inline scalar Clamp01(scalar val) { return (val > 1 ? 1 : (val < 0 ? 0 : val)); }
 
 	//Linear interpolate value
 	static inline scalar Lerp(const scalar from, const scalar to, const scalar f) { return from + (to-from) * f; }
 
 	//Inverse linear interpolate value
-	static inline scalar InverseLerp(const scalar from, const scalar to, const scalar value) { return (value - from) / (to - from); }
+	static inline scalar InverseLerp(const scalar from, const scalar to, const scalar value) { return (value-from) / (to-from); }
+
+	//Map a value on a range onto another range
+	static inline scalar Map(scalar val, scalar src_from, scalar src_to, scalar dst_from, scalar dst_to) { return dst_from + (dst_to-dst_from) * ((val-src_from) / (src_to-src_from)); }
+	static inline scalar MapClamped(scalar val, scalar src_from, scalar src_to, scalar dst_from, scalar dst_to) { return dst_from + (dst_to-dst_from) * Clamp01((val-src_from) / (src_to-src_from)); }
 };
 
 //Easing functions (linear input 0.0 -> 1.0 returns curved 0.0 -> 1.0)

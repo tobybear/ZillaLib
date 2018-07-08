@@ -172,6 +172,7 @@ ZL_Vector ZL_Vector::VecWithMinLength(scalar minlength) const
 ZL_Vector3::ZL_Vector3(const struct ZL_Color &rgb) :  x(rgb.r), y(rgb.g), z(rgb.b) { }
 const ZL_Vector3 ZL_Vector3::Zero(0,0,0), ZL_Vector3::One(1,1,1);
 ZL_Vector3 ZL_Vector3::Right(1,0,0), ZL_Vector3::Forward(0,1,0), ZL_Vector3::Up(0,0,1);
+const ZL_Quat ZL_Quat::Identity;
 const ZL_Matrix ZL_Matrix::Identity;
 
 ZL_AABB::ZL_AABB(const ZL_Rectf& rect) : P(rect.Center()), E(rect.Extents()) {}

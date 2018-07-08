@@ -66,6 +66,8 @@ struct ZL_Vector3
 	inline ZL_Vector3 operator/(const scalar f) const { return ZL_Vector3(x / f, y / f, z / f); }
 	inline scalar operator|(const ZL_Vector3 &v) const { return x * v.x + y * v.y + z * v.z; } //dot product
 	inline ZL_Vector3 operator^(const ZL_Vector3 &v) const { return ZL_Vector3(y*v.z-z*v.y, z*v.x-x*v.z, x*v.y-y*v.x); } //cross product
+	inline scalar operator[](int i) const { return (&x)[i]; } //array access
+	inline scalar& operator[](int i) { return (&x)[i]; } //array access
 
 	//Length comparison operators  (faster than calling and comparing GetLength())
 	inline bool operator<(const ZL_Vector3 &b) const  { return ((x*x + y*y + z*z) <  (b.x*b.x + b.y*b.y + b.z*b.z)); }
@@ -91,6 +93,7 @@ struct ZL_Vector3
 	inline bool Far(const ZL_Vector3 &v, scalar l) const { return (x-v.x)*(x-v.x) + (y-v.y)*(y-v.y) + (z-v.z)*(z-v.z) > (l*l); }
 	inline bool AlmostZero(scalar ErrorTolerance = SMALL_NUMBER) const { return sabs(x)<ErrorTolerance && sabs(y)<ErrorTolerance && sabs(z)<ErrorTolerance; }
 	inline bool AlmostEqual(const ZL_Vector3 &v, scalar ErrorTolerance = SMALL_NUMBER) const { return sabs(x-v.x)<ErrorTolerance && sabs(y-v.y)<ErrorTolerance && sabs(z-v.z)<ErrorTolerance; }
+	inline ZL_String ToString() const { return ZL_String::format("{ x: %f, y: %f, z: %f }", x, y, z); }
 
 	//Self modifying operators as functions (non const call)
 	inline ZL_Vector3 &Set(scalar x, scalar y, scalar z = 0) { this->x = x; this->y = y; this->z = z; return *this; }
@@ -148,6 +151,9 @@ struct ZL_Vector3
 	//Returns relative (nearest) angle in degree from 0 to 180 from this to another vector
 	inline scalar GetRelAbsAngleDeg(const ZL_Vector3 &v) const { scalar d=DotP(v);return(d<0?PI-sacos(-d):sacos(d))*PIUNDER180; }
 
+	//Find good arbitrary axis vectors to represent U and V axes of a plane, using this vector as the normal of the plane.
+	inline void FindAxisVectors(ZL_Vector3* u, ZL_Vector3* v) const { float az = sabs(z); *u = (az > sabs(x) && az > sabs(y) ? ZL_Vector3(1,0,0) : ZL_Vector3(0,0,1)); *u = (*u - *this * (*u | *this)).Norm(); *v = *u ^ *this; }
+
 	//Returns a normal vector created by pitch (horizontal angle) and yaw (vertical angle)
 	static inline ZL_Vector3 FromRotation(scalar HoirzontalAngleRad, scalar VerticalAngleRad) { return ZL_Vector3(scos(HoirzontalAngleRad)*scos(VerticalAngleRad), ssin(HoirzontalAngleRad)*scos(VerticalAngleRad), ssin(VerticalAngleRad));  }
 
@@ -179,7 +185,7 @@ struct ZL_Quat
 	inline ZL_Quat(scalar x, scalar y, scalar z, scalar w) : x(x), y(y), z(z), w(w) {}
 	inline ZL_Quat(scalar w) : x(0), y(0), z(0), w(w) {}
 	inline ZL_Quat(const ZL_Vector3& NormalizedAxis, scalar AngleRad) { scalar ah = AngleRad*s(.5); *this = FromVector(NormalizedAxis*ssin(ah), scos(ah)); }
-	inline ZL_Quat(struct ZL_Matrix& m);
+	inline ZL_Quat(const struct ZL_Matrix& m);
 
 	//Comparison operators
 	inline bool operator!() const { return (!x && !y && !z && !w); }
@@ -190,48 +196,53 @@ struct ZL_Quat
 	inline ZL_Quat operator-() const { return ZL_Quat(-x, -y, -z, -w); }
 	inline ZL_Quat &operator+=(const ZL_Quat &q) { x += q.x; y += q.y; z += q.z; w += q.w; return *this; }
 	inline ZL_Quat &operator-=(const ZL_Quat &q) { x -= q.x; y -= q.y; z -= q.z; w -= q.w; return *this; }
-	inline ZL_Quat &operator*=(const ZL_Quat &q) { x = (q.x*w) + (x*q.w) + (y*q.z-z*q.y), y = (q.y*w) + (y*q.w) + (z*q.x-x*q.z), z = (q.z*w) + (z*q.w) + (x*q.y-y*q.x), w = w*q.w - (x*q.x+y*q.y+z*q.z); return *this; }
-	inline ZL_Quat &operator/=(const ZL_Quat &q) { return *this *= q.QuatInverse(); }
+	inline ZL_Quat &operator*=(const ZL_Quat &q) { return *this = ZL_Quat(w*q.x + x*q.w + y*q.z - z*q.y, w*q.y + y*q.w + z*q.x - x*q.z, w*q.z + z*q.w + x*q.y - y*q.x, w*q.w - x*q.x - y*q.y - z*q.z); }
+	inline ZL_Quat &operator/=(const ZL_Quat &q) { return *this *= q.QuatInvert(); }
 	inline ZL_Quat &operator*=(scalar f) { x *= f; y *= f; z *= f; w *= f; return *this; }
 	inline ZL_Quat &operator/=(scalar f) { f = s(1)/f; x *= f; y *= f; z *= f; w *= f; return *this; }
 	inline ZL_Quat operator+(const ZL_Quat &q) const { return ZL_Quat(x + q.x, y + q.y, z + q.z, w + q.w); }
 	inline ZL_Quat operator-(const ZL_Quat &q) const { return ZL_Quat(x - q.x, y - q.y, z - q.z, w - q.w); }
-	inline ZL_Quat operator*(const ZL_Quat &q) const { return ZL_Quat((q.x*w) + (x*q.w) + (y*q.z-z*q.y), (q.y*w) + (y*q.w) + (z*q.x-x*q.z), (q.z*w) + (z*q.w) + (x*q.y-y*q.x), w*q.w - (x*q.x+y*q.y+z*q.z)); }
-	inline ZL_Quat operator/(const ZL_Quat &q) const { return *this * q.QuatInverse(); }
+	inline ZL_Quat operator*(const ZL_Quat &q) const { return ZL_Quat(w*q.x + x*q.w + y*q.z - z*q.y, w*q.y + y*q.w + z*q.x - x*q.z, w*q.z + z*q.w + x*q.y - y*q.x, w*q.w - x*q.x - y*q.y - z*q.z); }
+	inline ZL_Quat operator/(const ZL_Quat &q) const { return *this * q.QuatInvert(); }
 	inline ZL_Quat operator*(scalar f) const { return ZL_Quat(x * f, y * f, z * f, w * f); }
 	inline ZL_Quat operator/(scalar f) const { return ZL_Quat(x / f, y / f, z / f, w / f); }
 	inline scalar operator|(const ZL_Quat &q) const { return x*q.x + y*q.y + z*q.z + w*q.w; } //dot product
 	inline ZL_Vector3 operator*(const ZL_Vector3 &v) const { const ZL_Vector3 q(x,y,z), t = (q^v)*2; return v + (t*w) + (q^t); } //rotate vector
+	inline scalar operator[](int i) const { return (&x)[i]; } //array access
+	inline scalar& operator[](int i) { return (&x)[i]; } //array access
 
 	//Non modifying operators as functions
 	inline scalar Dot(const ZL_Quat& q) const { return x*q.x + y*q.y + z*q.z + w*q.w; }
 	inline scalar GetLength() const { return ssqrt(x*x + y*y + z*z + w*w); }
 	inline scalar GetLengthSq() const { return x*x + y*y + z*z + w*w; }
-	inline ZL_Vector3 RotateVector(const ZL_Vector3& v) { const ZL_Vector3 q(x,y,z), t = (q^v)*2; return v + (t*w) + (q^t); }
-	inline ZL_Vector3 UnrotateVector(const ZL_Vector3& v) { const ZL_Vector3 q(-x,-y,-z), t = (q^v)*2; return v + (t*w) + (q^t); }
-	inline bool AlmostEqual(const ZL_Quat &q, scalar ErrorTolerance = SMALL_NUMBER) { return sabs(x-q.x)<ErrorTolerance && sabs(y-q.y)<ErrorTolerance && sabs(z-q.z)<ErrorTolerance && sabs(w-q.w)<ErrorTolerance; }
-	inline bool IsIdentity() { return w==1||w==-1; }
-	inline bool AlmostIdentity(scalar ErrorTolerance = SMALL_NUMBER) { return sabs(s(1)-w)<ErrorTolerance; }
+	inline scalar GetAngle() const { return 2.f * sacos(w); }
+	inline ZL_Vector3 GetRotationAxis() const { float wsq = (w > 1 ? 0 : ssqrt(1.f - (w*w))); return (wsq >= 0.0001f ? ZL_Vector3(x / wsq, y / wsq, z / wsq) : ZL_Vector3(1,0,0)); }
+	inline ZL_Quat GetTwist(const ZL_Vector3& TwistAxis) const { ZL_Vector3 p = TwistAxis*(TwistAxis|ZL_Vector3(x,y,z)); return (p.x||p.y||p.z||w ? FromVector(p, w).Norm() : ZL_Quat()); }
+	inline ZL_Quat GetSwing(const ZL_Vector3& TwistAxis) const { ZL_Vector3 p = TwistAxis*(TwistAxis|ZL_Vector3(x,y,z)); return (p.x||p.y||p.z||w ? *this * FromVector(p, w).Norm().Invert() : *this).QuatNorm(); }
+	inline ZL_Vector3 RotateVector(const ZL_Vector3& v) const { const ZL_Vector3 q(x,y,z), t = (q^v)*2; return v + (t*w) + (q^t); }
+	inline ZL_Vector3 UnrotateVector(const ZL_Vector3& v) const { const ZL_Vector3 q(-x,-y,-z), t = (q^v)*2; return v + (t*w) + (q^t); }
+	inline bool AlmostEqual(const ZL_Quat &q, scalar ErrorTolerance = SMALL_NUMBER) const { return sabs(x-q.x)<ErrorTolerance && sabs(y-q.y)<ErrorTolerance && sabs(z-q.z)<ErrorTolerance && sabs(w-q.w)<ErrorTolerance; }
+	inline bool IsIdentity() const { return w==1||w==-1; }
+	inline bool AlmostIdentity(scalar ErrorTolerance = SMALL_NUMBER) const { return sabs(s(1)-w)<ErrorTolerance; }
+	inline ZL_String ToString() const { return ZL_String::format("{ x: %f, y: %f, z: %f, w: %f }", x, y, z, w); }
 
 	//Self modifying operators as functions (non const call)
-	inline ZL_Quat& Conjugate() { x=-x; y=-y; z=-z; return *this; }
 	inline ZL_Quat& Negate() { x=-x; y=-y; z=-z; w=-w; return *this; }
-	inline ZL_Quat& Inverse() { scalar sq = x*x+y*y+z*z+w*w; if (!sq) return *this = ZL_Quat(); return *this/=sq; }
-	inline ZL_Quat& Norm() { scalar sq = x*x+y*y+z*z+w*w; if (!sq) return *this = ZL_Quat(); return *this/=ssqrt(sq); }
+	inline ZL_Quat& Invert() { x=-x; y=-y; z=-z; return *this; } //assume normalized
+	inline ZL_Quat& Norm() { scalar sq = x*x+y*y+z*z+w*w; return (sq ? *this /= ssqrt(sq) : *this = ZL_Quat()); }
 	inline ZL_Quat& Lerp(const ZL_Quat& v, scalar t) { x = x+(v.x-x)*t, y = y+(v.y-y)*t, z = z+(v.z-z)*t, w = w+(v.w-w)*t; return *this; }
 	inline ZL_Quat& SLerp(const ZL_Quat& v, scalar t) { scalar qc = Dot(v); if (qc > s(0.9999)) return Lerp(v, t).Norm(); if (qc < 0) { Negate(); qc = -qc; } scalar qa = sacos(qc), qs = ssin(qa); return Mul(ssin((1-t)*qa)/qs).Add(v * ssin(t*qa)/qs); }
 	inline ZL_Quat& Add(const ZL_Quat &q) { x += q.x; y += q.y; z += q.z; w += q.w; return *this; }
 	inline ZL_Quat& Sub(const ZL_Quat &q) { x -= q.x; y -= q.y; z -= q.z; w -= q.w; return *this; }
 	inline ZL_Quat& Mul(const ZL_Quat &q) { x = (q.x*w) + (x*q.w) + (y*q.z-z*q.y), y = (q.y*w) + (y*q.w) + (z*q.x-x*q.z), z = (q.z*w) + (z*q.w) + (x*q.y-y*q.x), w = w*q.w - (x*q.x+y*q.y+z*q.z); return *this; }
-	inline ZL_Quat& Div(const ZL_Quat &q) { return *this *= q.QuatInverse(); }
+	inline ZL_Quat& Div(const ZL_Quat &q) { return *this *= q.QuatInvert(); }
 	inline ZL_Quat& Mul(scalar f) { x *= f; y *= f; z *= f; w *= f; return *this; }
 	inline ZL_Quat& Div(scalar f) { f = s(1)/f; x *= f; y *= f; z *= f; w *= f; return *this; }
 
 	//Modifying operators as functions returning new instances (const call)
-	inline ZL_Quat QuatConjugate() const { return ZL_Quat(-x, -y, -z, w); }
 	inline ZL_Quat QuatNegate() const { return ZL_Quat(-x, -y, -z, -w); }
-	inline ZL_Quat QuatInverse() const { scalar sq = x*x+y*y+z*z+w*w; if (!sq) return ZL_Quat(); return *this/sq; }
-	inline ZL_Quat QuatNorm() const { scalar sq = x*x+y*y+z*z+w*w; if (!sq) return ZL_Quat(); return *this/ssqrt(sq); }
+	inline ZL_Quat QuatInvert() const { return ZL_Quat(-w, -y, -z, w); } //assume normalized
+	inline ZL_Quat QuatNorm() const { scalar sq = x*x+y*y+z*z+w*w; return (sq ? *this/ssqrt(sq) : ZL_Quat()); }
 	inline ZL_Quat QuatLerp(const ZL_Quat& v, scalar t) const { return ZL_Quat(x+(v.x-x)*t, y+(v.y-y)*t, z+(v.z-z)*t, w+(v.w-w)*t); }
 	inline ZL_Quat QuatSLerp(const ZL_Quat& v, scalar t) const { scalar qc = Dot(v); if (qc > s(0.9999)) return QuatLerp(v, t).Norm();  scalar qa = sacos(sabs(qc)), qs = ssin(qa); return (qc < 0 ? QuatNegate() : *this) * (ssin((1-t)*qa)/qs) + (v * ssin(t*qa)/qs); }
 
@@ -241,6 +252,19 @@ struct ZL_Quat
 	static inline ZL_Quat FromRotateX(scalar AngleRad) { scalar ah = AngleRad*s(.5); return ZL_Quat(ssin(ah), 0, 0, scos(ah)); }
 	static inline ZL_Quat FromRotateY(scalar AngleRad) { scalar ah = AngleRad*s(.5); return ZL_Quat(0, ssin(ah), 0, scos(ah)); }
 	static inline ZL_Quat FromRotateZ(scalar AngleRad) { scalar ah = AngleRad*s(.5); return ZL_Quat(0, 0, ssin(ah), scos(ah)); }
+	static inline ZL_Quat FromDirection(const ZL_Vector3& NormalizedDir) { return FromVector(ZL_Vector3::Forward ^ NormalizedDir, (ZL_Vector3::Forward | NormalizedDir)+1).Norm(); }
+	static inline ZL_Quat BetweenNormals(const ZL_Vector3& a, const ZL_Vector3& b)
+	{
+		scalar w = (a | b) + 1;
+		return (w >= s(0.000001) ? ZL_Quat(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x, w) : (sabs(a.x) > sabs(a.y) ? ZL_Quat(-a.z, 0, a.x, 0) : ZL_Quat(0, -a.z, a.y, 0))).Norm();
+	}
+	static inline ZL_Quat BetweenVectors(const ZL_Vector3& a, const ZL_Vector3& b)
+	{
+		scalar nab = ssqrt(a.GetLengthSq() * b.GetLengthSq()), w = nab + (a | b);
+		return (w >= nab * s(0.000001) ? ZL_Quat(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x, w) : (sabs(a.x) > sabs(a.y) ? ZL_Quat(-a.z, 0, a.x, 0) : ZL_Quat(0, -a.z, a.y, 0))).Norm();
+	}
+
+	static const ZL_Quat Identity;
 };
 
 struct ZL_Matrix
@@ -279,10 +303,14 @@ struct ZL_Matrix
 
 	//Non modifying operators as functions
 	inline bool AlmostEqual(const ZL_Matrix &b, scalar ErrorTolerance = SMALL_NUMBER) const { for (int i = 0; i < 16; i++) if (sabs(m[i]-b.m[i]) > ErrorTolerance) return false; return true; }
-	inline ZL_Vector3 GetAxisX() const  { return ZL_Vector3(m[0], m[1], m[2]); }
-	inline ZL_Vector3 GetAxisY() const  { return ZL_Vector3(m[4], m[5], m[6]); }
-	inline ZL_Vector3 GetAxisZ() const  { return ZL_Vector3(m[8], m[9], m[10]); }
-	inline ZL_Vector3 GetOrigin() const { return ZL_Vector3(m[12], m[13], m[14]); }
+	inline ZL_Vector3 GetAxisX() const { return ZL_Vector3(m[0], m[1], m[2]); }
+	inline ZL_Vector3 GetAxisY() const { return ZL_Vector3(m[4], m[5], m[6]); }
+	inline ZL_Vector3 GetAxisZ() const { return ZL_Vector3(m[8], m[9], m[10]); }
+	inline ZL_Vector3 GetTranslate() const { return ZL_Vector3(m[12], m[13], m[14]); }
+	inline ZL_Vector3 GetScale() const { return ZL_Vector3(ssqrt(m[0]*m[0]+m[1]*m[1]+m[2]*m[2]), ssqrt(m[4]*m[4]+m[5]*m[5]+m[6]*m[6]), ssqrt(m[8]*m[8]+m[9]*m[9]+m[10]*m[10])); }
+	inline float      GetScaleX() const { return ssqrt(m[0]*m[0]+m[1]*m[1]+m[2]*m[2]); }
+	inline ZL_Quat    GetRotate() const { return ZL_Quat(*this); }
+
 	inline ZL_Vector3 TransformDirection(const ZL_Vector3& v) const { return ZL_Vector3(v.x*m[0]+v.y*m[4]+v.z*m[8], v.x*m[1]+v.y*m[5]+v.z*m[9], v.x*m[2]+v.y*m[6]+v.z*m[10]); }
 	inline ZL_Vector3 TransformPosition(const ZL_Vector3& v) const { return ZL_Vector3(v.x*m[0]+v.y*m[4]+v.z*m[8]+m[12], v.x*m[1]+v.y*m[5]+v.z*m[9]+m[13], v.x*m[2]+v.y*m[6]+v.z*m[10]+m[14]); }
 	inline ZL_Vector3 PerspectiveTransformPosition(const ZL_Vector3& v) const { scalar w = (v.x*m[3]+v.y*m[7]+v.z*m[11]+m[15]); w=w?s(1)/w:s(1); return ZL_Vector3((v.x*m[0]+v.y*m[4]+v.z*m[8]+m[12])*w, (v.x*m[1]+v.y*m[5]+v.z*m[9]+m[13])*w, (v.x*m[2]+v.y*m[6]+v.z*m[10]+m[14])*w); }
@@ -311,13 +339,21 @@ struct ZL_Matrix
 	}
 
 	//Self modifying operators as functions (non const call)
-	inline ZL_Matrix& SetOrigin(const ZL_Vector3& v) { m[12]=v.x, m[13]=v.y, m[14]=v.z; return *this; }
-	inline ZL_Matrix& SetOrigin(scalar x, scalar y = 0, scalar z = 0) { m[12]=x, m[13]=y, m[14]=z; return *this; }
-	inline ZL_Matrix& AddOrigin(const ZL_Vector3& v) { m[12]+=v.x, m[13]+=v.y, m[14]+=v.z; return *this; }
-	inline ZL_Matrix& AddOrigin(scalar x, scalar y = 0, scalar z = 0) { m[12]+=x, m[13]+=y, m[14]+=z; return *this; }
-	inline ZL_Matrix& Scale(scalar f) { m[0] *= f; m[1] *= f; m[2] *= f; m[3] *= f; m[4] *= f; m[5] *= f; m[6] *= f; m[7] *= f; m[8] *= f; m[9] *= f; m[10] *= f; m[11] *= f; return *this; }
-	inline ZL_Matrix& Scale(ZL_Vector3 v) { m[0] *= v.x; m[1] *= v.x; m[2] *= v.x; m[3] *= v.x; m[4] *= v.y; m[5] *= v.y; m[6] *= v.y; m[7] *= v.y; m[8] *= v.z; m[9] *= v.z; m[10] *= v.z; m[11] *= v.z; return *this; }
-	inline ZL_Matrix& Scale(scalar x, scalar y, scalar z) { m[0] *= x; m[1] *= x; m[2] *= x; m[3] *= x; m[4] *= y; m[5] *= y; m[6] *= y; m[7] *= y; m[8] *= z; m[9] *= z; m[10] *= z; m[11] *= z; return *this; }
+	inline ZL_Matrix& TranslateBy(const ZL_Vector3& v) { m[12]+=v.x, m[13]+=v.y, m[14]+=v.z; return *this; }
+	inline ZL_Matrix& TranslateBy(scalar x, scalar y = 0, scalar z = 0) { m[12]+=x, m[13]+=y, m[14]+=z; return *this; }
+	inline ZL_Matrix& SetTranslate(const ZL_Vector3& v) { m[12]=v.x, m[13]=v.y, m[14]=v.z; return *this; }
+	inline ZL_Matrix& SetTranslate(scalar x, scalar y = 0, scalar z = 0) { m[12]=x, m[13]=y, m[14]=z; return *this; }
+	inline ZL_Matrix& ClearTranslate() { m[12]=m[13]=m[14]=0; return *this; }
+	inline ZL_Matrix& ScaleBy(scalar f) { m[0]*=f; m[1]*=f; m[2]*=f; m[3]*=f; m[4]*=f; m[5]*=f; m[6]*=f; m[7]*=f; m[8]*=f; m[9]*=f; m[10]*=f; m[11]*=f; return *this; }
+	inline ZL_Matrix& ScaleBy(ZL_Vector3 v) { m[0]*=v.x; m[1]*=v.x; m[2]*=v.x; m[3]*=v.x; m[4]*=v.y; m[5]*=v.y; m[6]*=v.y; m[7]*=v.y; m[8]*=v.z; m[9]*=v.z; m[10]*=v.z; m[11]*=v.z; return *this; }
+	inline ZL_Matrix& ScaleBy(scalar x, scalar y, scalar z) { m[0]*=x; m[1]*=x; m[2]*=x; m[3]*=x; m[4]*=y; m[5]*=y; m[6]*=y; m[7]*=y; m[8]*=z; m[9]*=z; m[10]*=z; m[11]*=z; return *this; }
+	inline ZL_Matrix& SetScale(scalar f) { return ScaleBy(f / GetScaleX()); }
+	inline ZL_Matrix& SetScale(ZL_Vector3 v) { return ScaleBy(v / GetScale()); }
+	inline ZL_Matrix& SetScale(scalar x, scalar y, scalar z) { return ScaleBy(ZL_Vector3(x, y, z) / GetScale()); }
+	inline ZL_Matrix& ClearScale() { return SetScale(1); }
+	inline ZL_Matrix& SetRotate(ZL_Quat q) { return *this = MakeRotateTranslateScale(q, GetTranslate(), GetScale()); }
+	inline ZL_Matrix& RotateBy(ZL_Quat q) { *this *= MakeRotate(q); return *this; }
+	inline ZL_Matrix& ClearRotate() { ZL_Vector3 scl = GetScale(); m[0] = scl.x; m[5] = scl.y; m[10] = scl.z; m[1]=m[2]=m[3]=m[4]=m[6]=m[7]=m[8]=m[9]=m[11] = 0; return *this; }
 	inline ZL_Matrix& Transpose() { return *this = GetTransposed(); }
 	inline ZL_Matrix& Inverse() { return *this = GetInverted(); }
 	inline ZL_Matrix& InverseTranspose() { return *this = GetInverseTransposed(); }
@@ -337,20 +373,25 @@ struct ZL_Matrix
 		scalar x = Quat.x, y = Quat.y, z = Quat.z, w = Quat.w, x2 = x + x, y2 = y + y, z2 = z + z, xx = x*x2, xy = x*y2, xz = x*z2, yy = y*y2, yz = y*z2, zz = z*z2, wx = w*x2, wy = w*y2, wz = w*z2;
 		return ZL_Matrix(1 - (yy + zz), xy + wz, xz - wy, 0, xy - wz, 1 - (xx + zz), yz + wx, 0, xz + wy, yz - wx, 1 - (xx + yy), 0, 0, 0, 0, 1);
 	}
-	static inline ZL_Matrix MakeRotateTranslate(const ZL_Quat& q, const ZL_Vector3& v)
-	{
-		scalar x = q.x, y = q.y, z = q.z, w = q.w, x2 = x + x, y2 = y + y, z2 = z + z, xx = x*x2, xy = x*y2, xz = x*z2, yy = y*y2, yz = y*z2, zz = z*z2, wx = w*x2, wy = w*y2, wz = w*z2;
-		return ZL_Matrix(1 - (yy + zz), xy + wz, xz - wy, 0, xy - wz, 1 - (xx + zz), yz + wx, 0, xz + wy, yz - wx, 1 - (xx + yy), 0, v.x, v.y, v.z, 1);
-	}
 	static inline ZL_Matrix MakeRotate(const ZL_Vector3& normalized_forward, const ZL_Vector3& normalized_up = ZL_Vector3::Up)
 	{
 		const ZL_Vector3 N = normalized_forward, V = (normalized_up ^ N).VecNorm(), U = (N ^ V);
-		return ZL_Matrix(V.x,V.y,V.z,0,U.x,U.y,U.z,0,N.x,N.y,N.z,0,0,0,0,1);
+		return ZL_Matrix(U.x,U.y,U.z,0,N.x,N.y,N.z,0,V.x,V.y,V.z,0,0,0,0,1);
+	}
+	static inline ZL_Matrix MakeRotateTranslate(const ZL_Quat& rot, const ZL_Vector3& loc)
+	{
+		scalar x = rot.x, y = rot.y, z = rot.z, w = rot.w, x2 = x + x, y2 = y + y, z2 = z + z, xx = x*x2, xy = x*y2, xz = x*z2, yy = y*y2, yz = y*z2, zz = z*z2, wx = w*x2, wy = w*y2, wz = w*z2;
+		return ZL_Matrix(1 - (yy + zz), xy + wz, xz - wy, 0, xy - wz, 1 - (xx + zz), yz + wx, 0, xz + wy, yz - wx, 1 - (xx + yy), 0, loc.x, loc.y, loc.z, 1);
 	}
 	static inline ZL_Matrix MakeRotateTranslate(const ZL_Vector3& normalized_forward, const ZL_Vector3& location, const ZL_Vector3& normalized_up = ZL_Vector3::Up)
 	{
 		const ZL_Vector3 N = normalized_forward, V = (normalized_up ^ N).VecNorm(), U = (N ^ V);
 		return ZL_Matrix(V.x,V.y,V.z,0,U.x,U.y,U.z,0,N.x,N.y,N.z,0,location.x,location.y,location.z,1);
+	}
+	static inline ZL_Matrix MakeRotateTranslateScale(const ZL_Quat& rot, const ZL_Vector3& loc, const ZL_Vector3& scl)
+	{
+		scalar x = rot.x, y = rot.y, z = rot.z, w = rot.w, x2 = x + x, y2 = y + y, z2 = z + z, xx = x*x2, xy = x*y2, xz = x*z2, yy = y*y2, yz = y*z2, zz = z*z2, wx = w*x2, wy = w*y2, wz = w*z2;
+		return ZL_Matrix((1-(yy+zz))*scl.x, (xy+wz)*scl.x, (xz-wy)*scl.x, 0, (xy-wz)*scl.y, (1-(xx+zz))*scl.y, (yz+wx)*scl.y, 0, (xz+wy)*scl.z, (yz-wx)*scl.z, (1-(xx+yy))*scl.z, 0, loc.x,loc.y,loc.z,1);
 	}
 	static inline ZL_Matrix MakeRotateTranslateScale(const ZL_Vector3& normalized_forward, const ZL_Vector3& location, const ZL_Vector3& scale, const ZL_Vector3& normalized_up = ZL_Vector3::Up)
 	{
@@ -383,7 +424,7 @@ struct ZL_Matrix
 	static const ZL_Matrix Identity;
 };
 
-inline ZL_Quat::ZL_Quat(struct ZL_Matrix& m)
+inline ZL_Quat::ZL_Quat(const struct ZL_Matrix& m)
 {
 	if (m.m[0] > m.m[5] && m.m[0] > m.m[10])
 	{
