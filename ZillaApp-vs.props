@@ -19,7 +19,7 @@
   <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+  <PropertyGroup Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
@@ -38,7 +38,7 @@
     <LinkIncremental>true</LinkIncremental>
     <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+  <PropertyGroup Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB'">
     <LinkIncremental>false</LinkIncremental>
     <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
@@ -46,7 +46,7 @@
     <OutDir>Debug-vs$(VisualStudioYear)\</OutDir>
     <IntDir>Debug-vs$(VisualStudioYear)\</IntDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|Win32'">
     <OutDir>Release-vs$(VisualStudioYear)\</OutDir>
     <IntDir>Release-vs$(VisualStudioYear)\</IntDir>
   </PropertyGroup>
@@ -54,11 +54,11 @@
     <OutDir>Debug-vs$(VisualStudioYear)x64\</OutDir>
     <IntDir>Debug-vs$(VisualStudioYear)x64\</IntDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|x64'">
     <OutDir>Release-vs$(VisualStudioYear)x64\</OutDir>
     <IntDir>Release-vs$(VisualStudioYear)x64\</IntDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(DataAssets)'!='' And '$(Configuration)'=='Release'">
+  <PropertyGroup Condition="'$(DataAssets)'!='' And ('$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB')">
     <LocalDebuggerCommand>$(OutDir)$(TargetName)_WithData.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
@@ -162,12 +162,12 @@
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|Win32'">
     <ClCompile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB'">
     <ClCompile>
       <Optimization>Full</Optimization>
       <AdditionalIncludeDirectories>$(ZillaLibDir)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -209,7 +209,7 @@
       <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(DataAssets)'!='' And '$(Configuration)'=='Release' And $(SkipDataAssets)==''">
+  <ItemDefinitionGroup Condition="'$(DataAssets)'!='' And ('$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB') And $(SkipDataAssets)==''">
     <PostBuildEvent>
       <Command>
 "$(PythonDir)python" -c "import sys,os,zipfile;z=zipfile.ZipFile(sys.argv[1],'w');[z.write(a) for a in sys.argv[2:]];[z.write(r+'/'+f) for a in sys.argv[2:] for r,d,fs in os.walk(a) for f in fs]" "$(TargetDir)ASSETS.ZIP" $(DataAssets) 2&gt;nul:
@@ -220,6 +220,14 @@ if errorlevel 1 exit 1
 echo Packed data assets into $(TargetDir)$(TargetName)_WithData.exe
       </Command>
     </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='ReleaseWithPDB'">
+    <ClCompile>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ProjectReference Include="$(ZillaLibDir)/ZillaLib-vs.vcxproj">
