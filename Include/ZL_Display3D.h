@@ -131,20 +131,30 @@ struct ZL_Mesh
 	operator bool () const { return (impl!=NULL); }
 	bool operator==(const ZL_Mesh &b) const { return (impl==b.impl); }
 	bool operator!=(const ZL_Mesh &b) const { return (impl!=b.impl); }
-	static ZL_Mesh FromPLY(const ZL_FileLink& PLYFile, const ZL_Material& Material = DefaultMaterial());
-	static ZL_Mesh FromOBJ(const ZL_FileLink& OBJFile, const ZL_Material& Material = DefaultMaterial());
-	
+
 	ZL_Material GetMaterial(unsigned int PartNumber = 0) const;
 	ZL_Material GetMaterial(ZL_NameID PartName) const;
 	ZL_Mesh& SetMaterial(unsigned int PartNumber, const ZL_Material& Material);
 	ZL_Mesh& SetMaterial(ZL_NameID PartName, const ZL_Material& Material);
 	ZL_Mesh& SetMaterial(const ZL_Material& Material);
 
+	static ZL_Mesh FromPLY(const ZL_FileLink& PLYFile, const ZL_Material& Material = DefaultMaterial());
+	static ZL_Mesh FromOBJ(const ZL_FileLink& OBJFile, const ZL_Material& Material = DefaultMaterial());
+
+	enum VertDataMode { VDM_POS = 0, VDM_POS_NORMAL = 2, VDM_POS_NORMAL_TEXCOORD = 6, VDM_POS_NORMAL_TEXCOORD_TANGENT = 14, VDM_POS_NORMAL_TEXCOORD_TANGENT_COLOR = 30, VDM_POS_NORMAL_TEXCOORD_COLOR = 22, VDM_POS_NORMAL_TANGENT = 10, VDM_POS_NORMAL_TANGENT_COLOR = 26, VDM_POS_NORMAL_COLOR = 18, VDM_POS_TEXCOORD = 4, VDM_POS_TEXCOORD_TANGENT = 12, VDM_POS_TEXCOORD_TANGENT_COLOR = 28, VDM_POS_TEXCOORD_COLOR = 20, VDM_POS_TANGENT = 8, VDM_POS_TANGENT_COLOR = 24, VDM_POS_COLOR = 16 };
+	static ZL_Mesh BuildMesh(const unsigned short* Indices, size_t NumIndices, const void* Vertices, size_t NumVertices, VertDataMode Content, const ZL_Material& Material = DefaultMaterial());
+	static ZL_Mesh BuildQuads(const void* Vertices, size_t NumQuads, VertDataMode Content, const ZL_Material& Material = DefaultMaterial());
 	static ZL_Mesh BuildPlane(const ZL_Vector& Extents, const ZL_Material& Material = DefaultMaterial(), const ZL_Vector3& Normal = ZL_Vector3::Up, const ZL_Vector3& Offset = ZL_Vector3::Zero, const ZL_Vector& UVMapMax = ZL_Vector::One);
 	static ZL_Mesh BuildBox(const ZL_Vector3& Extents, const ZL_Material& Material = DefaultMaterial(), const ZL_Vector3& Offset = ZL_Vector3::Zero, const ZL_Vector& UVMapMax = ZL_Vector::One);
 	static ZL_Mesh BuildLandscape(const ZL_Material& Material = DefaultMaterial());
 	static ZL_Mesh BuildSphere(scalar Radius, int Segments, bool Inside = false, const ZL_Material& Material = DefaultMaterial());
 	static ZL_Mesh BuildExtrudePixels(scalar Scale, scalar Depth, const ZL_FileLink& ImgFile, const ZL_Material& Material = DefaultMaterial(), bool KeepAlpha = true, bool AlphaDepth = false, scalar AlphaDepthAlign = .5f, const ZL_Matrix& Transform = ZL_Matrix::Identity);
+
+	enum IntersectMode { IM_ODD = 0, IM_NONZERO = 1, IM_POSITIVE = 2, IM_NEGATIVE = 3, IM_ABS_GEQ_TWO = 4 };
+	static ZL_Mesh BuildExtrudeContour(const ZL_Vector3* p, size_t pnum,                              scalar Depth, const ZL_Material& Material = DefaultMaterial(), IntersectMode selfintersect = IM_NONZERO);
+	static ZL_Mesh BuildExtrudeContour(const std::vector<ZL_Vector3>& contour,                        scalar Depth, const ZL_Material& Material = DefaultMaterial(), IntersectMode selfintersect = IM_NONZERO);
+	static ZL_Mesh BuildExtrudeContours(const ZL_Vector3*const* ps, const size_t* pnums, size_t cnum, scalar Depth, const ZL_Material& Material = DefaultMaterial(), IntersectMode intersect     = IM_NONZERO);
+	static ZL_Mesh BuildExtrudeContours(const std::vector<ZL_Vector3>*const* cs, size_t cnum,         scalar Depth, const ZL_Material& Material = DefaultMaterial(), IntersectMode intersect     = IM_NONZERO);
 
 	#if defined(ZILLALOG) && !defined(ZL_VIDEO_OPENGL_ES2)
 	//Debug drawing is only available on desktop debug builds
@@ -236,6 +246,7 @@ struct ZL_Camera
 struct ZL_Light
 {
 	ZL_Light();
+	ZL_Light(const ZL_Vector3& pos);
 	~ZL_Light();
 	ZL_Light(const ZL_Light &source);
 	ZL_Light &operator=(const ZL_Light &source);
@@ -306,6 +317,7 @@ struct ZL_Display3D
 	static void DrawLine(const ZL_Camera& cam, const ZL_Vector3& a, const ZL_Vector3& b, const ZL_Color& color = ZL_Color::White, scalar width = 0.01f);
 	static void DrawPlane(const ZL_Camera& cam, const ZL_Vector3& pos, const ZL_Vector3& normal, const ZL_Vector& extents, const ZL_Color& color = ZL_Color::White);
 	static void DrawFrustum(const ZL_Camera& cam, const ZL_Matrix& VPMatrix, const ZL_Color& color = ZL_Color::White, scalar width = 0.03f);
+	static void DrawSphere(const ZL_Camera& cam, const ZL_Vector3& pos, scalar radius, const ZL_Color& color = ZL_Color::White);
 };
 
 //returns glsl function 'float snoise(vec2)'

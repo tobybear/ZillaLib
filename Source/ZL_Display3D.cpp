@@ -395,6 +395,7 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 	{
 		if (ShaderIDs.Program) glDeleteProgram(ShaderIDs.Program);
 		if (VariationID) g_LoadedShaderVariations->erase(FindVariation(VariationID));
+		if (VariationID && g_LoadedShaderVariations->empty()) { delete g_LoadedShaderVariations; g_LoadedShaderVariations = NULL; }
 		if (ShadowMapProgram) ShadowMapProgram->DelRef();
 		if (this == g_ShadowMapProgram) g_ShadowMapProgram = NULL;
 		if (this == g_ShadowMapMaskProgram) g_ShadowMapMaskProgram = NULL;
@@ -407,6 +408,7 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 
 	ZL_MaterialProgram(GLsizei vertex_shader_srcs_count, const char **vertex_shader_srcs, GLsizei fragment_shader_srcs_count, const char **fragment_shader_srcs, unsigned int MaterialModes = 0) : ZL_Material_Impl(NULL, MaterialModes), VariationID(0), UploadedCamera(0), UploadedLight(0), UploadedLightDataChkSum(0), UniformUploadedValueChksum(0), UniformEntries(NULL), ShadowMapProgram(NULL)
 	{
+		ZL_ASSERTMSG(funcInitGL3D, "3D rendering was not initialized with ZL_Display3D::Init");
 		ShaderProgram = this;
 		if (!(ShaderIDs.Program = ZLGLSL::CreateProgramFromVertexAndFragmentShaders(vertex_shader_srcs_count, vertex_shader_srcs, fragment_shader_srcs_count, fragment_shader_srcs, COUNT_OF(ZL_Display3D_Shaders::S_AttributeList), ZL_Display3D_Shaders::S_AttributeList))) return;
 		UniformMatrixView               = glGetUniformLocation(ShaderIDs.Program, Z3U_VIEW);
@@ -598,6 +600,7 @@ struct ZL_MaterialInstance : ZL_Material_Impl
 ZL_Material_Impl* ZL_Material_Impl::GetMaterialReference(unsigned int MM, const char* CustomFragmentCode, const char* CustomVertexCode)
 {
 	using namespace ZL_Display3D_Shaders;
+	if (!g_MaxLights) MM |= MO_UNLIT;
 	ZL_ASSERTMSG(!CustomVertexCode || (MM & MMDEF_USECUSTOMVERTEX), "Missing custom vertex shader code");
 	ZL_ASSERTMSG(!CustomFragmentCode || (MM & MMDEF_USECUSTOMFRAGMENT), "Missing custom fragment shader code");
 	ZL_ASSERTMSG(CustomFragmentCode || CustomVertexCode || !(MM & MMDEF_REQUESTS), "Requests only valid with custom shader code");
@@ -658,10 +661,12 @@ struct ZL_Mesh_Impl : ZL_Impl
 	GLuint IndexBufferObject, VertexBufferObject, LastRenderFrame;
 	GLubyte ProvideAttributeMask;
 	GLsizei Stride;
+	GLenum IndexBufferType;
 	GLvoid *NormalOffsetPtr, *TexCoordOffsetPtr, *ColorOffsetPtr, *TangentOffsetPtr;
 	struct MeshPart
 	{
 		ZL_NameID Name; GLsizei IndexCount; GLushort* IndexOffsetPtr; ZL_Material_Impl* Material;
+		MeshPart() {}
 		MeshPart(ZL_NameID Name, GLsizei IndexCount, GLushort* IndexOffsetPtr,  ZL_Material_Impl* Material, bool AddMatRef) : Name(Name), IndexCount(IndexCount), IndexOffsetPtr(IndexOffsetPtr), Material(Material) { if (Material && AddMatRef) Material->AddRef(); }
 		bool operator==(ZL_NameID n) { return Name == n; }
 	};
@@ -683,20 +688,25 @@ struct ZL_Mesh_Impl : ZL_Impl
 
 	ZL_Mesh_Impl(GLubyte AttributeMask) : IndexBufferObject(0), VertexBufferObject(0), LastRenderFrame((GLuint)-1), ProvideAttributeMask(AttributeMask)
 	{
-		Stride = sizeof(GLscalar) * (3 + ((AttributeMask & VAMASK_NORMAL) ? 3 : 0) + ((AttributeMask & VAMASK_TEXCOORD) ? 2 : 0) + ((AttributeMask & VAMASK_TANGENT) ? 3 : 0) + ((AttributeMask & VAMASK_COLOR) ? 1 : 0));
-		int ScalarOffset = 3;
-		if (AttributeMask & VAMASK_NORMAL)   { NormalOffsetPtr   = (GLvoid*)(ScalarOffset * sizeof(GLscalar)); ScalarOffset += 3; }
-		if (AttributeMask & VAMASK_TEXCOORD) { TexCoordOffsetPtr = (GLvoid*)(ScalarOffset * sizeof(GLscalar)); ScalarOffset += 2; }
-		if (AttributeMask & VAMASK_TANGENT)  { TangentOffsetPtr  = (GLvoid*)(ScalarOffset * sizeof(GLscalar)); ScalarOffset += 3; }
-		if (AttributeMask & VAMASK_COLOR)    { ColorOffsetPtr    = (GLvoid*)(ScalarOffset * sizeof(GLscalar)); ScalarOffset += 1; }
+		Stride = 3 * sizeof(GLscalar);
+		if (AttributeMask & VAMASK_NORMAL)   { NormalOffsetPtr   = (GLvoid*)(size_t)Stride; Stride += 3 * sizeof(GLscalar); }
+		if (AttributeMask & VAMASK_TEXCOORD) { TexCoordOffsetPtr = (GLvoid*)(size_t)Stride; Stride += 2 * sizeof(GLscalar); }
+		if (AttributeMask & VAMASK_TANGENT)  { TangentOffsetPtr  = (GLvoid*)(size_t)Stride; Stride += 3 * sizeof(GLscalar); }
+		if (AttributeMask & VAMASK_COLOR)    { ColorOffsetPtr    = (GLvoid*)(size_t)Stride; Stride += 4; }
+		ZL_ASSERT(Stride == CalcStride(AttributeMask));
 	}
 
-	static ZL_Mesh_Impl* Make(GLubyte AttributeMask, const GLushort* Indices, GLsizei IndicesCount, const GLvoid* VertData, GLsizei VertCount, ZL_Material_Impl* Program)
+	static GLsizei CalcStride(GLubyte AttributeMask)
+	{
+		return sizeof(GLscalar) * (3 + ((AttributeMask & VAMASK_NORMAL) ? 3 : 0) + ((AttributeMask & VAMASK_TEXCOORD) ? 2 : 0) + ((AttributeMask & VAMASK_TANGENT) ? 3 : 0) + ((AttributeMask & VAMASK_COLOR) ? 4 : 0);
+	}
+
+	static ZL_Mesh_Impl* Make(GLubyte AttributeMask, const GLushort* Indices, GLsizeiptr IndicesCount, const GLvoid* VertData, GLsizeiptr VertCount, ZL_Material_Impl* Program)
 	{
 		ZL_Mesh_Impl* res = new ZL_Mesh_Impl(AttributeMask);
-		res->CreateAndFillBufferData(Indices, IndicesCount, VertData, VertCount);
+		res->CreateAndFillBufferData(Indices, GL_UNSIGNED_SHORT, IndicesCount * sizeof(Indices[0]), VertData, VertCount * res->Stride);
 		res->Parts = (MeshPart*)malloc(sizeof(MeshPart));
-		res->Parts[0] = MeshPart(ZL_NameID(), IndicesCount, NULL, Program, true);
+		res->Parts[0] = MeshPart(ZL_NameID(), (GLsizei)IndicesCount, NULL, Program, true);
 		res->PartsEnd = res->Parts+1;
 		return res;
 	}
@@ -727,9 +737,9 @@ struct ZL_Mesh_Impl : ZL_Impl
 		for (GLubyte *v = (GLubyte*)StoredVertData, *vEnd = v + BufferSize; v != vEnd; v += Stride)
 		{
 			ZL_Vector3 *pos = (ZL_Vector3*)v, tpos = Matrix.TransformPosition(*pos), nrml = ZL_Vector3::Up; GLscalar *ScalarOffset = (GLscalar*)(pos+1);
-			if (ProvideAttributeMask & VAMASK_NORMAL)   { nrml = Matrix.TransformDirection(*((ZL_Vector3*)ScalarOffset)); ZL_Display3D::DrawLine(cam, tpos, tpos + nrml * 0.1f, ZL_Color::Green, 0.001f); ScalarOffset += 3; }
+			if (ProvideAttributeMask & VAMASK_NORMAL)   { nrml = Matrix.TransformDirection(*((ZL_Vector3*)ScalarOffset)); ZL_Display3D::DrawLine(cam, tpos, tpos + nrml * 0.3f, ZL_Color::Green, 0.05f); ScalarOffset += 3; }
 			if (ProvideAttributeMask & VAMASK_TEXCOORD) { ZL_Display3D::DrawPlane(cam, tpos, nrml, ZL_Vector(0.05f,0.05f), ZL_Color(ScalarOffset[0], ScalarOffset[1], 0)); ScalarOffset += 2; }
-			if (ProvideAttributeMask & VAMASK_TANGENT)  { ZL_Display3D::DrawLine(cam, tpos, tpos + Matrix.TransformDirection(*((ZL_Vector3*)ScalarOffset)) * 0.1f, ZL_Color::Red, 0.001f); ScalarOffset += 3; }
+			if (ProvideAttributeMask & VAMASK_TANGENT)  { ZL_Display3D::DrawLine(cam, tpos, tpos + Matrix.TransformDirection(*((ZL_Vector3*)ScalarOffset)) * 0.1f, ZL_Color::Red, 0.1f); ScalarOffset += 3; }
 		}
 
 		glBindBuffer(GL_ARRAY_BUFFER, VertexBufferObject);
@@ -738,15 +748,17 @@ struct ZL_Mesh_Impl : ZL_Impl
 	}
 	#endif
 
-	void CreateAndFillBufferData(const GLushort* Indices, GLsizei IndicesCount, const GLvoid* VertData, GLsizei VertCount)
+	void CreateAndFillBufferData(const GLushort* Indices, GLenum IndicesType, GLsizeiptr IndicesBufSize, const GLvoid* Vertices, GLsizeiptr VerticesBufSize)
 	{
+		IndexBufferType = IndicesType;
 		glGenBuffers(2, &IndexBufferObject);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBufferObject);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * IndicesCount, Indices, GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, IndicesBufSize, Indices, GL_STATIC_DRAW);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_Active3D.IndexBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, VertexBufferObject);
-		glBufferData(GL_ARRAY_BUFFER, Stride * VertCount, VertData, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, VerticesBufSize, Vertices, GL_STATIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, g_Active3D.VertexBuffer);
+
 		#if defined(ZILLALOG) && (0||ZL_DISPLAY3D_ASSERT_NORMALS_AND_TANGENTS)
 		ZL_ASSERTMSG(!(IndicesCount%3), "Indices do not make triangles");
 		if (ProvideAttributeMask & VAMASK_NORMAL) for (const GLushort *a = Indices, *aEnd = a+IndicesCount; a != aEnd; a += 3)
@@ -773,8 +785,8 @@ struct ZL_Mesh_Impl : ZL_Impl
 
 		#ifdef ZL_VIDEO_WEAKCONTEXT
 		WeakIsAnimatedMesh = false;
-		WeakIndices  = (GLushort*)malloc((WeakIndicesSize  = (sizeof(GLushort) * IndicesCount))); memcpy(WeakIndices,  Indices,  WeakIndicesSize );
-		WeakVertData = (GLvoid*  )malloc((WeakVertDataSize = (Stride * VertCount             ))); memcpy(WeakVertData, VertData, WeakVertDataSize);
+		WeakIndices  = (GLushort*)malloc((WeakIndicesSize  = IndicesBufSize)); memcpy(WeakIndices,  Indices,  WeakIndicesSize );
+		WeakVertData = (GLvoid*  )malloc((WeakVertDataSize = VerticesBufSize)); memcpy(WeakVertData, Vertices, WeakVertDataSize);
 		if (!g_LoadedMeshes) g_LoadedMeshes = new std::vector<struct ZL_Mesh_Impl*>();
 		g_LoadedMeshes->push_back(this);
 		#endif
@@ -790,9 +802,9 @@ struct ZL_Mesh_Impl : ZL_Impl
 		fileimpl->src->seektell(0, RW_SEEK_SET);
 		if (magic[0] == 'P' && magic[1] == 'K') return ZL_RWopsZIP::ReadSingle(fileimpl->src);
 		size_t file_size = fileimpl->src->size();
-		unsigned char* ply_buffer = (unsigned char*)malloc(file_size);
-		fileimpl->src->read(ply_buffer, 1, file_size);
-		return ply_buffer;
+		unsigned char* buffer = (unsigned char*)malloc(file_size);
+		fileimpl->src->read(buffer, 1, file_size);
+		return buffer;
 	}
 
 	static bool AdvanceLine(unsigned char*& line_end, unsigned char*& cursor)
@@ -814,14 +826,13 @@ struct ZL_Mesh_Impl : ZL_Impl
 	static ZL_Mesh_Impl* PLYLoad(const ZL_FileLink& file, ZL_Material_Impl* Material, unsigned char *ply_buffer = NULL)
 	{
 		if (!ply_buffer) ply_buffer = ReadMeshFile(file);
-		ZL_ASSERTMSG(ply_buffer, "File load error");
-		if (!ply_buffer) { ZL_LOG0("3D", "PLY Loader failed - No input file"); return NULL; }
+		if (!ply_buffer) return NULL;
+
 		enum { PROP_X, PROP_Y, PROP_Z, PROP_NX, PROP_NY, PROP_NZ, PROP_S, PROP_T, PROP_RED, PROP_GREEN, PROP_BLUE, PROP_INT_RED, PROP_INT_GREEN, PROP_INT_BLUE, PROP_UNKNOWN };
-		std::vector<unsigned char> PropTypes;
-		ZL_Mesh_Impl* res = NULL;
-		GLvoid *VertData = NULL; GLubyte *VertDataCursor = NULL, *VertDataCursorEnd = NULL;
+		GLubyte *VertData = NULL, *VertDataCursor = NULL, *VertDataCursorEnd = NULL;
 		unsigned char AttributeMask = 0;
 		std::vector<GLushort> Indices;
+		unsigned char PropTypes[32];
 		GLsizei prop_count = 0, vertex_count = 0, face_count = 0;
 		enum { PARSEMODE_HEADER, PARSEMODE_VERTICES, PARSEMODE_INDICES } Mode = PARSEMODE_HEADER;
 		for (unsigned char *line_end = ply_buffer, *cursor; AdvanceLine(line_end, cursor);)
@@ -840,28 +851,27 @@ struct ZL_Mesh_Impl : ZL_Impl
 					else if (p[1] == 'x' || p[1] == 'y' || p[1] == 'z') PropType = (PROP_X + (p[1] - 'x'));
 					else if (p[1] == 'n' && (p[2] == 'x' || p[2] == 'y' || p[2] == 'z')) PropType = (PROP_NX + (p[2] - 'x')), AttributeMask |= VAMASK_NORMAL;
 					else if (p[1] == 's' || p[1] == 't') PropType = (PROP_S + (p[1] - 's')), AttributeMask |= VAMASK_TEXCOORD;
-					else if (p[1] == 'r') PropType = (is_int ? PROP_INT_RED : PROP_RED), AttributeMask |= VAMASK_COLOR;
+					else if (p[1] == 'r') PropType = (is_int ? PROP_INT_RED : PROP_RED),     AttributeMask |= VAMASK_COLOR;
 					else if (p[1] == 'g') PropType = (is_int ? PROP_INT_GREEN : PROP_GREEN), AttributeMask |= VAMASK_COLOR;
-					else if (p[1] == 'b') PropType = (is_int ? PROP_INT_BLUE : PROP_BLUE), AttributeMask |= VAMASK_COLOR;
-					PropTypes.push_back(PropType);
-					prop_count++;
+					else if (p[1] == 'b') PropType = (is_int ? PROP_INT_BLUE : PROP_BLUE),   AttributeMask |= VAMASK_COLOR;
+					if (prop_count < (GLsizei)COUNT_OF(PropTypes)) PropTypes[prop_count++] = PropType;
 				}
 				else if (line_length == 10 && cursor[0] == 'e' && cursor[1] == 'n') //end_header
 				{
 					if (!prop_count || !vertex_count || !face_count) break;
-					res = new ZL_Mesh_Impl(AttributeMask);
-					VertDataCursor = (GLubyte*)(VertData = malloc(res->Stride * vertex_count));
-					VertDataCursorEnd = VertDataCursor + res->Stride * vertex_count;
+					GLsizeiptr VertBufSize =  CalcStride(AttributeMask) * vertex_count;
+					VertDataCursor = VertData = (GLubyte*)malloc(VertBufSize);
+					VertDataCursorEnd = VertDataCursor + VertBufSize;
 					Mode = PARSEMODE_VERTICES;
 				}
 			}
 			else if (Mode == PARSEMODE_VERTICES)
 			{
-				GLscalar* OutXYZ  = (GLscalar*)VertDataCursor;
-				GLscalar* OutNXYZ = (GLscalar*)(VertDataCursor+(size_t)res->NormalOffsetPtr);
-				GLscalar* OutUV   = (GLscalar*)(VertDataCursor+(size_t)res->TexCoordOffsetPtr);
-				GLubyte* OutRGBA  =  (GLubyte*)(VertDataCursor+(size_t)res->ColorOffsetPtr);
-				VertDataCursor += res->Stride;
+				GLscalar* OutXYZ   = (GLscalar*)(VertDataCursor);
+				GLscalar* OutNXYZ  = (OutXYZ + 3);
+				GLscalar* OutUV    = (OutNXYZ + (AttributeMask & VAMASK_NORMAL ? 3 : 0));
+				GLubyte*  OutRGBA  = (GLubyte*)(OutUV + (AttributeMask & VAMASK_TEXCOORD ? 2 : 0));
+				VertDataCursor     = (OutRGBA + (AttributeMask & VAMASK_COLOR ? 4 : 0));
 				for (GLsizei i = 0; i < prop_count; i++)
 				{
 					while (cursor != line_end && *cursor <= ' ') cursor++;
@@ -891,8 +901,10 @@ struct ZL_Mesh_Impl : ZL_Impl
 				if (--face_count == 0) break;
 			}
 		}
-		if (Indices.empty()) { ZL_LOG0("3D", "PLY Loader failed - No vertex data");  free(VertData); delete res; return NULL; }
-		res->CreateAndFillBufferData(&Indices[0], (GLsizei)Indices.size(), VertData, vertex_count);
+		free(ply_buffer);
+		if (Indices.empty()) { ZL_LOG0("3D", "PLY Loader failed - No vertex data"); free(VertData); return NULL; }
+		ZL_Mesh_Impl* res = new ZL_Mesh_Impl(AttributeMask);
+		res->CreateAndFillBufferData(&Indices[0], GL_UNSIGNED_SHORT, Indices.size() * sizeof(Indices[0]), VertData, VertDataCursorEnd - VertData);
 		free(VertData);
 		res->Parts = (MeshPart*)malloc(sizeof(MeshPart));
 		res->Parts[0] = MeshPart(ZL_NameID(), (GLsizei)Indices.size(), NULL, Material, true);
@@ -926,7 +938,7 @@ struct ZL_Mesh_Impl : ZL_Impl
 				unique_indices.insert(it, ind);
 			}
 		}
-		ZL_ASSERTMSG(!unique_indices.empty(), "No indices in OBJ"); if (unique_indices.empty()) { free(obj_buffer); return NULL; }
+		if (!ZL_VERIFYMSG(!unique_indices.empty(), "No indices in OBJ")) { free(obj_buffer); return NULL; }
 
 		std::vector<GLushort> Indices;
 		std::vector<GLscalar> Positions, Normals, TexCoords;
@@ -934,13 +946,16 @@ struct ZL_Mesh_Impl : ZL_Impl
 		MeshPart NextPart(ZL_NameID(), 0, NULL, NULL, false);
 		for (unsigned char *line_end = obj_buffer, *cursor; AdvanceLine(line_end, cursor);)
 		{
-			if (cursor[0] == 'u' && cursor[1] == 's' && Indices.size() != (size_t)(NextPart.IndexOffsetPtr - (GLushort*)NULL)) //usemtl end
+			if (cursor[0] == 'u' && cursor[1] == 's' && line_end > cursor + 7) //next usemtl (part) start
 			{
-				NextPart.IndexCount = (GLsizei)(Indices.size() - (size_t)(NextPart.IndexOffsetPtr - (GLushort*)NULL));
-				Parts.push_back(NextPart);
-				NextPart.IndexOffsetPtr += NextPart.IndexCount;
+				if (Indices.size() != (size_t)(NextPart.IndexOffsetPtr - (GLushort*)NULL)) //store finished part
+				{
+					NextPart.IndexCount = (GLsizei)(Indices.size() - (size_t)(NextPart.IndexOffsetPtr - (GLushort*)NULL));
+					Parts.push_back(NextPart);
+					NextPart.IndexOffsetPtr += NextPart.IndexCount;
+				}
+				NextPart.Name = ZL_NameID((char*)cursor + 7, line_end - cursor - 7);
 			}
-			if (cursor[0] == 'u' && cursor[1] == 's' && line_end > cursor + 7) NextPart.Name = ZL_NameID((char*)cursor + 7, line_end - cursor - 7); //usemtl start
 			else if (cursor[0] == 'f' && cursor[1] == ' ') //face
 			{
 				GLushort pvind[3], vcount = 0;
@@ -965,12 +980,12 @@ struct ZL_Mesh_Impl : ZL_Impl
 			Parts.push_back(NextPart);
 		}
 		free(obj_buffer);
-		ZL_ASSERTMSG(!Indices.empty() && !Positions.empty(), "No vertices in OBJ"); if (Indices.empty() || Positions.empty()) return NULL;
+		if (!ZL_VERIFYMSG(!Indices.empty() && !Positions.empty(), "No vertices in OBJ")) return NULL;
 
 		bool HasNormals = !Normals.empty(), HasTexCoords = !TexCoords.empty();
 		GLubyte AttributeMask = ((HasNormals ? VAMASK_NORMAL : 0) | (HasTexCoords ? VAMASK_TEXCOORD : 0));
-		ZL_Mesh_Impl* res = (MakeFunc ? MakeFunc(AttributeMask) : new ZL_Mesh_Impl(AttributeMask));
-		GLvoid* VertData = malloc(res->Stride * unique_indices.size());
+		GLsizeiptr VertBufSize = CalcStride(AttributeMask) * unique_indices.size();
+		GLvoid* VertData = malloc(VertBufSize);
 		GLscalar *Out = (GLscalar*)VertData, Empties[3] = {0,0,0}, *SrcPosition = &Positions[0], *SrcNormal = (HasNormals ? &Normals[0] : 0), *SrcTexCoord = (HasTexCoords ? &TexCoords[0] : 0);
 		for (std::vector<u64>::iterator it = unique_indices.begin(); it != unique_indices.end(); ++it)
 		{
@@ -978,7 +993,8 @@ struct ZL_Mesh_Impl : ZL_Impl
 			if (HasNormals)   { Idx = ((*it    )&0xFFFFF); memcpy(Out, (Idx ? SrcNormal   + (Idx-1)*3 : Empties), sizeof(GLscalar)*3); Out += 3; }
 			if (HasTexCoords) { Idx = ((*it>>20)&0xFFFFF); memcpy(Out, (Idx ? SrcTexCoord + (Idx-1)*2 : Empties), sizeof(GLscalar)*2); Out += 2; }
 		}
-		res->CreateAndFillBufferData(&Indices[0], (GLsizei)Indices.size(), VertData, (GLsizei)unique_indices.size());
+		ZL_Mesh_Impl* res = (MakeFunc ? MakeFunc(AttributeMask) : new ZL_Mesh_Impl(AttributeMask));
+		res->CreateAndFillBufferData(&Indices[0], GL_UNSIGNED_SHORT, (Indices.size() * sizeof(Indices[0])), VertData, VertBufSize);
 		free(VertData);
 		res->Parts = (MeshPart*)malloc(sizeof(MeshPart) * Parts.size());
 		memcpy(res->Parts, &Parts[0], sizeof(MeshPart) * Parts.size());
@@ -1049,7 +1065,7 @@ struct ZL_Mesh_Impl : ZL_Impl
 		{
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (g_Active3D.IndexBuffer = IndexBufferObject));
 		}
-		glDrawElements(GL_TRIANGLES, p->IndexCount, GL_UNSIGNED_SHORT, p->IndexOffsetPtr);
+		glDrawElements(GL_TRIANGLES, p->IndexCount, IndexBufferType, p->IndexOffsetPtr);
 	}
 };
 
@@ -1123,7 +1139,7 @@ struct ZL_MeshAnimated_Impl : public ZL_Mesh_Impl
 			{
 				struct MakeFunc { static ZL_Mesh_Impl* Make(GLubyte AttributeMask) { return new ZL_MeshAnimated_Impl(AttributeMask); } };
 				res = static_cast<ZL_MeshAnimated_Impl*>(OBJLoad(file, Material, buf, &MakeFunc::Make, &used_indices));
-				if (!res) return NULL;
+				if (!res) { if (bufmtl) free(bufmtl); return NULL; }
 				res->FrameVertexBufferObjects.push_back(res->VertexBufferObject);
 				continue;
 			}
@@ -1228,15 +1244,15 @@ struct ZL_ParticleEmitter_Impl : public ZL_Mesh_Impl
 				"int i = int(" Z3A_POSITION ".z);"
 				"float sz = sd[i+2].z;"
 				Z3O_POSITION " = vec4(sd[i] + sd[0] * (" Z3A_POSITION ".x*sz) + sd[1] * (" Z3A_POSITION ".y*sz), 1);"
-				"\n#ifndef " Z3D_SHADOWMAP "\n"
+				//"\n#ifndef " Z3D_SHADOWMAP "\n" //if used without MO_CASTNOSHADOW
 				Z3V_COLOR " = vec4(sd[i+1], sd[i+2].x);"
 				"float m = sd[i+2].y, n = sd[2].z;"
 				Z3V_TEXCOORD " = vec2((" Z3A_POSITION ".x + .5 + mod(m, n)) * sd[2].x, (" Z3A_POSITION ".y - .5 + n - floor((m+.5)/n)) * sd[2].y);"
-				"\n#endif\n"
+				//"\n#endif\n"
 			"}"
 		);
 
-		CreateAndFillBufferData(Indices, S_COUNT*P_INDEXES, Verts, S_COUNT*4);
+		CreateAndFillBufferData(Indices, GL_UNSIGNED_SHORT, sizeof(Indices), Verts, sizeof(Verts));
 		Parts = (MeshPart*)malloc(sizeof(MeshPart));
 		Parts[0] = MeshPart(ZL_NameID(), 0, NULL, Program, false);
 		PartsEnd = Parts+1;
@@ -1321,7 +1337,7 @@ struct ZL_ParticleEmitter_Impl : public ZL_Mesh_Impl
 				*(p++) = CamRight;
 				*(p++) = CamUp;
 				*(p++) = SpriteSize;
-				Parts[i / S_COUNT].Material->UniformSet.ValueChksum ^= 1; //binary 10101
+				Parts[i / S_COUNT].Material->UniformSet.ValueChksum ^= 1;
 			}
 			if (m->SpawnTime < 0) continue;
 
@@ -1523,32 +1539,6 @@ ZL_Mesh ZL_Mesh::BuildPlane(const ZL_Vector& Extents, const ZL_Material& Materia
 		Offset.x + X.x - Y.x, Offset.y + X.y - Y.y, Offset.z + X.z - Y.z, Normal.x,Normal.y,Normal.z, UVMapMax.x,          0, Tangent.x,Tangent.y,Tangent.z
 	};
 	GLushort Indices[] = { 0,1,2,0,2,3 };
-
-	/*
-	for (size_t indind = 0; indind < COUNT_OF(Indices); indind+=3)
-	{
-		GLushort a = 11*Indices[indind+0], b = 11*Indices[indind+1], c = 11*Indices[indind+2];
-		ZL_Vector3 edge1 = ZL_Vector3(Verts[b+0],Verts[b+1],Verts[b+2]) - ZL_Vector3(Verts[a+0],Verts[a+1],Verts[a+2]);
-		ZL_Vector3 edge2 = ZL_Vector3(Verts[c+0],Verts[c+1],Verts[c+2]) - ZL_Vector3(Verts[a+0],Verts[a+1],Verts[a+2]);
-		ZL_Vector  deltaUV1 = ZL_Vector(Verts[b+6],Verts[b+7]) - ZL_Vector(Verts[a+6],Verts[a+7]);
-		ZL_Vector  deltaUV2 = ZL_Vector(Verts[c+6],Verts[c+7]) - ZL_Vector(Verts[a+6],Verts[a+7]);
-		GLfloat f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-		ZL_Vector3 tangent;
-		tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-		tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-		tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-		tangent.Norm();
-		ZL_Vector3 bitangent;
-		bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-		bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-		bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-		bitangent.Norm();
-		assert(Verts[a+8]==tangent.x && Verts[a+9]==tangent.y && Verts[a+10]==tangent.z);
-		assert(Verts[b+8]==tangent.x && Verts[b+9]==tangent.y && Verts[b+10]==tangent.z);
-		assert(Verts[c+8]==tangent.x && Verts[c+9]==tangent.y && Verts[c+10]==tangent.z);
-	}
-	*/
-
 	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl::Make((ZL_Mesh_Impl::VAMASK_NORMAL|ZL_Mesh_Impl::VAMASK_TEXCOORD|ZL_Mesh_Impl::VAMASK_TANGENT), Indices, 6, Verts, 4, ZL_ImplFromOwner<ZL_Material_Impl>(Material)), false);
 }
 
@@ -1611,7 +1601,7 @@ ZL_Mesh ZL_Mesh::BuildSphere(scalar Radius, int Segments, bool Inside, const ZL_
 	if (Inside) Radius *= -1;
 	for (stack = 0; stack < stacks; stack++)
 	{
-		GLscalar u = (GLscalar)stack / (stacks-1), phi = u * PI, sinphi = ssin(phi), cosphi = scos(phi); //, phiu = u * PI, sinphiu = scos(phiu), cosphiu = scos(phiu);
+		GLscalar u = (GLscalar)stack / (stacks-1), phi = u * PI, sinphi = ssin(phi), cosphi = scos(phi);
 		if (Inside) sinphi *= s(-1), cosphi *= s(-1);
 		for (slice = 0; slice < slices; slice++)
 		{
@@ -1693,6 +1683,152 @@ ZL_Mesh ZL_Mesh::BuildExtrudePixels(scalar Scale, scalar Depth, const ZL_FileLin
 	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl::Make((ZL_Mesh_Impl::VAMASK_NORMAL|ZL_Mesh_Impl::VAMASK_TEXCOORD|ZL_Mesh_Impl::VAMASK_TANGENT|ZL_Mesh_Impl::VAMASK_COLOR), &Indices[0], (GLsizei)Indices.size(), &Verts[0], (GLsizei)(Verts.size()/12), ZL_ImplFromOwner<ZL_Material_Impl>(Material)), false);
 }
 
+#include "libtess2/tesselator.h"
+static ZL_Mesh_Impl* ZL_Mesh_Impl_BuildExtrudeContour(void (*AddContours)(TESStesselator* t, void* userdata), void* userdata, size_t TotalNumPoints, const ZL_Vector3 Normal, scalar Depth, ZL_Mesh::IntersectMode intersect, const ZL_Material& Material)
+{
+	struct TessMemPool
+	{
+		TessMemPool(size_t init) : begin((char*)malloc(init)), end(begin), last(begin+init), OutsideAlloc(0) {}
+		~TessMemPool() { free(begin); }
+		void Clear()   { end = begin; OutsideAlloc = 0; }
+		char *begin, *end, *last; unsigned int OutsideAlloc;
+		static void* Alloc(TessMemPool* self, unsigned int size)
+		{
+			if (!size) return NULL;
+			if (self->end + size >= self->last) { self->OutsideAlloc += size; return malloc(size); }
+			char* ret = self->end;
+			self->end += (size + 0x7) & ~0x7; //align to 8 byte boundry
+			return ret;
+		}
+		static void Free(TessMemPool* self, void* ptr)
+		{
+			if (ptr < self->begin || ptr >= self->last) free(ptr);
+		}
+	};
+
+	const TessWindingRule WindingRule = (TessWindingRule)(TESS_WINDING_ODD + intersect);
+	const ZL_Vector3 NegNormal = -Normal, Below = Normal * -Depth;
+	struct MeshVert { ZL_Vector3 Pos, Norm; }; //TODO tangent
+	std::vector<char> OutVerts;
+	std::vector<GLushort> OutIndices;
+
+	int BaseBuckedSize = (8+((int)TotalNumPoints/8));
+	TessMemPool MemPool(3072 + 256 * TotalNumPoints); //tesselation uses at least 3588 bytes of memory (for 1 contour with 3 points)
+	TESSalloc ma;
+	ma.memalloc = (void*(*)(void*, unsigned int))TessMemPool::Alloc;
+	ma.memfree = (void(*)(void*, void*))TessMemPool::Free;
+	ma.memrealloc = NULL;
+	ma.userData = &MemPool;
+	ma.meshFaceBucketSize = ma.regionBucketSize = ma.extraVertices = BaseBuckedSize;
+	ma.meshEdgeBucketSize = ma.meshVertexBucketSize = ma.dictNodeBucketSize = BaseBuckedSize*2;
+
+	//Build polygons of top and bottom
+	TESStesselator* t = tessNewTess(&ma);
+	AddContours(t, userdata);
+	tessTesselate(t, WindingRule, TESS_POLYGONS, 3, 3, (TESSreal*)&Normal);
+	if (!tessGetVertexCount(t) || !tessGetElementCount(t))
+	{
+		if (MemPool.OutsideAlloc) tessDeleteTess(t);
+		return NULL;
+	}
+
+	const ZL_Vector3* TessPolyVerts = (ZL_Vector3*)tessGetVertices(t);
+	OutVerts.resize(tessGetVertexCount(t) * 2 * sizeof(MeshVert));
+	OutIndices.resize(tessGetElementCount(t) * 2 * 3);
+
+	MeshVert* OutPolyVerts = (MeshVert*)&OutVerts[0];
+	GLushort* OutPolyIndices = &OutIndices[0];
+	for (int pv = 0, vMax = tessGetVertexCount(t); pv != vMax; pv++, OutPolyVerts += 2)
+	{
+		OutPolyVerts[0].Pos = TessPolyVerts[pv];
+		OutPolyVerts[0].Norm = Normal;
+		OutPolyVerts[1].Pos = TessPolyVerts[pv] + Below;
+		OutPolyVerts[1].Norm = NegNormal;
+	}
+	const int* TessPolyIndexes = tessGetElements(t);
+	for (int pi = 0, iMax = tessGetElementCount(t) * 3; pi != iMax; pi += 3, OutPolyIndices += 6)
+	{
+		OutPolyIndices[0] = TessPolyIndexes[pi + 0] * 2;
+		OutPolyIndices[1] = TessPolyIndexes[pi + 1] * 2;
+		OutPolyIndices[2] = TessPolyIndexes[pi + 2] * 2;
+		OutPolyIndices[3] = TessPolyIndexes[pi + 0] * 2 + 1;
+		OutPolyIndices[4] = TessPolyIndexes[pi + 2] * 2 + 1;
+		OutPolyIndices[5] = TessPolyIndexes[pi + 1] * 2 + 1;
+	}
+	if (MemPool.OutsideAlloc) tessDeleteTess(t);
+	MemPool.Clear();
+
+	//Build polygons for extruded border
+	t = tessNewTess(&ma);
+	AddContours(t, userdata);
+	tessTesselate(t, WindingRule, TESS_BOUNDARY_CONTOURS, 3, 3, (TESSreal*)&Normal);
+	ZL_Vector3* TessContVerts = (ZL_Vector3*)tessGetVertices(t);
+	const TESSindex* TessContIndices = tessGetElements(t);
+	for (int ci = 0, TessContElements = tessGetElementCount(t); ci < TessContElements; ci++)
+	{
+		const int cfirst = TessContIndices[ci * 2], ccount = TessContIndices[ci * 2 + 1], outvbegin = (int)OutVerts.size() / sizeof(MeshVert);
+		OutVerts.resize((outvbegin + ccount * 4) * sizeof(MeshVert));
+		OutIndices.resize(OutIndices.size() + ccount * 6);
+		MeshVert *OutContVerts = &((MeshVert*)&OutVerts[0])[outvbegin];
+		GLushort *OutContIndices = &OutIndices[OutIndices.size() - ccount * 6];
+		for (int cj = 0, OCIFirst = outvbegin; cj < ccount; cj++, OutContVerts += 4, OCIFirst += 4, OutContIndices += 6)
+		{
+			ZL_Vector3 cva = TessContVerts[cfirst + ((ccount + cj - 1) % ccount)], cvb = TessContVerts[cfirst + cj];
+			ZL_Vector3 cvc = cva + Below, cvd = cvb + Below;
+			ZL_Vector3 cvn = -((cvb-cva)^(cvc-cva)).VecNorm();
+			OutContVerts[0].Pos = cva; OutContVerts[0].Norm = cvn;
+			OutContVerts[1].Pos = cvb; OutContVerts[1].Norm = cvn;
+			OutContVerts[2].Pos = cvc; OutContVerts[2].Norm = cvn;
+			OutContVerts[3].Pos = cvd; OutContVerts[3].Norm = cvn;
+			OutContIndices[0] = OCIFirst + 0; OutContIndices[1] = OCIFirst + 2; OutContIndices[2] = OCIFirst + 1;
+			OutContIndices[3] = OCIFirst + 1; OutContIndices[4] = OCIFirst + 2; OutContIndices[5] = OCIFirst + 3;
+		}
+	}
+	if (MemPool.OutsideAlloc) tessDeleteTess(t);
+
+	return ZL_Mesh_Impl::Make((ZL_Mesh_Impl::VAMASK_NORMAL), &OutIndices[0], OutIndices.size(), &OutVerts[0], OutVerts.size(), ZL_ImplFromOwner<ZL_Material_Impl>(Material));
+}
+
+ZL_Mesh ZL_Mesh::BuildExtrudeContour(const ZL_Vector3 *p, size_t pnum, scalar Depth, const ZL_Material& Material, IntersectMode selfintersect)
+{
+	ZL_ASSERTMSG(pnum >= 3, "Contour needs at least 3 points");
+	struct UserData { const ZL_Vector3 *p; int pnum; } ud = { p, (int)pnum };
+	struct Func { static void AddContours(TESStesselator* t, UserData* pud) { tessAddContour(t, 3, pud->p, sizeof(scalar)*3, pud->pnum); }};
+	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl_BuildExtrudeContour((void(*)(TESStesselator*, void*))Func::AddContours, &ud, pnum, ((p[1]-p[0])^(p[2]-p[0])).VecNorm(), Depth, selfintersect, Material), false);
+}
+ZL_Mesh ZL_Mesh::BuildExtrudeContour(const std::vector<ZL_Vector3>& contour, scalar Depth, const ZL_Material& Material, IntersectMode selfintersect)
+{
+	return BuildExtrudeContour(&contour[0], contour.size(), Depth, Material, selfintersect);
+}
+ZL_Mesh ZL_Mesh::BuildExtrudeContours(const ZL_Vector3*const* ps, const size_t* pnums, size_t cnum, scalar Depth, const ZL_Material& Material, IntersectMode intersect)
+{
+	ZL_ASSERTMSG(cnum && pnums[0] >= 3, "Contour needs at least 3 points");
+	struct UserData { const ZL_Vector3*const* ps; const size_t *pnums; size_t cnum; } ud = { ps, pnums, cnum };
+	struct Func { static void AddContours(TESStesselator* t, UserData* pud) { for (size_t c = 0; c < pud->cnum; c++) tessAddContour(t, 3, pud->ps[c], sizeof(scalar)*3, (int)pud->pnums[c]); }};
+	size_t pnum = 0; for (size_t c = 0; c < cnum; c++) pnum += pnums[c];
+	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl_BuildExtrudeContour((void(*)(TESStesselator*, void*))Func::AddContours, &ud, pnum, ((ps[0][1]-ps[0][0])^(ps[0][2]-ps[0][0])).VecNorm(), Depth, intersect, Material), false);
+}
+ZL_Mesh ZL_Mesh::BuildExtrudeContours(const std::vector<ZL_Vector3>*const* cs, size_t cnum, scalar Depth, const ZL_Material& Material, IntersectMode intersect)
+{
+	ZL_ASSERTMSG(cnum && cs[0]->size() >= 3, "Contour needs at least 3 points");
+	struct UserData { const std::vector<ZL_Vector3>*const* cs; size_t cnum; } ud = { cs, cnum };
+	struct Func { static void AddContours(TESStesselator* t, UserData* pud) { for (size_t c = 0; c < pud->cnum; c++) tessAddContour(t, 3, &pud->cs[c]->at(0), sizeof(scalar)*3, (int)pud->cs[c]->size()); }};
+	size_t pnum = 0; for (size_t c = 0; c < cnum; c++) pnum += cs[c]->size();
+	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl_BuildExtrudeContour((void(*)(TESStesselator*, void*))Func::AddContours, &ud, pnum, ((cs[0]->at(1)-cs[0]->at(0))^(cs[0]->at(2)-cs[0]->at(0))).VecNorm(), Depth, intersect, Material), false);
+}
+
+ZL_Mesh ZL_Mesh::BuildMesh(const unsigned short* Indices, size_t NumIndices, const void* Vertices, size_t NumVertices, ZL_Mesh::VertDataMode Content, const ZL_Material& Material)
+{
+	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl::Make(Content, Indices, NumIndices, Vertices, NumVertices, ZL_ImplFromOwner<ZL_Material_Impl>(Material)), false);
+}
+
+ZL_Mesh ZL_Mesh::BuildQuads(const void* Vertices, size_t NumQuads, ZL_Mesh::VertDataMode Content, const ZL_Material& Material)
+{
+	std::vector<GLushort> Indices;
+	for (GLushort i = 0, iMax = (GLushort)NumQuads * 4; i != iMax; i += 4) { GLushort q[] = { i, (GLushort)(i+1), (GLushort)(i+2), (GLushort)(i+0), (GLushort)(i+2), (GLushort)(i+3) }; Indices.insert(Indices.end(), q, q+6); }
+	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl::Make(Content, &Indices[0], Indices.size(), Vertices, NumQuads*4, ZL_ImplFromOwner<ZL_Material_Impl>(Material)), false);
+}
+
 ZL_IMPL_OWNER_INHERITED_IMPLEMENTATIONS(ZL_MeshAnimated)
 ZL_MeshAnimated::ZL_MeshAnimated(const ZL_FileLink& ModelFile, const ZL_Material& Material) { impl = ZL_MeshAnimated_Impl::OBJLoadAnimation(ModelFile, ZL_ImplFromOwner<ZL_Material_Impl>(Material)); }
 ZL_MeshAnimated& ZL_MeshAnimated::SetFrame(unsigned int FrameIndex) { if (impl) static_cast<ZL_MeshAnimated_Impl*>(impl)->SetFrame(FrameIndex); return *this; }
@@ -1767,6 +1903,7 @@ void ZL_Camera::ScreenToWorld(const ZL_Vector& ScreenPosition, ZL_Vector3* World
 
 ZL_IMPL_OWNER_NONULLCON_IMPLEMENTATIONS(ZL_Light)
 ZL_Light::ZL_Light() : impl(new ZL_Light_Impl) { }
+ZL_Light::ZL_Light(const ZL_Vector3& pos) : impl(new ZL_Light_Impl) { SetPosition(pos); }
 ZL_Light& ZL_Light::SetPosition(const ZL_Vector3& pos) { impl->Pos = pos; impl->UpdateMatrix(); return *this; }
 ZL_Light& ZL_Light::SetDirection(const ZL_Vector3& dir) { impl->Dir = dir; impl->UpdateMatrix(); return *this; }
 ZL_Light& ZL_Light::SetLookAt(const ZL_Vector3& pos, const ZL_Vector3& targ) { impl->Pos = pos; impl->Dir = (targ - pos).VecNorm(); impl->UpdateMatrix(); return *this; }
@@ -2146,6 +2283,30 @@ void ZL_Display3D::DrawFrustum(const ZL_Camera& cam, const ZL_Matrix& VPMatrix, 
 	                         VPI.PerspectiveTransformPosition(ZL_Vector3(-1, 1,-1)), VPI.PerspectiveTransformPosition(ZL_Vector3(-1, 1, 1)) };
 	int Edges[12*2] = { 0,1 , 2,3 , 4,5 , 6,7 , 0,2 , 0,6 , 1,7 , 1,3 , 2,4 , 3,5 , 4,6 , 5,7 };
 	for (int i = 0; i < 12*2; i+=2) DrawLine(cam, Points[Edges[i]], Points[Edges[i+1]], color, width);
+}
+
+void ZL_Display3D::DrawSphere(const ZL_Camera& cam, const ZL_Vector3& pos, scalar radius, const ZL_Color& color /*= ZL_Color::White*/)
+{
+	static ZL_Mesh_Impl* DbgMesh;
+	if (!DbgMesh)
+	{
+		std::vector<GLushort> Indices;
+		std::vector<GLscalar> Verts;
+		for (int i = 0; i < 17; i++)
+		{
+			GLscalar u = (GLscalar)i / 16, phi = u * PI, sinphi = ssin(phi), cosphi = scos(phi);
+			for (int j = 0; j < 33; j++)
+			{
+				GLushort a = i*33 + j, b = i*33 + ((j+1) % 33), c = ((i+1) % 17)*33 + ((j+1) % 33), d = ((i+1) % 17)*33 + j, is[] = {c,b,a,d,c,a};
+				GLscalar v = (GLscalar)j / (33-1), theta = v * 2 * PI, vs[] = { scos(theta)*sinphi, ssin(theta)*sinphi, cosphi };
+				Indices.insert(Indices.end(), is, is + COUNT_OF(is));
+				Verts.insert(Verts.end(), vs, vs + COUNT_OF(vs));
+			}
+		}
+		if (!g_DebugColorMat) ZL_Display3D_BuildDebugColorMat();
+		DbgMesh = ZL_Mesh_Impl::Make(0, &Indices[0], Indices.size(), &Verts[0], Verts.size(), g_DebugColorMat);
+	}
+	ZL_Display3D_DrawDebugMesh(DbgMesh, ZL_Matrix::MakeTranslateScale(pos, ZL_Vector3(radius)), cam, color);
 }
 
 #endif
