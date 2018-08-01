@@ -35,6 +35,7 @@ LOCAL_SRC_FILES := $(subst ZL_Particles.cpp,ZL_Particles.cpp.arm,$(LOCAL_SRC_FIL
 LOCAL_SRC_FILES := $(subst ZL_Surface.cpp,ZL_Surface.cpp.arm,$(LOCAL_SRC_FILES))
 LOCAL_SRC_FILES := $(subst ZL_Audio.cpp,ZL_Audio.cpp.arm,$(LOCAL_SRC_FILES))
 LOCAL_SRC_FILES := $(subst ZL_SynthImc.cpp,ZL_SynthImc.cpp.arm,$(LOCAL_SRC_FILES))
+LOCAL_SRC_FILES := $(subst ZL_Display3D.cpp,ZL_Display3D.cpp.arm,$(LOCAL_SRC_FILES))
 
 LOCAL_CPP_EXTENSION := .cpp
 LOCAL_C_INCLUDES    := $(ZILLALIB_ANDROID)/stlport/stlport $(ZILLALIB_ROOT)Include
