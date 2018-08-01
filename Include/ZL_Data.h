@@ -59,6 +59,7 @@ struct ZL_Json
 	ZL_Json &operator =(int NewInt) { SetInt(NewInt); return *this; }
 	ZL_Json &operator =(bool NewBool) { SetBool(NewBool); return *this; }
 
+	operator bool()  const { return (impl!=NULL); }
 	bool operator!() const { return (impl==NULL); }
 	bool operator==(const ZL_Json &b) const { return (impl==b.impl); }
 	bool operator!=(const ZL_Json &b) const { return (impl!=b.impl); }

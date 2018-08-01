@@ -37,7 +37,7 @@ struct ZL_JSON_Impl : public ZL_Impl
 	ZL_JSON_Impl(const char* src) { Construct(src, strlen(src)); }
 	ZL_JSON_Impl(const char *src, size_t len) { Construct(src, len); }
 	ZL_JSON_Impl(const ZL_String& src) { Construct(src.c_str(), src.length()); }
-	~ZL_JSON_Impl() { KeepStringsIfReferenced(); ResetValue(); if (Flags & FLAG_KEYNEEDFREE) { free(ObjectKey); } }
+	~ZL_JSON_Impl() { Flags &= ~FLAG_ISROOT; KeepStringsIfReferenced(); ResetValue(); if (Flags & FLAG_KEYNEEDFREE) { free(ObjectKey); } }
 	static ZL_JSON_Impl* GetProxyTarget(ZL_JSON_Impl* impl) { while (impl && impl->Type == TYPE_PROXY) { impl = impl->DataProxy; } return impl; }
 
 	ZL_JSON_Impl* AddChild()
@@ -51,8 +51,9 @@ struct ZL_JSON_Impl : public ZL_Impl
 
 	ZL_JSON_Impl* FindChild(const char* key, bool ResolveProxyTarget)
 	{
+		ZL_ASSERT(key);
 		if (!key || Type != ZL_Json::TYPE_OBJECT || !DataChildren) return NULL;
-		unsigned short KeyLen = strlen(key);
+		unsigned short KeyLen = (unsigned short)strlen(key);
 		for (std::vector<ZL_JSON_Impl*>::iterator it = DataChildren->begin(); it != DataChildren->end(); ++it)
 			if ((*it)->ObjectKeyLen == KeyLen && !strcmp((*it)->ObjectKey, key)) return (ResolveProxyTarget ? GetProxyTarget(*it) : *it);
 		return NULL;
@@ -112,18 +113,18 @@ private:
 	void Construct(const char* src, size_t srclen)
 	{
 		if (!src || !*src) { Type = ZL_Json::TYPE_NULL; TypeAndFlags = 0; ObjectKey = NULL; DataChildren = NULL; return; }
-		Type = TYPE_PROXY, Flags |= FLAG_KEYNEEDFREE|FLAG_ISROOT, ObjectKey = (char*)malloc(srclen + 1), ObjectKeyLen = srclen, DataProxy = new ZL_JSON_Impl;
-		memcpy(ObjectKey, src, srclen + 1);
-		char *end = ObjectKey + srclen, *parseend = DataProxy->Parse(EndOfWhitespace(ObjectKey), end);
+		Type = TYPE_PROXY, Flags = FLAG_KEYNEEDFREE|FLAG_ISROOT, ObjectKey = (char*)malloc(srclen + 1), ObjectKeyLen = 0, DataProxy = NULL;
+		memcpy(ObjectKey, src, srclen); ObjectKey[srclen] = '\0';
+		char *end = ObjectKey + srclen, *parseend = Parse(EndOfWhitespace(ObjectKey), end);
 		if (DataProxy->Type != PARSE_ERROR && EndOfWhitespace(parseend) == end) return; //success
 
 		ZL_LOG2("JSON", "Parsing Error - Offset: %d - Error At: %.100s\n", parseend - ObjectKey, parseend);
-		free(ObjectKey); ObjectKey = NULL; ObjectKeyLen = 0; Flags &= ~FLAG_KEYNEEDFREE; ResetValue(); //cleanup
+		free(ObjectKey); ObjectKey = NULL; Flags &= ~FLAG_KEYNEEDFREE; ResetValue(); //cleanup
 	}
 
 	void KeepStringsIfReferenced(bool parent_is_referenced = false)
 	{
-		if (Flags & FLAG_ISROOT) return; //is a referenced separately allocated tree
+		if (!ZL_VERIFY(!(Flags & FLAG_ISROOT))) return; //other separately allocated root trees can only be referenced by proxy
 		if ((Type == ZL_Json::TYPE_OBJECT || Type == ZL_Json::TYPE_ARRAY) && DataChildren)
 			for (std::vector<ZL_JSON_Impl*>::iterator it = DataChildren->begin(); it != DataChildren->end(); ++it)
 				(*it)->KeepStringsIfReferenced(GetRefCount() > 1);
@@ -195,7 +196,7 @@ private:
 				p = Child->Parse(p, end);
 				if (Child->Type != ZL_Json::TYPE_STRING) break;
 				Child->ObjectKey = Child->DataString;
-				Child->ObjectKeyLen = strlen(Child->ObjectKey); //can't just count bytes consumed by parse due to escaped chars
+				Child->ObjectKeyLen = (unsigned short)strlen(Child->ObjectKey); //can't just count bytes consumed by parse due to escaped chars
 
 				p = EndOfWhitespace(p);
 				if (*p != ':') break;
@@ -208,7 +209,7 @@ private:
 			Child = NULL;
 
 			p = EndOfWhitespace(p);
-			if (*p == ListEndChar) { Type = (ListEndChar == ']' ? ZL_Json::TYPE_OBJECT : ZL_Json::TYPE_OBJECT); break; }
+			if (*p == ListEndChar) { Type = (ListEndChar == ']' ? ZL_Json::TYPE_ARRAY : ZL_Json::TYPE_OBJECT); break; }
 			else if (*p != ',') break;
 		}
 		if (Type == PARSE_ERROR) { if (Child) delete Child; DeleteChildren(); return p; }
@@ -384,7 +385,7 @@ ZL_Json ZL_Json::operator[](const char* key)
 		child->Flags |= ZL_JSON_Impl::FLAG_KEYNEEDFREE;
 		size_t len = strlen(key);
 		memcpy((child->ObjectKey = (char*)malloc(len + 1)), key, len + 1);
-		child->ObjectKeyLen = len;
+		child->ObjectKeyLen = (unsigned short)len;
 	}
 	return ZL_Json(child);
 }
@@ -433,8 +434,8 @@ void ZL_Json::SetNull()
 
 void ZL_Json::SetReference(const ZL_Json &source)
 {
-	if (!impl || (impl->Flags & ZL_JSON_Impl::FLAG_ISROOT) || (impl->TypeAndFlags == source.impl->TypeAndFlags && impl->ObjectKey == source.impl->ObjectKey)) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); return; }
-	if (source.impl->CheckIfHasChild(impl)) { SetNull(); return; }
+	if (!impl || (impl->Flags & ZL_JSON_Impl::FLAG_ISROOT)) { ZL_Impl::CopyRef(source.impl, (ZL_Impl*&)impl); return; }
+	if (!source.impl || source.impl->CheckIfHasChild(impl)) { SetNull(); return; }
 	impl->ResetValue(ZL_JSON_Impl::TYPE_PROXY);
 	impl->DataProxy = source.impl;
 	impl->DataProxy->AddRef();
@@ -447,7 +448,7 @@ void ZL_Json::SetKey(const char* NewKey)
 	impl->Flags |= ZL_JSON_Impl::FLAG_KEYNEEDFREE;
 	size_t len = strlen(NewKey);
 	memcpy((impl->ObjectKey = (char*)malloc(len + 1)), NewKey, len + 1);
-	impl->ObjectKeyLen = len;
+	impl->ObjectKeyLen = (unsigned short)len;
 }
 
 ZL_Json::Iterator ZL_Json::Erase(Iterator it)
@@ -474,7 +475,7 @@ bool ZL_Json::Erase(const char* key)
 {
 	ZL_JSON_Impl *imp = ZL_JSON_Impl::GetProxyTarget(impl);
 	if (!imp || !key || imp->Type != ZL_Json::TYPE_OBJECT || !imp->DataChildren) return false;
-	unsigned short KeyLen = strlen(key);
+	unsigned short KeyLen = (unsigned short)strlen(key);
 	for (std::vector<ZL_JSON_Impl*>::iterator it = imp->DataChildren->begin(); it != imp->DataChildren->end(); ++it)
 		if ((*it)->ObjectKeyLen == KeyLen && !strcmp((*it)->ObjectKey, key)) { (*it)->DelRef(); imp->DataChildren->erase(it); return true; }
 	return false;
@@ -918,14 +919,14 @@ size_t ZL_Compression::Compress(const void* InBuf, size_t InSize, std::vector<un
 	out.clear();
 	if (sizeof(InSize) != sizeof(z.total_in) && !ZL_VERIFY(InSize <= 0xFFFFFFFF)) return 0; //zlib limit
 	if (deflateInit(&z, Level) != Z_OK) return 0;
-	if (ReserveMaxCompressSize) out.reserve(deflateBound(&z, InSize));
+	if (ReserveMaxCompressSize) out.reserve(deflateBound(&z, (unsigned long)InSize));
 	for (;;)
 	{
 		if (!z.avail_in && InSize) { z.next_in = (unsigned char*)InBuf + z.total_in; InSize -= (z.avail_in = (InSize < 1048576 ? (unsigned int)InSize : 1048576)); }
 		if (!z.avail_out) { out.resize(out.size() - z.avail_out + 1024); z.next_out = &out[z.total_out]; z.avail_out = (unsigned int)(out.size() - z.total_out); }
 		int status = deflate(&z, (InSize ? Z_NO_FLUSH : Z_FINISH));
 		if (status == Z_OK) continue;
-		if (!ZL_VERIFY(status == Z_STREAM_END)) z.avail_out = out.size();
+		if (!ZL_VERIFY(status == Z_STREAM_END)) z.avail_out = (unsigned int)out.size();
 		break;
 	}
 	out.resize(out.size() - z.avail_out);
@@ -935,7 +936,7 @@ size_t ZL_Compression::Compress(const void* InBuf, size_t InSize, std::vector<un
 
 size_t ZL_Compression::CompressMaxSize(size_t DecompressedSize)
 {
-	return compressBound(DecompressedSize);
+	return compressBound((unsigned long)DecompressedSize);
 }
 
 bool ZL_Compression::Compress(const void* InBuffer, size_t InSize, const void* OutBuffer, size_t* OutSize, int Level)
@@ -956,14 +957,14 @@ size_t ZL_Compression::Decompress(const void* InBuf, size_t InSize, std::vector<
 	if (sizeof(InSize) != sizeof(z.total_in) && !ZL_VERIFY(InSize <= 0xFFFFFFFF)) return 0; //zlib limit
 	if (sizeof(Hint) != sizeof(z.avail_out) && !ZL_VERIFY(Hint <= 0xFFFFFFFF)) Hint = 0xFFFFFFFF; //zlib limit
 	if (inflateInit(&z) != Z_OK) return 0;
-	if (Hint) { out.resize(z.avail_out = Hint); z.next_out = &out[0]; }
+	if (Hint) { out.resize(z.avail_out = (unsigned int)Hint); z.next_out = &out[0]; }
 	for (;;)
 	{
 		if (!z.avail_in && InSize) { z.next_in = (unsigned char*)InBuf + z.total_in; InSize -= (z.avail_in = (InSize < 1048576 ? (unsigned int)InSize : 1048576)); }
 		if (!z.avail_out) { out.resize(out.size() - z.avail_out + 1024); z.next_out = &out[z.total_out]; z.avail_out = (unsigned int)(out.size() - z.total_out); }
 		int status = inflate(&z, Z_NO_FLUSH);
 		if (status == Z_OK) continue;
-		if (!ZL_VERIFY(status == Z_STREAM_END)) z.avail_out = out.size();
+		if (!ZL_VERIFY(status == Z_STREAM_END)) z.avail_out = (unsigned int)out.size();
 		break;
 	}
 	out.resize(out.size() - z.avail_out);
