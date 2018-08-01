@@ -347,8 +347,12 @@ ZL_Surface& ZL_Surface::SetTilesetIndex(int Index)
 	if (!impl || !impl->hasClipping) return *this;
 	int w = (int)((impl->TexCoordBox[2] > impl->TexCoordBox[0] ? (impl->TexCoordBox[2] - impl->TexCoordBox[0]) : (impl->TexCoordBox[0] - impl->TexCoordBox[2])) * impl->tex->w + 1.1f); if (!w) w = 1;
 	int h = (int)((impl->TexCoordBox[1] > impl->TexCoordBox[5] ? (impl->TexCoordBox[1] - impl->TexCoordBox[5]) : (impl->TexCoordBox[5] - impl->TexCoordBox[1])) * impl->tex->h + 1.1f); if (!h) h = 1;
-	int cols = (w > impl->tex->w ? 1 : impl->tex->w / w), x = (w * (Index % cols)), y = (h * (Index / cols));
-	return SetClipping(ZL_Rect(x, y, x+w, y+h));
+	int cols = (w > impl->tex->w ? 1 : impl->tex->w / w);
+	const int divisor = (impl->tex->filtermag == GL_NEAREST ? 12 : 2);
+	GLscalar* tcb = impl->TexCoordBox;
+	scalar left =        s(w * (Index % cols) *divisor+1) / (impl->tex->wTex*divisor); if (left != tcb[0]) { scalar tcw = tcb[2] - tcb[0]; tcb[2] = tcb[6] = (tcb[0] = tcb[4] = left) + tcw; }
+	scalar top  = s(1) - s(h * (Index / cols) *divisor+1) / (impl->tex->hTex*divisor); if (top  != tcb[5]) { scalar tch = tcb[5] - tcb[1]; tcb[1] = tcb[3] = (tcb[5] = tcb[7] = top ) - tch; }
+	return *this;
 }
 
 ZL_Surface& ZL_Surface::SetTilesetIndex(int IndexCol, int IndexRow)
@@ -356,8 +360,11 @@ ZL_Surface& ZL_Surface::SetTilesetIndex(int IndexCol, int IndexRow)
 	if (!impl || !impl->hasClipping) return *this;
 	int w = (int)((impl->TexCoordBox[2] > impl->TexCoordBox[0] ? (impl->TexCoordBox[2] - impl->TexCoordBox[0]) : (impl->TexCoordBox[0] - impl->TexCoordBox[2])) * impl->tex->w + 1.1f); if (!w) w = 1;
 	int h = (int)((impl->TexCoordBox[1] > impl->TexCoordBox[5] ? (impl->TexCoordBox[1] - impl->TexCoordBox[5]) : (impl->TexCoordBox[5] - impl->TexCoordBox[1])) * impl->tex->h + 1.1f); if (!h) h = 1;
-	int x = w * IndexCol, y = h * IndexRow;
-	return SetClipping(ZL_Rect(x, y, x+w, y+h));
+	const int divisor = (impl->tex->filtermag == GL_NEAREST ? 12 : 2);
+	GLscalar* tcb = impl->TexCoordBox;
+	scalar left =        s(w * IndexCol *divisor+1) / (impl->tex->wTex*divisor); if (left != tcb[0]) { scalar tcw = tcb[2] - tcb[0]; tcb[2] = tcb[6] = (tcb[0] = tcb[4] = left) + tcw; }
+	scalar top  = s(1) - s(h * IndexRow *divisor+1) / (impl->tex->hTex*divisor); if (top  != tcb[5]) { scalar tch = tcb[5] - tcb[1]; tcb[1] = tcb[3] = (tcb[5] = tcb[7] = top ) - tch; }
+	return *this;
 }
 
 ZL_Surface& ZL_Surface::ClearClipping()
