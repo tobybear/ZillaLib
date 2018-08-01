@@ -38,7 +38,7 @@ static struct ZL_MaterialProgram* g_DebugColorMat;
 
 static void (*g_SetupShadowMapProgram)(struct ZL_MaterialProgram* ShaderProgram, unsigned int MM, const char* CustomVertexCode);
 static GLuint g_ShadowMap_FBO, g_ShadowMap_TEX;
-static ZL_MaterialProgram *g_ShadowMapProgram, *g_ShadowMapMaskProgram;
+static ZL_MaterialProgram *g_ShadowMapPrograms[4];
 #define SHADOWMAP_SIZE         2048
 #define SHADOWMAP_SIZE_STRING "2048"
 
@@ -67,7 +67,7 @@ namespace ZL_Display3D_Shaders
 
 	static const char S_VoidMain[] = "void main(){";
 
-	static const char *S_AttributeList[] = { Z3A_POSITION, Z3A_NORMAL, Z3A_TEXCOORD, Z3A_TANGENT, Z3A_COLOR };
+	static const char *S_AttributeList[] = { Z3A_POSITION, Z3A_NORMAL, Z3A_TEXCOORD, Z3A_TANGENT, Z3A_COLOR, Z3A_JOINTS, Z3A_WEIGHTS };
 
 	using namespace ZL_MaterialModes;
 	enum
@@ -116,6 +116,7 @@ namespace ZL_Display3D_Shaders
 			{ MMUSE_NORMAL,                           0, "attribute vec3 " Z3A_NORMAL ";uniform mat4 " Z3U_NORMAL ";" },
 			{ MMUSE_TANGENT,        MO_PRECISIONTANGENT, "attribute vec3 " Z3A_TANGENT ";uniform vec3 " Z3U_VIEWPOS ";" },
 			{ MMUSE_TANGENT,       -MO_PRECISIONTANGENT, "attribute vec3 " Z3A_TANGENT ";" },
+			{ MO_SKELETALMESH,                        0, "attribute vec4 " Z3A_JOINTS ", " Z3A_WEIGHTS ";uniform mat4 " Z3U_BONES "[100];" },
 			{ MR_TIME,                                0, "uniform float " Z3U_TIME ";" },
 		},
 		VSRules[] = {
@@ -123,6 +124,12 @@ namespace ZL_Display3D_Shaders
 			{ 0,            MO_RECEIVENOSHADOW|MO_UNLIT, (const char *)&ExternalSource[EXTERN_VS_ShadowMap_Defs] },
 			{ 0,0,S_VoidMain },
 			{ MM_VERTEXFUNC,                          0, "Vertex();" },
+			{ MO_SKELETALMESH,                        0, "mat4 skinMatrix = " Z3A_WEIGHTS ".x * " Z3U_BONES "[int(" Z3A_JOINTS ".x)] +"
+			                                                                  Z3A_WEIGHTS ".y * " Z3U_BONES "[int(" Z3A_JOINTS ".y)] +"
+			                                                                  Z3A_WEIGHTS ".z * " Z3U_BONES "[int(" Z3A_JOINTS ".z)] +"
+			                                                                  Z3A_WEIGHTS ".w * " Z3U_BONES "[int(" Z3A_JOINTS ".w)];"
+			                                             "vec3 " Z3A_POSITION " = (skinMatrix * vec4(" Z3A_POSITION ", 1)).xyz;" },
+			{ MO_SKELETALMESH,            -MMUSE_NORMAL, "vec3 " Z3A_NORMAL   " = (skinMatrix * vec4(" Z3A_NORMAL ", 0)).xyz;" },
 			{ 0,          MM_POSITIONFUNC|MM_VERTEXFUNC, Z3O_POSITION " = " Z3U_MODEL " * vec4(" Z3A_POSITION ", 1);" },
 			{ MM_POSITIONFUNC,            MM_VERTEXFUNC, Z3O_POSITION " = CalcPosition();" },
 			{ MMUSE_WPOSITION,                        0, Z3V_WPOSITION " = " Z3O_POSITION ".xyz;" },
@@ -365,7 +372,7 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 	{
 		bool operator<(const ZL_NameID& b) const { return (Name<b); }
 		ZL_NameID Name; GLint Location, ValueOffset, Type;
-		enum eType { TYPE_FLOAT = 1, TYPE_VEC2 = 2, TYPE_VEC3 = 3, TYPE_VEC4 = 4, TYPEFLAG_ARRAY = 8 };
+		enum eType { TYPE_FLOAT = 1, TYPE_VEC2 = 2, TYPE_VEC3 = 3, TYPE_VEC4 = 4, TYPE_MAT4 = 5, TYPEFLAG_ARRAY = 16 };
 	};
 
 	ZL_ShaderIDs ShaderIDs;
@@ -398,8 +405,8 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 		if (VariationID) g_LoadedShaderVariations->erase(FindVariation(VariationID));
 		if (VariationID && g_LoadedShaderVariations->empty()) { delete g_LoadedShaderVariations; g_LoadedShaderVariations = NULL; }
 		if (ShadowMapProgram) ShadowMapProgram->DelRef();
-		if (this == g_ShadowMapProgram) g_ShadowMapProgram = NULL;
-		if (this == g_ShadowMapMaskProgram) g_ShadowMapMaskProgram = NULL;
+		for (int i = 0; i < (int)COUNT_OF(g_ShadowMapPrograms); i++)
+			if (this == g_ShadowMapPrograms[i]) g_ShadowMapPrograms[i] = NULL;
 		if (UniformEntries) free(UniformEntries);
 
 		#ifdef ZL_VIDEO_WEAKCONTEXT
@@ -458,6 +465,7 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 			else if (UniformType == GL_FLOAT_VEC2 )    { e.Type = UniformEntry::TYPE_VEC2;  glUniform2(loc, v[0], v[1]); }
 			else if (UniformType == GL_FLOAT_VEC3 )    { e.Type = UniformEntry::TYPE_VEC3;  glUniform3(loc, v[0], v[1], v[2]); }
 			else if (UniformType == GL_FLOAT_VEC4 )    { e.Type = UniformEntry::TYPE_VEC4;  glUniform4(loc, v[0], v[1], v[2], v[3]); }
+			else if (UniformType == GL_FLOAT_MAT4 )    { e.Type = UniformEntry::TYPE_MAT4; }
 			else continue; //unhandled type
 			e.Name = UniformName;
 			e.Location = loc;
@@ -535,7 +543,8 @@ struct ZL_MaterialProgram : ZL_Material_Impl
 					case UniformEntry::TYPE_VEC3:  glUniform3(e->Location, v[0], v[1], v[2]); break;
 					case UniformEntry::TYPE_VEC4:  glUniform4(e->Location, v[0], v[1], v[2], v[3]); break;
 					case UniformEntry::TYPE_VEC3|UniformEntry::TYPEFLAG_ARRAY: glUniform3v(e->Location, ((UniformArrayValue*)v)->Count, ((UniformArrayValue*)v)->Ptr); break;
-					default: ZL_ASSERTMSG(0, "Unknown uniform entry type");
+					case UniformEntry::TYPE_MAT4|UniformEntry::TYPEFLAG_ARRAY: glUniformMatrix4v(e->Location, ((UniformArrayValue*)v)->Count, GL_FALSE, ((UniformArrayValue*)v)->Ptr); break;
+					default: ZL_ASSERTMSG(0, "Unsupported uniform entry type");
 				}
 			}
 			UniformUploadedValueChksum = Override.ValueChksum;
@@ -607,6 +616,7 @@ ZL_Material_Impl* ZL_Material_Impl::GetMaterialReference(unsigned int MM, const 
 	ZL_ASSERTMSG(CustomFragmentCode || CustomVertexCode || !(MM & MMDEF_REQUESTS), "Requests only valid with custom shader code");
 	ZL_ASSERTMSG(MM & MMDEF_FRAGCOLORMODES, "Need at least one material mode defining the output fragment color");
 	ZL_ASSERTMSG(!(MM & MO_UNLIT) || !(MM & MMDEF_USESLIT), "Material modes can't be used with MO_UNLIT");
+	ZL_ASSERTMSG(!(MM & MO_SKELETALMESH) || !(MM & MM_VERTEXFUNC), "MO_SKELETALMESH is incompatible with MM_VERTEXFUNC");
 	if (!(MM & MO_RECEIVENOSHADOW) && !(MM & MO_UNLIT) && !g_SetupShadowMapProgram) MM |= MO_RECEIVENOSHADOW;
 	if (!(MM & MMDEF_FRAGCOLORMODES)) MM |= MM_STATICCOLOR;
 	if (MM & MO_UNLIT) MM &= ~MMDEF_USESLIT;
@@ -657,13 +667,13 @@ ZL_Material_Impl* ZL_Material_Impl::GetMaterialReference(unsigned int MM, const 
 
 struct ZL_Mesh_Impl : ZL_Impl
 {
-	enum { VA_POS = 0, VA_NORMAL = 1, VAMASK_NORMAL = 2, VA_TEXCOORD = 2, VAMASK_TEXCOORD = 4, VA_TANGENT = 3, VAMASK_TANGENT = 8, VA_COLOR = 4, VAMASK_COLOR = 16 };
+	enum { VA_POS = 0, VA_NORMAL = 1, VAMASK_NORMAL = 2, VA_TEXCOORD = 2, VAMASK_TEXCOORD = 4, VA_TANGENT = 3, VAMASK_TANGENT = 8, VA_COLOR = 4, VAMASK_COLOR = 16, VA_JOINTS = 5, VAMASK_JOINTS = 32, VA_WEIGHTS = 6, VAMASK_WEIGHTS = 64 };
 
 	GLuint IndexBufferObject, VertexBufferObject, LastRenderFrame;
 	GLubyte ProvideAttributeMask;
 	GLsizei Stride;
 	GLenum IndexBufferType;
-	GLvoid *NormalOffsetPtr, *TexCoordOffsetPtr, *ColorOffsetPtr, *TangentOffsetPtr;
+	GLvoid *NormalOffsetPtr, *TexCoordOffsetPtr, *ColorOffsetPtr, *TangentOffsetPtr, *JointsOffsetPtr, *WeightsOffsetPtr;
 	struct MeshPart
 	{
 		ZL_NameID Name; GLsizei IndexCount; GLushort* IndexOffsetPtr; ZL_Material_Impl* Material;
@@ -694,12 +704,14 @@ struct ZL_Mesh_Impl : ZL_Impl
 		if (AttributeMask & VAMASK_TEXCOORD) { TexCoordOffsetPtr = (GLvoid*)(size_t)Stride; Stride += 2 * sizeof(GLscalar); }
 		if (AttributeMask & VAMASK_TANGENT)  { TangentOffsetPtr  = (GLvoid*)(size_t)Stride; Stride += 3 * sizeof(GLscalar); }
 		if (AttributeMask & VAMASK_COLOR)    { ColorOffsetPtr    = (GLvoid*)(size_t)Stride; Stride += 4; }
+		if (AttributeMask & VAMASK_JOINTS)   { JointsOffsetPtr   = (GLvoid*)(size_t)Stride; Stride += 4 * sizeof(GLushort); }
+		if (AttributeMask & VAMASK_WEIGHTS)  { WeightsOffsetPtr  = (GLvoid*)(size_t)Stride; Stride += 4 * sizeof(GLscalar); }
 		ZL_ASSERT(Stride == CalcStride(AttributeMask));
 	}
 
 	static GLsizei CalcStride(GLubyte AttributeMask)
 	{
-		return sizeof(GLscalar) * (3 + ((AttributeMask & VAMASK_NORMAL) ? 3 : 0) + ((AttributeMask & VAMASK_TEXCOORD) ? 2 : 0) + ((AttributeMask & VAMASK_TANGENT) ? 3 : 0) + ((AttributeMask & VAMASK_COLOR) ? 4 : 0);
+		return sizeof(GLscalar) * (3 + ((AttributeMask & VAMASK_NORMAL) ? 3 : 0) + ((AttributeMask & VAMASK_TEXCOORD) ? 2 : 0) + ((AttributeMask & VAMASK_TANGENT) ? 3 : 0) + ((AttributeMask & VAMASK_WEIGHTS) ? 4 : 0)) + ((AttributeMask & VAMASK_COLOR) ? 4 : 0) + ((AttributeMask & VAMASK_JOINTS) ? 4 * sizeof(GLushort) : 0);
 	}
 
 	static ZL_Mesh_Impl* Make(GLubyte AttributeMask, const GLushort* Indices, GLsizeiptr IndicesCount, const GLvoid* VertData, GLsizeiptr VertCount, ZL_Material_Impl* Program)
@@ -1038,6 +1050,183 @@ struct ZL_Mesh_Impl : ZL_Impl
 		}
 	}
 
+	static bool GLTFGetBufferView(const ZL_Json& Accessor, const ZL_Json& BufferViews, size_t SourceLen, size_t ExpectCount = 0, size_t* out_Offset = NULL, size_t* out_Stride = NULL, GLenum* out_CompType = NULL, size_t* out_CompCount = NULL)
+	{
+		ZL_Json BufferView = BufferViews.GetChild(Accessor.GetIntOf("bufferView", -1));
+		const char* at = Accessor.GetStringOf("type");
+		GLenum CompType = (GLenum)Accessor.GetIntOf("componentType", GL_INVALID_ENUM);
+		size_t CompCount = (at && at[0] && at[1] && at[2] && at[3] ? (at[0] == 'S' ? 1 : (at[0] == 'V' ? at[3] - '0' : (at[0] == 'M' ? (at[3] - '0')*(at[3] - '0') : 0))) : 0);
+		size_t CompSize = (CompType == GL_BYTE || CompType == GL_UNSIGNED_BYTE ? 1 : (CompType == GL_SHORT || CompType == GL_UNSIGNED_SHORT ? 2 : 4));
+		size_t AccessorCount = Accessor.GetIntOf("count"), AccessorOffset = (size_t)Accessor.GetIntOf("byteOffset");
+		size_t Offset = AccessorOffset + BufferView.GetIntOf("byteOffset"), Len = (size_t)BufferView.GetIntOf("byteLength") - AccessorOffset, Stride = (size_t)BufferView.GetIntOf("byteStride", (int)(CompCount * CompSize));
+		if (!ZL_VERIFYMSG(BufferView, "glTF error: Buffer view does not exist")) return false;
+		if (!ZL_VERIFYMSG(AccessorCount == ExpectCount, "glTF error: Accessor count does not match expected count")) return false;
+		if (!ZL_VERIFYMSG(Len >= AccessorCount * Stride, "glTF error: Invalid buffer byte length")) return false;
+		if (!ZL_VERIFYMSG(Offset + Len <= SourceLen, "glTF error: Buffer view reaches past buffer size")) return false;
+		if (out_Offset) *out_Offset = Offset;
+		if (out_Stride) *out_Stride = Stride;
+		if (out_CompType) *out_CompType = CompType;
+		if (out_CompCount) *out_CompCount = CompCount;
+		return true;
+	}
+
+	static void GLTFReadIndices(const ZL_Json& Accessor, const ZL_Json& gltf_bufferViews, GLushort* TargetPtr, const GLubyte* SourcePtr, size_t SourceLen, size_t ExpectCount, GLushort IndexAddOffset)
+	{
+		size_t ViewOffset; GLenum CompType;
+		if (!GLTFGetBufferView(Accessor, gltf_bufferViews, SourceLen, ExpectCount, &ViewOffset, NULL, &CompType)) return;
+		SourcePtr += ViewOffset;
+		if (CompType == GL_UNSIGNED_SHORT && IndexAddOffset == 0)
+		{
+			memcpy(TargetPtr, SourcePtr, ExpectCount * sizeof(GLushort));
+		}
+		else if (CompType == GL_UNSIGNED_SHORT)
+		{
+			for (; ExpectCount--; TargetPtr++, SourcePtr += sizeof(GLushort)) memcpy(TargetPtr, SourcePtr, sizeof(GLushort)), *TargetPtr += IndexAddOffset;
+		}
+		else if (CompType == GL_UNSIGNED_BYTE)
+		{
+			for (GLushort tmp; ExpectCount--; TargetPtr++, SourcePtr++) memcpy(TargetPtr, &(tmp = *SourcePtr + IndexAddOffset), sizeof(GLushort));
+		}
+		else { ZL_ASSERTMSG(0, "glTF error: Unsupported indices data conversion"); }
+	}
+
+	static void GLTFReadAttribute(const ZL_Json& Accessor, const ZL_Json& gltf_bufferViews, GLubyte* TargetPtr, GLsizei TargetStride, GLenum TargetType, GLsizei TargetCompSize, const GLubyte* SourcePtr, size_t SourceLen, size_t ReadCompsMin, size_t TargetComps, size_t ExpectCount)
+	{
+		size_t ViewOffset, ViewStride, CompCount; GLenum CompType;
+		if (!GLTFGetBufferView(Accessor, gltf_bufferViews, SourceLen, ExpectCount, &ViewOffset, &ViewStride, &CompType, &CompCount))return;
+		if (!ZL_VERIFYMSG(CompCount >= ReadCompsMin || CompCount <= TargetComps, "glTF error: Unexpected attribute component count")) return;
+
+		SourcePtr += ViewOffset;
+		if (CompCount >= TargetComps && TargetType == CompType)
+		{
+			for (size_t sz = TargetCompSize * TargetComps; ExpectCount--; TargetPtr += TargetStride, SourcePtr += ViewStride)
+				memcpy(TargetPtr, SourcePtr, sz);
+		}
+		else if (CompCount == 4 && TargetComps == 4  && TargetType == GL_UNSIGNED_BYTE && CompType == GL_FLOAT)
+		{
+			for (GLfloat tmp; ExpectCount--; TargetPtr += TargetStride, SourcePtr += ViewStride)
+				for (int i = 0; i < 4; i++)
+					memcpy(&tmp, &SourcePtr[i*4], sizeof(GLfloat)), TargetPtr[i] = (GLubyte)(tmp * 255.9999999f);
+		}
+		else { ZL_ASSERTMSG(0, "glTF error: Unsupported attribute data conversion"); }
+	}
+
+	struct sDeferFree { inline sDeferFree(void* p) : p(p) {} inline ~sDeferFree() { free(p); } private:void* p; sDeferFree(const sDeferFree&); sDeferFree& operator=(const sDeferFree&); };
+	struct sGLTFPrimitive { MeshPart Part; ZL_Json Json; size_t CountVertices; };
+
+	static ZL_Mesh_Impl* GLTFLoad(const ZL_FileLink& file, ZL_Material_Impl* Material, unsigned char *gltf_buffer = NULL, ZL_Mesh_Impl* (*MakeFunc)(GLubyte AttributeMask, const ZL_Json& gltf, const GLubyte* buf, size_t buflen) = NULL)
+	{
+		if (!gltf_buffer) gltf_buffer = ReadMeshFile(file);
+		if (!gltf_buffer) return NULL;
+		sDeferFree auto_free_gltf_buffer(gltf_buffer); //free buffer on all return paths
+
+		GLuint* gltf_header = (GLuint*)gltf_buffer, *gltf_json_header = gltf_header + 3, gltf_json_len = gltf_json_header[0];
+		if (!ZL_VERIFYMSG(gltf_header[0] == (('g')|('l'<<8)|('T'<<16)|('F'<<24)), "glTF error: Not a valid binary glTF file")) return NULL;
+		if (!ZL_VERIFYMSG(gltf_json_header[1] == (('J')|('S'<<8)|('O'<<16)|('N'<<24)), "glTF error: Not a valid binary glTF file")) return NULL;
+		if (!ZL_VERIFYMSG(!(gltf_json_len % 4), "glTF error: Not a valid binary glTF file")) return NULL;
+		ZL_Json gltf((const char*)&gltf_json_header[2], gltf_json_len);
+		ZL_Json gltf_accessors = gltf.GetByKey("accessors");
+		ZL_Json gltf_bufferViews = gltf.GetByKey("bufferViews");
+		ZL_Json gltf_buffers = gltf.GetByKey("buffers");
+		ZL_Json gltf_materials = gltf.GetByKey("materials");
+		if (!ZL_VERIFYMSG(gltf_accessors && gltf_bufferViews && gltf_buffers, "glTF error: Not a valid binary glTF file")) return NULL;
+
+		GLuint *gltf_buf_header = gltf_header + 5 + (gltf_json_len/4), gltf_buf_len = gltf_buf_header[0];
+		if (!ZL_VERIFYMSG(gltf_buf_header[1] == (('B')|('I'<<8)|('N'<<16)), "glTF error: Not a valid binary glTF file")) return NULL;
+		const GLubyte *gltf_buf_data = (GLubyte*)&gltf_buf_header[2];
+
+		int GlobalAttributeMask = -1;
+		size_t TotalVertices = 0, TotalIndices = 0;
+		std::vector<sGLTFPrimitive> Prims;
+		sGLTFPrimitive LastPrim;
+		LastPrim.Part.IndexCount = 0;
+		LastPrim.Part.IndexOffsetPtr = NULL;
+
+		for (ZL_Json::Iterator itMesh = gltf.GetByKey("meshes").GetIterator(); itMesh; ++itMesh)
+		{
+			for (ZL_Json::Iterator itPrim = itMesh->GetByKey("primitives").GetIterator(); itPrim; ++itPrim)
+			{
+				int indices = itPrim->GetByKey("indices").GetInt(-1);
+				int indices_count = gltf_accessors.GetChild(indices).GetIntOf("count");
+				if (!ZL_VERIFYMSG(indices != -1, "glTF error: Mesh does not use indexed vertices (only indexed meshes supported)")) continue;
+				if (!ZL_VERIFYMSG(indices_count > 0, "glTF error: Mesh has no indices buffer")) continue;
+				if (!ZL_VERIFYMSG(!(indices_count % 3), "glTF error: Mesh is not made up of triangles")) continue;
+
+				ZL_Json mesh_attributes = itPrim->GetByKey("attributes"), pos_accessor = gltf_accessors.GetChild(mesh_attributes.GetIntOf("POSITION", -1)), pos_view = gltf_bufferViews(pos_accessor.GetIntOf("bufferView", -1));
+				int pos_count = pos_accessor.GetIntOf("count"), pos_aoffset = pos_accessor.GetIntOf("byteOffset"), pos_vlength = pos_view.GetIntOf("byteLength"), pos_vstride = pos_view.GetIntOf("byteStride", sizeof(GLfloat) * 3);
+				if (!ZL_VERIFYMSG(pos_accessor, "glTF error: Mesh does not supply position attribute")) continue;
+				if (!ZL_VERIFYMSG(pos_count, "glTF error: Mesh has no vertex position data")) continue;
+				if (!ZL_VERIFYMSG(pos_count == (pos_vlength - pos_aoffset) / pos_vstride, "glTF error: Position buffer size mismatch")) continue;
+
+				unsigned char PrimAttributeMask = 0;
+				if (mesh_attributes.GetIntOf("NORMAL", -1)     != -1) PrimAttributeMask |= VAMASK_NORMAL;
+				if (mesh_attributes.GetIntOf("TEXCOORD_0", -1) != -1) PrimAttributeMask |= VAMASK_TEXCOORD;
+				if (mesh_attributes.GetIntOf("TANGENT", -1)    != -1) PrimAttributeMask |= VAMASK_TANGENT;
+				if (mesh_attributes.GetIntOf("COLOR_0", -1)    != -1) PrimAttributeMask |= VAMASK_COLOR;
+				if (mesh_attributes.GetIntOf("JOINTS_0", -1)   != -1) PrimAttributeMask |= VAMASK_JOINTS;
+				if (mesh_attributes.GetIntOf("WEIGHTS_0", -1)  != -1) PrimAttributeMask |= VAMASK_WEIGHTS;
+				if (!ZL_VERIFYMSG(GlobalAttributeMask == -1 || GlobalAttributeMask == PrimAttributeMask, "glTF mesh primitives with varying vertex attributes is not supported")) continue;
+				GlobalAttributeMask = PrimAttributeMask;
+
+				LastPrim.Part.Name = ZL_String::format("%s_%s", itMesh->GetStringOf("name"), gltf_materials.GetChild(itPrim->GetIntOf("material", -1)).GetStringOf("name", "DEFAULT"));
+				LastPrim.Part.IndexOffsetPtr += LastPrim.Part.IndexCount;
+				LastPrim.Part.IndexCount = indices_count;
+				LastPrim.Json = *itPrim;
+				LastPrim.CountVertices = pos_count; 
+				Prims.push_back(LastPrim);
+				TotalVertices += pos_count;
+				TotalIndices += indices_count;
+			}
+		}
+		if (!ZL_VERIFYMSG(TotalVertices, "glTF error: Contains no mesh primitves")) return NULL;
+
+		ZL_Mesh_Impl* res = (MakeFunc ? MakeFunc(GlobalAttributeMask, gltf, gltf_buf_data, gltf_buf_len) : new ZL_Mesh_Impl(GlobalAttributeMask));
+		if (!res) return NULL;
+		GLushort* indices = (GLushort*)malloc(TotalIndices * sizeof(GLushort)), *primindices = indices;
+		GLubyte* vbuf = (GLubyte*)malloc(TotalVertices * res->Stride), *primvbuf = vbuf;
+		res->Parts = (MeshPart*)malloc(sizeof(MeshPart) * Prims.size());
+		res->PartsEnd = res->Parts + Prims.size();
+
+		for (size_t i = 0; i != Prims.size(); i++)
+		{
+			GLushort IndexOffset = (GLushort)((primvbuf - vbuf) / res->Stride);
+			GLTFReadIndices(gltf_accessors.GetChild(Prims[i].Json.GetIntOf("indices", -1)), gltf_bufferViews, primindices, gltf_buf_data, gltf_buf_len, Prims[i].Part.IndexCount, IndexOffset);
+			ZL_Json mesh_attributes = Prims[i].Json.GetByKey("attributes");
+			                                           GLTFReadAttribute(gltf_accessors.GetChild(mesh_attributes.GetIntOf("POSITION",   -1)), gltf_bufferViews, primvbuf,                                  res->Stride, GL_SCALAR,         sizeof(GLscalar), gltf_buf_data, gltf_buf_len, 3, 3, Prims[i].CountVertices);
+			if (GlobalAttributeMask & VAMASK_NORMAL)   GLTFReadAttribute(gltf_accessors.GetChild(mesh_attributes.GetIntOf("NORMAL",     -1)), gltf_bufferViews, primvbuf + (size_t)res->NormalOffsetPtr,   res->Stride, GL_SCALAR,         sizeof(GLscalar), gltf_buf_data, gltf_buf_len, 3, 3, Prims[i].CountVertices);
+			if (GlobalAttributeMask & VAMASK_TEXCOORD) GLTFReadAttribute(gltf_accessors.GetChild(mesh_attributes.GetIntOf("TEXCOORD_0", -1)), gltf_bufferViews, primvbuf + (size_t)res->TexCoordOffsetPtr, res->Stride, GL_SCALAR,         sizeof(GLscalar), gltf_buf_data, gltf_buf_len, 2, 2, Prims[i].CountVertices);
+			if (GlobalAttributeMask & VAMASK_TANGENT)  GLTFReadAttribute(gltf_accessors.GetChild(mesh_attributes.GetIntOf("TANGENT",    -1)), gltf_bufferViews, primvbuf + (size_t)res->TangentOffsetPtr,  res->Stride, GL_SCALAR,         sizeof(GLscalar), gltf_buf_data, gltf_buf_len, 3, 3, Prims[i].CountVertices);
+			if (GlobalAttributeMask & VAMASK_COLOR)    GLTFReadAttribute(gltf_accessors.GetChild(mesh_attributes.GetIntOf("COLOR_0",    -1)), gltf_bufferViews, primvbuf + (size_t)res->ColorOffsetPtr,    res->Stride, GL_UNSIGNED_BYTE,  sizeof(GLubyte),  gltf_buf_data, gltf_buf_len, 3, 4, Prims[i].CountVertices);
+			if (GlobalAttributeMask & VAMASK_JOINTS)   GLTFReadAttribute(gltf_accessors.GetChild(mesh_attributes.GetIntOf("JOINTS_0",   -1)), gltf_bufferViews, primvbuf + (size_t)res->JointsOffsetPtr,   res->Stride, GL_UNSIGNED_SHORT, sizeof(GLushort), gltf_buf_data, gltf_buf_len, 4, 4, Prims[i].CountVertices);
+			if (GlobalAttributeMask & VAMASK_WEIGHTS)  GLTFReadAttribute(gltf_accessors.GetChild(mesh_attributes.GetIntOf("WEIGHTS_0",  -1)), gltf_bufferViews, primvbuf + (size_t)res->WeightsOffsetPtr,  res->Stride, GL_SCALAR,         sizeof(GLscalar), gltf_buf_data, gltf_buf_len, 4, 4, Prims[i].CountVertices);
+			res->Parts[i] = Prims[i].Part;
+			res->Parts[i].Material = Material;
+			res->Parts[i].Material->AddRef();
+			primvbuf += res->Stride * Prims[i].CountVertices;
+			primindices += Prims[i].Part.IndexCount;
+		}
+		if (GlobalAttributeMask & VAMASK_WEIGHTS)
+		{
+			for (size_t i = 0; i < TotalVertices; i++)
+			{
+				GLubyte* vbufweight = vbuf + (size_t)res->WeightsOffsetPtr + i * res->Stride;
+				GLscalar weight[4];
+				memcpy(weight, vbufweight, sizeof(weight));
+				GLscalar sum = (sabs(weight[0])+sabs(weight[1])+sabs(weight[2])+sabs(weight[3]));
+				if (sum == 1) continue;
+				if (sum == 0) { weight[0] = 1; }
+				else { GLscalar scale = 1 / sum; weight[0] *= scale; weight[1] *= scale; weight[2] *= scale; weight[3] *= scale; }
+				memcpy(vbufweight, weight, sizeof(weight));
+			}
+		}
+
+		res->CreateAndFillBufferData(indices, GL_UNSIGNED_SHORT,  TotalIndices * sizeof(GLushort), vbuf, TotalVertices * res->Stride);
+		free(indices);
+		free(vbuf);
+		ZL_LOG3("3D", "Loaded GLTF - Verts: %d - Indices: %d - Parts: %d", (int)TotalVertices, (int)TotalIndices, (int)Prims.size());
+		return res;
+	}
+
 	void DrawPart(MeshPart* p, const ZL_Matrix& ModelMatrix, const ZL_Matrix& NormalMatrix) const
 	{
 		if (g_Active3D.Shader.UniformMatrixModel  != -1) glUniformMatrix4v(g_Active3D.Shader.UniformMatrixModel, 1, GL_FALSE, ModelMatrix.m);
@@ -1049,6 +1238,8 @@ struct ZL_Mesh_Impl : ZL_Impl
 			if (ChangeMask & VAMASK_TEXCOORD) { if (RenderAttributeMask & VAMASK_TEXCOORD) glEnableVertexAttribArray(VA_TEXCOORD); else glDisableVertexAttribArray(VA_TEXCOORD); }
 			if (ChangeMask & VAMASK_TANGENT ) { if (RenderAttributeMask & VAMASK_TANGENT ) glEnableVertexAttribArray(VA_TANGENT ); else glDisableVertexAttribArray(VA_TANGENT ); }
 			if (ChangeMask & VAMASK_COLOR   ) { if (RenderAttributeMask & VAMASK_COLOR   ) glEnableVertexAttribArray(VA_COLOR   ); else glDisableVertexAttribArray(VA_COLOR   ); }
+			if (ChangeMask & VAMASK_JOINTS  ) { if (RenderAttributeMask & VAMASK_JOINTS  ) glEnableVertexAttribArray(VA_JOINTS  ); else glDisableVertexAttribArray(VA_JOINTS  ); }
+			if (ChangeMask & VAMASK_WEIGHTS ) { if (RenderAttributeMask & VAMASK_WEIGHTS ) glEnableVertexAttribArray(VA_WEIGHTS ); else glDisableVertexAttribArray(VA_WEIGHTS ); }
 			g_Active3D.AttributeMask = RenderAttributeMask;
 			goto UpdateVertexBuffer;
 		}
@@ -1056,17 +1247,199 @@ struct ZL_Mesh_Impl : ZL_Impl
 		{
 			UpdateVertexBuffer:
 			glBindBuffer(GL_ARRAY_BUFFER, (g_Active3D.VertexBuffer = VertexBufferObject));
-			                                           glVertexAttribPointer(VA_POS,      3, GL_SCALAR,        GL_FALSE, Stride, NULL);
-			if (RenderAttributeMask & VAMASK_NORMAL  ) glVertexAttribPointer(VA_NORMAL,   3, GL_SCALAR,        GL_FALSE, Stride, NormalOffsetPtr);
-			if (RenderAttributeMask & VAMASK_TEXCOORD) glVertexAttribPointer(VA_TEXCOORD, 2, GL_SCALAR,        GL_FALSE, Stride, TexCoordOffsetPtr);
-			if (RenderAttributeMask & VAMASK_TANGENT ) glVertexAttribPointer(VA_TANGENT,  3, GL_SCALAR,        GL_FALSE, Stride, TangentOffsetPtr);
-			if (RenderAttributeMask & VAMASK_COLOR   ) glVertexAttribPointer(VA_COLOR,    4, GL_UNSIGNED_BYTE, GL_TRUE,  Stride, ColorOffsetPtr);
+			                                           glVertexAttribPointer(VA_POS,      3, GL_SCALAR,         GL_FALSE, Stride, NULL);
+			if (RenderAttributeMask & VAMASK_NORMAL  ) glVertexAttribPointer(VA_NORMAL,   3, GL_SCALAR,         GL_FALSE, Stride, NormalOffsetPtr);
+			if (RenderAttributeMask & VAMASK_TEXCOORD) glVertexAttribPointer(VA_TEXCOORD, 2, GL_SCALAR,         GL_FALSE, Stride, TexCoordOffsetPtr);
+			if (RenderAttributeMask & VAMASK_TANGENT ) glVertexAttribPointer(VA_TANGENT,  3, GL_SCALAR,         GL_FALSE, Stride, TangentOffsetPtr);
+			if (RenderAttributeMask & VAMASK_COLOR   ) glVertexAttribPointer(VA_COLOR,    4, GL_UNSIGNED_BYTE,  GL_TRUE,  Stride, ColorOffsetPtr);
+			if (RenderAttributeMask & VAMASK_JOINTS  ) glVertexAttribPointer(VA_JOINTS,   4, GL_UNSIGNED_SHORT, GL_FALSE, Stride, JointsOffsetPtr);
+			if (RenderAttributeMask & VAMASK_WEIGHTS ) glVertexAttribPointer(VA_WEIGHTS,  4, GL_SCALAR,         GL_FALSE, Stride, WeightsOffsetPtr);
 		}
 		if (g_Active3D.IndexBuffer != IndexBufferObject)
 		{
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (g_Active3D.IndexBuffer = IndexBufferObject));
 		}
 		glDrawElements(GL_TRIANGLES, p->IndexCount, IndexBufferType, p->IndexOffsetPtr);
+	}
+};
+
+struct ZL_SkeletalMesh_Impl : public ZL_Mesh_Impl
+{
+	size_t BoneCount;
+	void* BoneMemory;
+	int* BoneParentIndices;
+	ZL_Matrix* InverseBindMatrices;
+	ZL_Matrix* RefBoneMatrices;
+	ZL_Matrix* BoneMatrices;
+	ZL_Matrix* MeshBoneMatrices;
+	ZL_Matrix* InverseBoneMatrices;
+
+	ZL_SkeletalMesh_Impl(GLubyte AttributeMask) : ZL_Mesh_Impl(AttributeMask), BoneMemory(NULL) {}
+
+	~ZL_SkeletalMesh_Impl() { if (BoneMemory) free(BoneMemory); }
+
+	static ZL_Mesh_Impl* GLTFLoadSkeletal(const ZL_FileLink& file, ZL_Material_Impl* Material)
+	{
+		struct MakeFunc { static ZL_Mesh_Impl* Make(GLubyte AttributeMask, const ZL_Json& gltf, const GLubyte* buf, size_t buflen)
+		{
+			size_t ViewOffset, ViewStride, SourceComps; GLenum SourceType;
+			ZL_Json skin = gltf.GetChildOf("skins", 0), joints = skin.GetByKey("joints"), accessor = gltf.GetChildOf("accessors", skin.GetIntOf("inverseBindMatrices", -1)), nodes = gltf.GetByKey("nodes");
+			if (!ZL_Mesh_Impl::GLTFGetBufferView(accessor, gltf.GetByKey("bufferViews"), buflen, joints.Size(), &ViewOffset, &ViewStride, &SourceType, &SourceComps)) return NULL;
+			if (!ZL_VERIFYMSG(SourceType == GL_FLOAT && SourceComps == 16 && ViewStride == 16 * sizeof(GLfloat), "glTF error: Invalid skeletal mesh skin data format")) return NULL;
+			if (!ZL_VERIFYMSG(joints.Size(), "glTF error: Skeletal mesh contains no joints")) return NULL;
+			ZL_STATIC_ASSERTMSG(GL_FLOAT == GL_SCALAR, support_only_float);
+
+			size_t BoneCount = joints.Size(), MemoryIndicesOffset = ALIGN_UP(5 * BoneCount * sizeof(ZL_Matrix), sizeof(int)), MemoryIndicesSize = BoneCount * sizeof(int);
+			ZL_SkeletalMesh_Impl* res = new ZL_SkeletalMesh_Impl(AttributeMask);
+			res->BoneCount = BoneCount;
+			res->BoneMemory = malloc(MemoryIndicesOffset + MemoryIndicesSize);
+			res->InverseBindMatrices = (ZL_Matrix*)res->BoneMemory;
+			res->BoneMatrices        = res->InverseBindMatrices + res->BoneCount;
+			res->RefBoneMatrices     = res->BoneMatrices        + res->BoneCount;
+			res->MeshBoneMatrices    = res->RefBoneMatrices     + res->BoneCount;
+			res->InverseBoneMatrices = res->MeshBoneMatrices    + res->BoneCount;
+			res->BoneParentIndices = (int*)res->BoneMemory + (MemoryIndicesOffset / sizeof(int));
+			ZL_ASSERT((char*)(res->BoneParentIndices + res->BoneCount) == (char*)res->BoneMemory + MemoryIndicesOffset + MemoryIndicesSize);
+			memcpy(res->InverseBindMatrices, buf + ViewOffset, sizeof(ZL_Matrix) * BoneCount);
+
+			std::map<int, int> NodeIndexToBoneIndex;
+			for (int i = 0, iMax = (int)BoneCount; i != iMax; i++)
+			{
+				int NodeIndex = joints.GetIntOf(i, -1);
+				NodeIndexToBoneIndex[NodeIndex] = i;
+				res->BoneParentIndices[i] = i;
+				ZL_Matrix& NodeMatrix = res->RefBoneMatrices[i];
+				ZL_Json node = nodes.GetChild(NodeIndex), matrix = node.GetByKey("matrix"), translation = node.GetByKey("translation"), rotation = node.GetByKey("rotation"), scale = node.GetByKey("scale");
+				if (matrix) for (size_t j = 0; j != 16; j++) NodeMatrix.m[j] = matrix.GetFloatOf(j);
+				else NodeMatrix = ZL_Matrix::Identity;
+				if (translation) NodeMatrix *= ZL_Matrix::MakeTranslate(ZL_Vector3(translation.GetFloatOf((size_t)0), translation.GetFloatOf(1), translation.GetFloatOf(2)));
+				if (rotation)    NodeMatrix *= ZL_Matrix::MakeRotate(ZL_Quat(rotation.GetFloatOf((size_t)0), rotation.GetFloatOf(1), rotation.GetFloatOf(2), rotation.GetFloatOf(3)));
+				if (scale)       NodeMatrix *= ZL_Matrix::MakeScale(ZL_Vector3(scale.GetFloatOf((size_t)0), scale.GetFloatOf(1), scale.GetFloatOf(2)));
+			}
+
+			//Associate child bones to parent bones
+			for (ZL_Json::Iterator itJoint = joints.GetIterator(); itJoint; ++itJoint)
+				for (ZL_Json::Iterator itChild = nodes.GetChild(itJoint->GetInt(-1)).GetByKey("children").GetIterator(); itChild; ++itChild)
+					{ int ci = NodeIndexToBoneIndex[itChild->GetInt()], pi = NodeIndexToBoneIndex[itJoint->GetInt()]; res->BoneParentIndices[ci] = pi; ZL_ASSERTMSG(pi < ci, "Parent should always have a higher index than child"); }
+			ZL_ASSERTMSG(res->BoneParentIndices[0] == 0, "First bone should be root bone without parent");
+
+			return res;
+		}};
+
+		Material = new ZL_MaterialInstance(Material, Material->MaterialModes, false);
+		ZL_SkeletalMesh_Impl* res = (ZL_SkeletalMesh_Impl*)GLTFLoad(file, Material, NULL, &MakeFunc::Make);
+		Material->DelRef();
+		if (!res) return NULL;
+
+		res->RefreshMaterials();
+		res->ResetBones();
+		res->Update();
+		return res;
+	}
+
+	void RefreshMaterials()
+	{
+		for (ZL_Mesh_Impl::MeshPart* it = Parts; it != PartsEnd; ++it)
+		{
+			GLint Offset = it->Material->ShaderProgram->GetUniformOffset(Z3U_BONES "[0]", ZL_MaterialProgram::UniformEntry::TYPE_MAT4, true);
+			if (Offset < 0) continue;
+			ZL_Material_Impl::UniformArrayValue* UniformBonesArray = reinterpret_cast<ZL_Material_Impl::UniformArrayValue*>(it->Material->UniformSet.Values+Offset);
+			UniformBonesArray->Count = (GLsizei)BoneCount;
+			UniformBonesArray->Ptr = (UniformBonesArray->Count ? (scalar*)&InverseBoneMatrices[0] : NULL);
+			it->Material->UniformSet.CalcValueChksum();
+		}
+	}
+
+	void ResetBones()
+	{
+		memcpy(BoneMatrices, RefBoneMatrices, sizeof(ZL_Matrix) * BoneCount);
+	}
+
+	void TwoBoneIK(int EndBone, ZL_Vector3 RequestedLoc, const ZL_Vector3& JointTarget)
+	{
+		const int JointBone = BoneParentIndices[EndBone], RootBone = BoneParentIndices[JointBone], ParentBone = BoneParentIndices[RootBone];
+		ZL_ASSERTMSG(RootBone != JointBone, "Requested IK bone is not two levels deep");
+		//UpdateTowardsRoot(EndBone);
+		const ZL_Matrix& ParentMat = (ParentBone == RootBone ? ZL_Matrix::Identity : MeshBoneMatrices[ParentBone]);
+		const ZL_Matrix RootMat =  ParentMat * RefBoneMatrices[RootBone], JointMat = RootMat * RefBoneMatrices[JointBone], EndMat = JointMat * RefBoneMatrices[EndBone];
+		const ZL_Vector3 RootLoc = RootMat.GetTranslate(), JointLoc = JointMat.GetTranslate(), EndLoc = EndMat.GetTranslate(), RequestDt = RequestedLoc - RootLoc;
+		const scalar UpperLen = RootLoc.GetDistance(JointLoc), LowerLen = JointLoc.GetDistance(EndLoc), MaxLen = UpperLen + LowerLen;
+		const scalar RequestLen = ZL_Math::Max(RequestDt.GetLength(), KINDA_SMALL_NUMBER);
+		const ZL_Vector3 RequestedDir = (RequestLen == KINDA_SMALL_NUMBER ? ZL_Vector3(1, 0, 0) : RequestDt.VecNormUnsafe());
+
+		ZL_Vector3 NewEndLoc, NewJointLoc;
+		if (RequestLen >= MaxLen)
+		{
+			NewJointLoc = RootLoc + (RequestedDir * UpperLen);
+			NewEndLoc = RootLoc + (RequestedDir * MaxLen);
+		}
+		else
+		{
+			ZL_Vector3 JointBendDir, JointTargetDelta = JointTarget - RootLoc;
+			if (JointTargetDelta.GetLengthSq() > SMALL_NUMBER)
+			{
+				ZL_Vector3 JointPlaneNormal = RequestedDir ^ JointTargetDelta;
+				if (JointPlaneNormal.GetLengthSq() < SMALL_NUMBER) RequestedDir.FindAxisVectors(&JointPlaneNormal, &JointBendDir);
+				else { JointPlaneNormal.NormUnsafe(); JointBendDir = (JointTargetDelta - (RequestedDir * (JointTargetDelta | RequestedDir))).Norm(); }
+			}
+			else JointBendDir = ZL_Vector3(0, 1, 0);
+
+			scalar UpperSq = UpperLen * UpperLen;
+			scalar JointPlaneY = (RequestLen*RequestLen + UpperSq - LowerLen*LowerLen) / (RequestLen*2);
+			scalar JointPlaneXSq = UpperSq - JointPlaneY*JointPlaneY, JointPlaneX = (JointPlaneXSq > 0 ? ssqrt(JointPlaneXSq) : 0);
+			NewJointLoc = RootLoc + (RequestedDir * JointPlaneY) + (JointBendDir * JointPlaneX);
+			NewEndLoc = RequestedLoc;
+		}
+
+		const ZL_Quat RootDeltaRotation  = ZL_Quat::BetweenVectors(JointLoc -  RootLoc, NewJointLoc -     RootLoc);
+		const ZL_Quat JointDeltaRotation = ZL_Quat::BetweenVectors(  EndLoc - JointLoc,   NewEndLoc - NewJointLoc);
+		const ZL_Quat NewRootRot  = RootDeltaRotation  * RootMat.GetRotate();
+		const ZL_Quat NewJointRot = JointDeltaRotation * JointMat.GetRotate();
+		//const ZL_Quat RootRot  = RootMat.GetRotate(),  NewRootRot  = (RootDeltaRotation  *  RootRot).GetSwing(ZLV3(0,1,0)) *  RootRot.GetTwist(ZLV3(0,1,0)); //eliminate twist
+		//const ZL_Quat JointRot = JointMat.GetRotate(), NewJointRot = (JointDeltaRotation * JointRot).GetSwing(ZLV3(0,1,0)) * JointRot.GetTwist(ZLV3(0,1,0)); //eliminate twist
+
+		MeshBoneMatrices[RootBone ] = ZL_Matrix::MakeRotateTranslateScale(NewRootRot,  RootLoc,     RootMat.GetScale());
+		MeshBoneMatrices[JointBone] = ZL_Matrix::MakeRotateTranslateScale(NewJointRot, NewJointLoc, JointMat.GetScale());
+		MeshBoneMatrices[EndBone  ].SetTranslate(NewEndLoc);
+		BoneMatrices[RootBone ] =                   ParentMat.GetInverted() * MeshBoneMatrices[RootBone];
+		BoneMatrices[JointBone] = MeshBoneMatrices[RootBone ].GetInverted() * MeshBoneMatrices[JointBone];
+		BoneMatrices[EndBone  ] = MeshBoneMatrices[JointBone].GetInverted() * MeshBoneMatrices[EndBone];
+	}
+
+	void UpdateTowardsRoot(int ChildBoneIndex)
+	{
+		int ParentIndex = BoneParentIndices[ChildBoneIndex];
+		if (ChildBoneIndex == ParentIndex) { MeshBoneMatrices[ChildBoneIndex] = BoneMatrices[ChildBoneIndex]; return; }
+		UpdateTowardsRoot(ParentIndex);
+		MeshBoneMatrices[ChildBoneIndex] = MeshBoneMatrices[ParentIndex] * BoneMatrices[ChildBoneIndex];
+	}
+
+	void Update(const ZL_Matrix* NewBoneMatrices = NULL, size_t Count = 0)
+	{
+		memcpy(BoneMatrices, NewBoneMatrices, sizeof(ZL_Matrix) * Count);
+		for (int i = 0, iMax = (int)(Count ? Count : BoneCount); i != iMax; i++)
+		{
+			MeshBoneMatrices[i] = (BoneParentIndices[i] == i ? BoneMatrices[i] : MeshBoneMatrices[BoneParentIndices[i]] * BoneMatrices[i]);
+			InverseBoneMatrices[i] = MeshBoneMatrices[i] * InverseBindMatrices[i];
+		}
+		Parts->Material->UniformSet.ValueChksum ^= 1;
+	}
+
+	void DrawDebug(const ZL_Matrix& Matrix, const ZL_Camera& Camera)
+	{
+		bool TemporaryRendering = (ZLGLSL::ActiveProgram != ZLGLSL::DISPLAY3D);
+		if (TemporaryRendering) ZL_Display3D::BeginRendering();
+		scalar l = .4f;
+		for (size_t i = 0; i < BoneCount; i++)
+		{
+			ZL_Matrix MParent = Matrix * MeshBoneMatrices[BoneParentIndices[i]], MThis = Matrix * MeshBoneMatrices[i];
+			ZL_Display3D::DrawLine(Camera, MParent.GetTranslate(), MThis.GetTranslate(),                                                                           ZL_Color::Orange, .01f*l);
+			ZL_Display3D::DrawLine(Camera, MThis.GetTranslate(), MThis.                                                TransformPosition (ZL_Vector3(.15f*l,0,0)), ZL_Color::Red,    .03f*l);
+			ZL_Display3D::DrawLine(Camera, MThis.GetTranslate(), MThis.                                                TransformPosition (ZL_Vector3(0,.15f*l,0)), ZL_Color::Green,  .03f*l);
+			ZL_Display3D::DrawLine(Camera, MThis.GetTranslate(), MThis.                                                TransformPosition (ZL_Vector3(0,0,.15f*l)), ZL_Color::Blue,   .03f*l);
+		}
+
+		if (TemporaryRendering) ZL_Display3D::FinishRendering();
 	}
 };
 
@@ -1489,6 +1862,8 @@ ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_Mesh)
 ZL_Mesh::ZL_Mesh(const ZL_FileLink& ModelFile, const ZL_Material& Material) : impl(ZL_Mesh_Impl::LoadAny(ModelFile, ZL_ImplFromOwner<ZL_Material_Impl>(Material))) {}
 ZL_Mesh ZL_Mesh::FromPLY(const ZL_FileLink& PLYFile, const ZL_Material& Material) { ZL_Mesh m; m.impl = ZL_Mesh_Impl::PLYLoad(PLYFile, ZL_ImplFromOwner<ZL_Material_Impl>(Material)); return m; }
 ZL_Mesh ZL_Mesh::FromOBJ(const ZL_FileLink& OBJFile, const ZL_Material& Material) { ZL_Mesh m; m.impl = ZL_Mesh_Impl::OBJLoad(OBJFile, ZL_ImplFromOwner<ZL_Material_Impl>(Material)); return m; }
+ZL_Mesh ZL_Mesh::FromGLTF(const ZL_FileLink& GLTFFile, const ZL_Material& Material) { ZL_Mesh m; m.impl = ZL_Mesh_Impl::GLTFLoad(GLTFFile, ZL_ImplFromOwner<ZL_Material_Impl>(Material)); return m; }
+
 #if defined(ZILLALOG) && !defined(ZL_VIDEO_OPENGL_ES2)
 void ZL_Mesh::DrawDebug(const ZL_Matrix& Matrix, const struct ZL_Camera& Camera) { if (impl) impl->DrawDebug(Matrix, Camera); }
 #endif
@@ -1830,6 +2205,20 @@ ZL_Mesh ZL_Mesh::BuildQuads(const void* Vertices, size_t NumQuads, ZL_Mesh::Vert
 	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl::Make(Content, &Indices[0], Indices.size(), Vertices, NumQuads*4, ZL_ImplFromOwner<ZL_Material_Impl>(Material)), false);
 }
 
+ZL_IMPL_OWNER_INHERITED_IMPLEMENTATIONS(ZL_SkeletalMesh)
+ZL_SkeletalMesh ZL_SkeletalMesh::FromGLTF(const ZL_FileLink& GLTFFile, const ZL_Material& Material) { ZL_SkeletalMesh m; m.impl = ZL_SkeletalMesh_Impl::GLTFLoadSkeletal(GLTFFile, ZL_ImplFromOwner<ZL_Material_Impl>(Material)); return m; }
+ZL_SkeletalMesh& ZL_SkeletalMesh::ResetBones() { if (impl) ((ZL_SkeletalMesh_Impl*)impl)->ResetBones(); return *this; }
+ZL_SkeletalMesh& ZL_SkeletalMesh::Update() { if (impl) ((ZL_SkeletalMesh_Impl*)impl)->Update(); return *this; }
+ZL_SkeletalMesh& ZL_SkeletalMesh::Update(const ZL_Matrix* NewBoneMatrices, size_t Count) { if (impl) ((ZL_SkeletalMesh_Impl*)impl)->Update(NewBoneMatrices, Count); return *this; }
+ZL_SkeletalMesh& ZL_SkeletalMesh::TwoBoneIK(int Bone, const ZL_Vector3& RequestedLocation, const ZL_Vector3& JointTarget) { if (impl) ((ZL_SkeletalMesh_Impl*)impl)->TwoBoneIK(Bone, RequestedLocation, JointTarget); return *this; }
+ZL_SkeletalMesh& ZL_SkeletalMesh::SetMaterial(unsigned int PartNumber, const ZL_Material& Material) { if (impl) ZL_Mesh::SetMaterial(PartNumber, Material); ((ZL_SkeletalMesh_Impl*)impl)->RefreshMaterials(); return *this; }
+ZL_SkeletalMesh& ZL_SkeletalMesh::SetMaterial(ZL_NameID PartName, const ZL_Material& Material) { if (impl) ZL_Mesh::SetMaterial(PartName, Material); ((ZL_SkeletalMesh_Impl*)impl)->RefreshMaterials(); return *this; }
+ZL_SkeletalMesh& ZL_SkeletalMesh::SetMaterial(const ZL_Material& Material) { if (impl) ZL_Mesh::SetMaterial(Material); ((ZL_SkeletalMesh_Impl*)impl)->RefreshMaterials(); return *this; }
+size_t ZL_SkeletalMesh::GetBoneCount() const { return (impl ? ((ZL_SkeletalMesh_Impl*)impl)->BoneCount : 0); }
+const ZL_Matrix* ZL_SkeletalMesh::GetBoneBases() { return (impl ? &((ZL_SkeletalMesh_Impl*)impl)->RefBoneMatrices[0] : NULL); }
+ZL_Matrix* ZL_SkeletalMesh::GetBones() { return (impl ? &((ZL_SkeletalMesh_Impl*)impl)->BoneMatrices[0] : NULL); }
+void ZL_SkeletalMesh::DrawDebug(const ZL_Matrix& Matrix, const ZL_Camera& Camera) const { if (impl) ((ZL_SkeletalMesh_Impl*)impl)->DrawDebug(Matrix, Camera); }
+
 ZL_IMPL_OWNER_INHERITED_IMPLEMENTATIONS(ZL_MeshAnimated)
 ZL_MeshAnimated::ZL_MeshAnimated(const ZL_FileLink& ModelFile, const ZL_Material& Material) { impl = ZL_MeshAnimated_Impl::OBJLoadAnimation(ModelFile, ZL_ImplFromOwner<ZL_Material_Impl>(Material)); }
 ZL_MeshAnimated& ZL_MeshAnimated::SetFrame(unsigned int FrameIndex) { if (impl) static_cast<ZL_MeshAnimated_Impl*>(impl)->SetFrame(FrameIndex); return *this; }
@@ -2041,12 +2430,12 @@ bool ZL_Display3D::InitShadowMapping()
 		static void SetupShadowMapProgram(ZL_MaterialProgram* ShaderProgram, unsigned int MM, const char* CustomVertexCode = NULL)
 		{
 			using namespace ZL_Display3D_Shaders;
-			bool UseMasked = (MM&MM_DIFFUSEMAP) && (MM&(MO_MASKED|MO_TRANSPARENCY)), UseCustomPosition = !!(MM&(MM_VERTEXFUNC|MM_POSITIONFUNC)), UseCustomMask = (UseMasked && (MM&(MM_UVFUNC)));
-			ZL_MaterialProgram*& UseShadowMapProgram = (UseCustomPosition || UseCustomMask ? ShaderProgram->ShadowMapProgram : (UseMasked ? g_ShadowMapMaskProgram : g_ShadowMapProgram));
+			bool UseMasked = (MM&MM_DIFFUSEMAP) && (MM&(MO_MASKED|MO_TRANSPARENCY)), UseSkeletal = !!(MM&MO_SKELETALMESH), UseCustomPosition = !!(MM&(MM_VERTEXFUNC|MM_POSITIONFUNC)), UseCustomMask = (UseMasked && (MM&(MM_UVFUNC)));
+			ZL_MaterialProgram*& UseShadowMapProgram = (UseCustomPosition || UseCustomMask ? ShaderProgram->ShadowMapProgram : g_ShadowMapPrograms[(UseMasked<<0) | (UseSkeletal<<1)]);
 			if (UseShadowMapProgram) UseShadowMapProgram->AddRef();
 			else
 			{
-				unsigned int MMSMRules = MO_UNLIT;
+				unsigned int MMSMRules = MO_UNLIT | (MM&MO_SKELETALMESH);
 				if (UseMasked)         MMSMRules |= MO_MASKED | (UseCustomMask ? (MM&(MM_UVFUNC|MM_DIFFUSEMAP|MM_DIFFUSEFUNC)) : MM_DIFFUSEMAP);
 				if (UseCustomPosition) MMSMRules |= (MM&(MM_VERTEXFUNC|MM_POSITIONFUNC));
 				unsigned int MMSMGlobal = MMSMRules | (UseCustomPosition|UseCustomMask ? (MM & MMDEF_REQUESTS) : 0);

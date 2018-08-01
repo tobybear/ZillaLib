@@ -37,7 +37,7 @@ namespace ZL_MaterialModes { enum
 	MR_WPOSITION = 1<<16, MR_TEXCOORD = 1<<17, MR_NORMAL = 1<<18, MR_CAMERATANGENT = 1<<19, MR_TIME = 1<<20,
 	//Material options
 	MO_UNLIT = 1<<22, MO_RECEIVENOSHADOW = 1<<23, MO_MASKED = 1<<24, MO_PRECISIONTANGENT = 1<<25, MO_CASTNOSHADOW = 1<<26, 
-	MO_TRANSPARENCY = 1<<27, MO_ADDITIVE = 1<<28, MO_MODULATE = 1<<29, MO_IGNOREDEPTH = 1<<30
+	MO_TRANSPARENCY = 1<<27, MO_ADDITIVE = 1<<28, MO_MODULATE = 1<<29, MO_IGNOREDEPTH = 1<<30, MO_SKELETALMESH = 1<<31
 };
 enum Blending
 {
@@ -50,6 +50,8 @@ enum Blending
 #define Z3A_TEXCOORD         ZL_SHADERVARNAME("at", "a_texcoord")       //input mesh texture coordinate (vec2)
 #define Z3A_TANGENT          ZL_SHADERVARNAME("ag", "a_tangent")        //input mesh tangent vector (vec3)
 #define Z3A_COLOR            ZL_SHADERVARNAME("ac", "a_color")          //input mesh vertex color (vec4)
+#define Z3A_JOINTS           ZL_SHADERVARNAME("aj", "a_joints")         //input mesh skinned bone indices (vec4)
+#define Z3A_WEIGHTS          ZL_SHADERVARNAME("aw", "a_weights")        //input mesh skinned weights (vec4)
 
 //Shader code variable names (uniforms) (default values are 1 if not specified)
 #define Z3U_VIEW             ZL_SHADERVARNAME("umv", "u_view")          //view matrix (camera+projection) (mat4)
@@ -67,6 +69,7 @@ enum Blending
 #define Z3U_SHININESS        ZL_SHADERVARNAME("ufh", "u_shininess")     //specular shininess factor (float, default 16)
 #define Z3U_PARALLAXSCALE    ZL_SHADERVARNAME("ufp", "u_parallaxscale") //parallax mapping amount (float, default 0.05)
 #define Z3U_TIME             ZL_SHADERVARNAME("ut", "u_time")           //time passed in seconds (float)
+#define Z3U_BONES            ZL_SHADERVARNAME("ub", "u_bones")          //array of skeletal mesh bones (mat4)
 
 //Shader code variable names (varyings, set up by vertex shader, used in fragment shader)
 #define Z3V_COLOR            ZL_SHADERVARNAME("co", "v_color")          //color as calculated by the vertex shader (vec4)
@@ -140,6 +143,7 @@ struct ZL_Mesh
 
 	static ZL_Mesh FromPLY(const ZL_FileLink& PLYFile, const ZL_Material& Material = DefaultMaterial());
 	static ZL_Mesh FromOBJ(const ZL_FileLink& OBJFile, const ZL_Material& Material = DefaultMaterial());
+	static ZL_Mesh FromGLTF(const ZL_FileLink& GLTFFile, const ZL_Material& Material = DefaultMaterial());
 
 	enum VertDataMode { VDM_POS = 0, VDM_POS_NORMAL = 2, VDM_POS_NORMAL_TEXCOORD = 6, VDM_POS_NORMAL_TEXCOORD_TANGENT = 14, VDM_POS_NORMAL_TEXCOORD_TANGENT_COLOR = 30, VDM_POS_NORMAL_TEXCOORD_COLOR = 22, VDM_POS_NORMAL_TANGENT = 10, VDM_POS_NORMAL_TANGENT_COLOR = 26, VDM_POS_NORMAL_COLOR = 18, VDM_POS_TEXCOORD = 4, VDM_POS_TEXCOORD_TANGENT = 12, VDM_POS_TEXCOORD_TANGENT_COLOR = 28, VDM_POS_TEXCOORD_COLOR = 20, VDM_POS_TANGENT = 8, VDM_POS_TANGENT_COLOR = 24, VDM_POS_COLOR = 16 };
 	static ZL_Mesh BuildMesh(const unsigned short* Indices, size_t NumIndices, const void* Vertices, size_t NumVertices, VertDataMode Content, const ZL_Material& Material = DefaultMaterial());
@@ -163,6 +167,32 @@ struct ZL_Mesh
 
 	protected: struct ZL_Mesh_Impl* impl;
 	inline static ZL_Material DefaultMaterial() { return ZL_Material(ZL_MaterialModes::MM_STATICCOLOR); }
+};
+
+struct ZL_SkeletalMesh : public ZL_Mesh
+{
+	ZL_SkeletalMesh();
+	~ZL_SkeletalMesh();
+	ZL_SkeletalMesh(const ZL_SkeletalMesh &source);
+	ZL_SkeletalMesh &operator=(const ZL_SkeletalMesh &source);
+
+	ZL_SkeletalMesh& ResetBones();
+	ZL_SkeletalMesh& Update(); //when modified GetBones() result
+	ZL_SkeletalMesh& Update(const ZL_Matrix* NewBoneMatrices, size_t Count);
+	ZL_SkeletalMesh& TwoBoneIK(int Bone, const ZL_Vector3& RequestedLocation, const ZL_Vector3& JointTarget);
+
+	ZL_SkeletalMesh& SetMaterial(unsigned int PartNumber, const ZL_Material& Material);
+	ZL_SkeletalMesh& SetMaterial(ZL_NameID PartName, const ZL_Material& Material);
+	ZL_SkeletalMesh& SetMaterial(const ZL_Material& Material);
+
+	size_t GetBoneCount() const;
+	const ZL_Matrix* GetBoneBases();
+	ZL_Matrix* GetBones();
+	void DrawDebug(const ZL_Matrix& Matrix, const struct ZL_Camera& Camera) const;
+
+	static ZL_SkeletalMesh FromGLTF(const ZL_FileLink& GLTFFile, const ZL_Material& Material = DefaultMaterial());
+
+	protected: inline static ZL_Material DefaultMaterial() { return ZL_Material(ZL_MaterialModes::MM_STATICCOLOR|ZL_MaterialModes::MO_SKELETALMESH); }
 };
 
 struct ZL_MeshAnimated : public ZL_Mesh
