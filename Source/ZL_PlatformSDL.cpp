@@ -124,7 +124,7 @@ void ZL_OpenExternalUrl(const char* url)
 	#endif
 }
 
-void ZL_SDL_ShowError(const char* msg)
+static void ZL_SDL_ShowError(const char* msg)
 {
 	#ifdef __WIN32__
 	MessageBoxA(NULL, msg, "Error", MB_ICONSTOP);
@@ -381,7 +381,7 @@ static unsigned char ZL_SDL_FingerIDGetIndex(SDL_FingerID FingerID, unsigned cha
 	return 0xFF;
 }
 
-void ProcessSDLEvents()
+static void ProcessSDLEvents()
 {
 	SDL_Event in;
 	while (SDL_PollEvent(&in))
@@ -712,7 +712,7 @@ PFNGLGENFRAMEBUFFERSPROC          glGenFramebuffers;
 PFNGLDELETEFRAMEBUFFERSPROC       glDeleteFramebuffers;
 PFNGLBINDFRAMEBUFFERPROC          glBindFramebuffer;
 PFNGLFRAMEBUFFERTEXTURE2DPROC     glFramebufferTexture2D;
-void InitExtensionEntries()
+static void InitExtensionEntries()
 {
 #ifndef __MACOSX__
 	glCreateShader =             (PFNGLCREATESHADERPROC            )(size_t)SDL_GL_GetProcAddress("glCreateShader");
