@@ -77,7 +77,7 @@ namespace ZL_Display3D_Shaders
 		MMDEF_USECUSTOMSHADER   = MMDEF_USECUSTOMFRAGMENT|MMDEF_USECUSTOMVERTEX,
 		MMDEF_FRAGCOLORMODES    = MM_STATICCOLOR|MM_VERTEXCOLOR|MM_VERTEXCOLORFUNC|MM_DIFFUSEMAP|MM_DIFFUSEFUNC,
 		MMDEF_USESLIT           = MM_SPECULARSTATIC|MM_SPECULARMAP|MM_SPECULARFUNC|MM_NORMALMAP|MM_NORMALFUNC,
-		MMDEF_REQUESTS          = MR_POSITION|MR_TEXCOORD|MR_NORMAL|MR_CAMERATANGENT|MR_TIME,
+		MMDEF_REQUESTS          = MR_WPOSITION|MR_TEXCOORD|MR_NORMAL|MR_CAMERATANGENT|MR_TIME,
 		MMDEF_NOSHADERCODE      = MO_TRANSPARENCY|MO_ADDITIVE|MO_MODULATE|MO_CASTNOSHADOW|MO_IGNOREDEPTH,
 		MMDEF_NODEPTHWRITE      = MO_TRANSPARENCY|MO_ADDITIVE|MO_MODULATE,
 
@@ -88,7 +88,7 @@ namespace ZL_Display3D_Shaders
 		MMUSE_TANGENT       = MMUSE_CAMERATANGENT|MMUSE_BITANGENT,
 		MMUSE_TEXCOORD      = MM_PARALLAXMAP|MM_DIFFUSEMAP|MM_SPECULARMAP|MM_NORMALMAP|MR_TEXCOORD,
 		MMUSE_NORMAL        = MMUSE_TANGENT|MM_PARALLAXMAP|MR_NORMAL,
-		MMUSE_POSITION      = MMUSE_TANGENT|MR_POSITION,
+		MMUSE_WPOSITION     = MMUSE_TANGENT|MR_WPOSITION,
 		MMUSE_LATECOLORCALC = MM_PARALLAXMAP|MM_DIFFUSEFUNC,
 	};
 
@@ -106,7 +106,7 @@ namespace ZL_Display3D_Shaders
 			{ MMUSE_CAMERATANGENT,  MO_PRECISIONTANGENT, "varying vec3 " Z3V_CAMERATANGENT ";" },
 			{ MMUSE_BITANGENT,                        0, "varying vec3 " Z3V_TANGENT ", " Z3V_BITANGENT ";" },
 			{ MMUSE_NORMAL,                           0, "varying vec3 " Z3V_NORMAL ";" },
-			{ MMUSE_POSITION,                         0, "varying vec3 " Z3V_POSITION ";" },
+			{ MMUSE_WPOSITION,                        0, "varying vec3 " Z3V_WPOSITION ";" },
 			{ 0,            MO_RECEIVENOSHADOW|MO_UNLIT, (const char *)&ExternalSource[EXTERN_Varying_ShadowMap] },
 		},
 		VSGlobalRules[] = {
@@ -125,7 +125,7 @@ namespace ZL_Display3D_Shaders
 			{ MM_VERTEXFUNC,                          0, "Vertex();" },
 			{ 0,          MM_POSITIONFUNC|MM_VERTEXFUNC, Z3O_POSITION " = " Z3U_MODEL " * vec4(" Z3A_POSITION ", 1);" },
 			{ MM_POSITIONFUNC,            MM_VERTEXFUNC, Z3O_POSITION " = CalcPosition();" },
-			{ MMUSE_POSITION,                         0, Z3V_POSITION " = " Z3O_POSITION ".xyz;" },
+			{ MMUSE_WPOSITION,                        0, Z3V_WPOSITION " = " Z3O_POSITION ".xyz;" },
 			{ 0,                                      0, Z3O_POSITION " = " Z3U_VIEW " * " Z3O_POSITION ";" },
 			{ MMUSE_TEXCOORD,   MM_UVFUNC|MM_VERTEXFUNC, Z3V_TEXCOORD " = " Z3A_TEXCOORD ";" },
 			{ MM_UVFUNC,                  MM_VERTEXFUNC, Z3V_TEXCOORD " = CalcUV();" },
@@ -133,7 +133,7 @@ namespace ZL_Display3D_Shaders
 			{ MM_VERTEXCOLORFUNC,         MM_VERTEXFUNC, Z3V_COLOR " = CalcColor();" },
 			{ MMUSE_NORMAL,               MM_VERTEXFUNC, Z3V_NORMAL " = normalize(vec3(" Z3U_NORMAL " * vec4(" Z3A_NORMAL ", 0)));" },
 			{ MMUSE_TANGENT,        MO_PRECISIONTANGENT, "vec3 " Z3L_TANGENT " = normalize(vec3(" Z3U_NORMAL " * vec4(" Z3A_TANGENT ", 0)))," Z3L_BITANGENT " = cross(" Z3V_NORMAL ", " Z3L_TANGENT ");" },
-			{ MMUSE_CAMERATANGENT,  MO_PRECISIONTANGENT, "vec3 " Z3L_POS2CAMERA " = " Z3U_VIEWPOS " - " Z3V_POSITION ";" Z3V_CAMERATANGENT " = normalize(vec3(dot(" Z3L_POS2CAMERA ", " Z3L_TANGENT "), dot(" Z3L_POS2CAMERA ", " Z3L_BITANGENT "), dot(" Z3L_POS2CAMERA ", " Z3V_NORMAL ")));" },
+			{ MMUSE_CAMERATANGENT,  MO_PRECISIONTANGENT, "vec3 " Z3L_POS2CAMERA " = " Z3U_VIEWPOS " - " Z3V_WPOSITION ";" Z3V_CAMERATANGENT " = normalize(vec3(dot(" Z3L_POS2CAMERA ", " Z3L_TANGENT "), dot(" Z3L_POS2CAMERA ", " Z3L_BITANGENT "), dot(" Z3L_POS2CAMERA ", " Z3V_NORMAL ")));" },
 			{ MMUSE_BITANGENT,                        0, Z3V_TANGENT " = normalize(vec3(" Z3U_NORMAL " * vec4(" Z3A_TANGENT ", 0)));" Z3V_BITANGENT " = cross(" Z3V_NORMAL ", " Z3V_TANGENT ");" },
 			{ 0,            MO_RECEIVENOSHADOW|MO_UNLIT, (const char *)&ExternalSource[EXTERN_VS_ShadowMap_Calc] },
 			{ 0,0,"}" }
@@ -158,7 +158,7 @@ namespace ZL_Display3D_Shaders
 			{ MMDEF_FRAGCOLORMODES,        MMUSE_LATECOLORCALC, 0 }, // <-- FragColor Calculation
 			{ MO_MASKED,                   MMUSE_LATECOLORCALC, "if (" Z3O_FRAGCOLOR ".a<.5)discard;" },
 			{ MMUSE_CAMERATANGENT,         MO_PRECISIONTANGENT, Z3S_CAMERATANGENT " = normalize(" Z3V_CAMERATANGENT ");" },
-			{ MMUSE_CAMERATANGENT,        -MO_PRECISIONTANGENT, "vec3 " Z3L_POS2CAMERA " = " Z3U_VIEWPOS " - " Z3V_POSITION ";"
+			{ MMUSE_CAMERATANGENT,        -MO_PRECISIONTANGENT, "vec3 " Z3L_POS2CAMERA " = " Z3U_VIEWPOS " - " Z3V_WPOSITION ";"
 			                                                    Z3S_CAMERATANGENT " = normalize(vec3(dot(" Z3L_POS2CAMERA ", " Z3V_TANGENT "), dot(" Z3L_POS2CAMERA ", " Z3V_BITANGENT "), dot(" Z3L_POS2CAMERA ", " Z3V_NORMAL ")));" },
 			{ MM_PARALLAXMAP,                                0, "vec2 " Z3V_TEXCOORD " = " Z3V_TEXCOORD ";"
 			                                                    "float " Z3L_PARALLAXDEPTH " = texture2D(" Z3U_PARALLAXMAP ", " Z3V_TEXCOORD ").r;"
@@ -175,6 +175,7 @@ namespace ZL_Display3D_Shaders
 			{ MM_SPECULARFUNC,MM_SPECULARMAP|MM_SPECULARSTATIC, "float " Z3L_SPECULAR " = CalcSpecular();" },
 			{ MM_SPECULARSTATIC,MM_SPECULARMAP|MM_SPECULARFUNC, "float " Z3L_SPECULAR " = " Z3U_SPECULAR ";" },
 			{ 0,                                      MO_UNLIT, "vec3 " Z3L_LIGHTSCOLOR " = vec3(0.)," Z3L_LIGHTSSHINE " = vec3(0.)," Z3L_DIRECTION2LIGHT ";"
+			                                                    //Z3O_FRAGCOLOR ".rgb = " Z3S_NORMAL ";return;"
 			                                                    "for (int i = 0; i < " Z3S_NUMLIGHTS "; i++)"
 			                                                    "{"
 			                                                        "if (i > 0 && " Z3U_LIGHTDATA "[1+i*3].x > 3.3e+38) break;"
@@ -183,18 +184,18 @@ namespace ZL_Display3D_Shaders
 			                                                        "{"
 			                                                            Z3L_LIGHTFACTOR " = max(dot(" Z3S_NORMAL ", " Z3U_LIGHTDATA "[1+i*3]), 0.);"
 			                                                            Z3L_LIGHTDIM " = 1.;" },
-			{ MMUSE_SPECULAR,                         MO_UNLIT,         "vec3 " Z3L_POS2LIGHT " =  " Z3U_LIGHTDATA "[1+i*3] * -" Z3U_LIGHTDATA "[1+i*3+2].x - " Z3V_POSITION ";"
+			{ MMUSE_SPECULAR,                         MO_UNLIT,         "vec3 " Z3L_POS2LIGHT " =  " Z3U_LIGHTDATA "[1+i*3] * -" Z3U_LIGHTDATA "[1+i*3+2].x - " Z3V_WPOSITION ";"
 			                                                            Z3L_DIRECTION2LIGHT " = " Z3L_POS2LIGHT " / length(" Z3L_POS2LIGHT ");" },
 			{ 0,                                      MO_UNLIT,     "}"
 			                                                        "else"
 			                                                        "{"
-			                                                            "vec3 " Z3L_POS2LIGHT " = " Z3U_LIGHTDATA "[1+i*3] - " Z3V_POSITION ";"
+			                                                            "vec3 " Z3L_POS2LIGHT " = " Z3U_LIGHTDATA "[1+i*3] - " Z3V_WPOSITION ";"
 			                                                            "float " Z3L_LIGHTDISTANCE " = length(" Z3L_POS2LIGHT ");"
 			                                                            Z3L_DIRECTION2LIGHT " = " Z3L_POS2LIGHT " / " Z3L_LIGHTDISTANCE ";"
 			                                                            Z3L_LIGHTFACTOR " = max(dot(" Z3S_NORMAL ", " Z3L_DIRECTION2LIGHT "), 0.);"
 			                                                            Z3L_LIGHTDIM " = max((" Z3U_LIGHTDATA "[1+i*3+2].x - " Z3L_LIGHTDISTANCE ") / " Z3U_LIGHTDATA "[1+i*3+2].x, 0.);"
 			                                                        "}" },
-			{ MMUSE_SPECULAR,                         MO_UNLIT,     "float " Z3L_LIGHTSPECULAR " = " Z3L_SPECULAR " * pow(max(dot(normalize(" Z3U_VIEWPOS " - " Z3V_POSITION "), reflect(-" Z3L_DIRECTION2LIGHT ", " Z3S_NORMAL ")), 0.), " Z3U_SHININESS ");"
+			{ MMUSE_SPECULAR,                         MO_UNLIT,     "float " Z3L_LIGHTSPECULAR " = " Z3L_SPECULAR " * pow(max(dot(normalize(" Z3U_VIEWPOS " - " Z3V_WPOSITION "), reflect(-" Z3L_DIRECTION2LIGHT ", " Z3S_NORMAL ")), 0.), " Z3U_SHININESS ");"
 			                                                        Z3O_FRAGCOLOR ".a = min(" Z3O_FRAGCOLOR ".a + " Z3L_LIGHTSPECULAR ", 1.);"
 			                                                        Z3L_LIGHTFACTOR " += " Z3L_LIGHTSPECULAR ";" },
 			{ 0,                   MO_RECEIVENOSHADOW|MO_UNLIT,     (const char *)&ExternalSource[EXTERN_FS_ShadowMap_Calc] },
@@ -611,7 +612,7 @@ ZL_Material_Impl* ZL_Material_Impl::GetMaterialReference(unsigned int MM, const 
 	if (MM & MO_UNLIT) MM &= ~MMDEF_USESLIT;
 
 	u64 VariationID = (MM & ~MMDEF_NOSHADERCODE); //normalize MaterialModes
-	if ((MM & MR_POSITION)      && (MM & (MMUSE_POSITION     ^MR_POSITION     ))) VariationID ^= MR_POSITION;
+	if ((MM & MR_WPOSITION)     && (MM & (MMUSE_WPOSITION    ^MR_WPOSITION    ))) VariationID ^= MR_WPOSITION;
 	if ((MM & MR_TEXCOORD)      && (MM & (MMUSE_TEXCOORD     ^MR_TEXCOORD     ))) VariationID ^= MR_TEXCOORD;
 	if ((MM & MR_NORMAL)        && (MM & (MMUSE_NORMAL       ^MR_NORMAL       ))) VariationID ^= MR_NORMAL;
 	if ((MM & MR_CAMERATANGENT) && (MM & (MMUSE_CAMERATANGENT^MR_CAMERATANGENT))) VariationID ^= MR_CAMERATANGENT;
@@ -633,7 +634,7 @@ ZL_Material_Impl* ZL_Material_Impl::GetMaterialReference(unsigned int MM, const 
 				FS_FragColorCalcPtr += sprintf(FS_FragColorCalcPtr, "%s%s", (FS_FragColorCalcPtr != FS_FragColorCalc ? "*" : ""), FragColorRules[i].Source);
 		FS_FragColorCalcPtr[0] = ';'; FS_FragColorCalcPtr[1] = '\0';
 
-		const unsigned int MMRules = (MM & MO_UNLIT ? MM : MM | MR_POSITION | MR_NORMAL);
+		const unsigned int MMRules = (MM & MO_UNLIT ? MM : MM | MR_WPOSITION | MR_NORMAL);
 		const char* FSNullReplacements[] = { CustomFragmentCode, FS_FragColorCalc };
 		const char *VS[COUNT_OF(SharedRules)+COUNT_OF(VSGlobalRules)+COUNT_OF(VSRules)], *FS[COUNT_OF(SharedRules)+COUNT_OF(FSRules)];
 		GLsizei VSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MMRules, &VS[      0]);
@@ -2008,10 +2009,10 @@ bool ZL_Display3D::InitShadowMapping()
 
 	#ifdef ZL_DISPLAY3D_ORTHOLIGHTSONLY
 	ExternalSource[EXTERN_Varying_ShadowMap] = "varying vec3 " Z3SM_LIGHTSPACE ";";
-	ExternalSource[EXTERN_VS_ShadowMap_Calc] = Z3SM_LIGHTSPACE " = vec3(" Z3U_LIGHT " * vec4(" Z3V_POSITION ",1));";
+	ExternalSource[EXTERN_VS_ShadowMap_Calc] = Z3SM_LIGHTSPACE " = vec3(" Z3U_LIGHT " * vec4(" Z3V_WPOSITION ",1));";
 	#else
 	ExternalSource[EXTERN_Varying_ShadowMap] = "varying vec4 " Z3SM_LIGHTUNPROJECTED ";";
-	ExternalSource[EXTERN_VS_ShadowMap_Calc] = Z3SM_LIGHTUNPROJECTED " = " Z3U_LIGHT " * vec4(" Z3V_POSITION ",1);";
+	ExternalSource[EXTERN_VS_ShadowMap_Calc] = Z3SM_LIGHTUNPROJECTED " = " Z3U_LIGHT " * vec4(" Z3V_WPOSITION ",1);";
 	#endif
 	ExternalSource[EXTERN_VS_ShadowMap_Defs] = "uniform mat4 " Z3U_LIGHT ";";
 	ExternalSource[EXTERN_FS_ShadowMap_Defs] =
@@ -2091,7 +2092,7 @@ bool ZL_Display3D::InitShadowMapping()
 	ZL_Material(MM_STATICCOLOR|MO_RECEIVENOSHADOW);
 	ZL_Material(MM_DIFFUSEMAP|MM_SPECULARSTATIC|MM_NORMALMAP);
 	ZL_Material(MM_STATICCOLOR|MM_PARALLAXMAP|MO_UNLIT);
-	ZL_Material(MM_DIFFUSEFUNC|MM_STATICCOLOR|MR_POSITION|MO_UNLIT, "vec4 CalcDiffuse() { return vec4(1.); }");
+	ZL_Material(MM_DIFFUSEFUNC|MM_STATICCOLOR|MR_WPOSITION|MO_UNLIT, "vec4 CalcDiffuse() { return vec4(1.); }");
 	ZL_Material(MM_DIFFUSEFUNC|MM_STATICCOLOR|MR_TEXCOORD|MO_UNLIT, "vec4 CalcDiffuse() { return vec4(1.); }");
 	ZL_Material(MM_DIFFUSEFUNC|MM_STATICCOLOR|MR_NORMAL|MO_UNLIT, "vec4 CalcDiffuse() { return vec4(1.); }");
 	ZL_Material(MM_DIFFUSEFUNC|MM_STATICCOLOR|MR_CAMERATANGENT|MO_UNLIT, "vec4 CalcDiffuse() { return vec4(1.); }");

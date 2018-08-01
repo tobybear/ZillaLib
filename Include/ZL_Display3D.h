@@ -34,10 +34,10 @@ namespace ZL_MaterialModes { enum
 	MM_SPECULARSTATIC = 1<<4, MM_SPECULARMAP = 1<<5, MM_SPECULARFUNC = 1<<6, MM_NORMALMAP = 1<<7, MM_NORMALFUNC = 1<<8, MM_PARALLAXMAP = 1<<9,
 	MM_VERTEXFUNC = 1<<10, MM_VERTEXCOLORFUNC = 1<<11, MM_POSITIONFUNC = 1<<12, MM_UVFUNC = 1<<13,
 	//Material requests for custom shader code
-	MR_POSITION = 1<<16, MR_TEXCOORD = 1<<17, MR_NORMAL = 1<<18, MR_CAMERATANGENT = 1<<19, MR_TIME = 1<<20,
+	MR_WPOSITION = 1<<16, MR_TEXCOORD = 1<<17, MR_NORMAL = 1<<18, MR_CAMERATANGENT = 1<<19, MR_TIME = 1<<20,
 	//Material options
-	MO_UNLIT = 1<<22, MO_RECEIVENOSHADOW = 1<<23, MO_MASKED = 1<<24, MO_PRECISIONTANGENT = 1<<25,
-	MO_TRANSPARENCY = 1<<26, MO_ADDITIVE = 1<<27, MO_MODULATE = 1<<28, MO_CASTNOSHADOW = 1<<29, MO_IGNOREDEPTH = 1<<30
+	MO_UNLIT = 1<<22, MO_RECEIVENOSHADOW = 1<<23, MO_MASKED = 1<<24, MO_PRECISIONTANGENT = 1<<25, MO_CASTNOSHADOW = 1<<26, 
+	MO_TRANSPARENCY = 1<<27, MO_ADDITIVE = 1<<28, MO_MODULATE = 1<<29, MO_IGNOREDEPTH = 1<<30
 };
 enum Blending
 {
@@ -72,10 +72,10 @@ enum Blending
 #define Z3V_COLOR            ZL_SHADERVARNAME("co", "v_color")          //color as calculated by the vertex shader (vec4)
 #define Z3V_TEXCOORD         ZL_SHADERVARNAME("t",  "v_texcoord")       //fragment texture coordinate (vec2)
 #define Z3V_NORMAL           ZL_SHADERVARNAME("n",  "v_normal")         //fragment normal (vec3)
-#define Z3V_POSITION         ZL_SHADERVARNAME("p",  "v_position")       //fragment position (vec3)
+#define Z3V_WPOSITION        ZL_SHADERVARNAME("w",  "v_wposition")      //fragment world position (vec3)
 #define Z3V_CAMERATANGENT    ZL_SHADERVARNAME("ct", "v_cameratangent")  //camera tangent relative to fragment (vec3)
-#define Z3V_TANGENT          ZL_SHADERVARNAME("nt",  "v_tangent")       //fragment tangent (vec3)
-#define Z3V_BITANGENT        ZL_SHADERVARNAME("nb",  "v_bitangent")     //fragment binormal (vec3)
+#define Z3V_TANGENT          ZL_SHADERVARNAME("nt", "v_tangent")        //fragment tangent (vec3)
+#define Z3V_BITANGENT        ZL_SHADERVARNAME("nb", "v_bitangent")      //fragment binormal (vec3)
 
 //Shader code variable names (statics, available for custom functions)
 #define Z3S_NORMAL           ZL_SHADERVARNAME("N", "s_normal")          //final normal vector inside fragment shader (vec3)
