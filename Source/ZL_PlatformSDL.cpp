@@ -79,6 +79,8 @@ static void ProcessSDLEvents();
 static SDL_Window* ZL_SDL_Window = NULL;
 static ZL_String jsonConfigFile;
 static ZL_Json jsonConfig;
+static SDL_FingerID ZL_SDL_FingerIDs[32];
+static char ZL_SDL_FingerCount, ZL_SDL_Mouse_IgnoreMotion, ZL_SDL_Mouse_IgnoreButton;
 
 void ZL_SettingsInit(const char* FallbackConfigFilePrefix)
 {
@@ -372,6 +374,13 @@ void ZL_UpdateTPFLimit()
 	ZL_MainApplicationFlags = (UseVSync ? ZL_MainApplicationFlags & ~ZL_APPLICATION_NOVSYNC : ZL_MainApplicationFlags | ZL_APPLICATION_NOVSYNC);
 }
 
+static unsigned char ZL_SDL_FingerIDGetIndex(SDL_FingerID FingerID, unsigned char MinIndex = 0)
+{
+	for (; MinIndex < (unsigned char)COUNT_OF(ZL_SDL_FingerIDs); MinIndex++)
+		if (ZL_SDL_FingerIDs[MinIndex] == FingerID) return MinIndex;
+	return 0xFF;
+}
+
 void ProcessSDLEvents()
 {
 	SDL_Event in;
@@ -381,6 +390,7 @@ void ProcessSDLEvents()
 		switch (in.type)
 		{
 			case SDL_MOUSEMOTION:
+				if (ZL_SDL_Mouse_IgnoreMotion) { ZL_SDL_Mouse_IgnoreMotion--; continue; }
 				out.type = ZL_EVENT_MOUSEMOTION;
 				out.motion.which = 0;
 				out.motion.state = in.motion.state;
@@ -391,6 +401,7 @@ void ProcessSDLEvents()
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 			case SDL_MOUSEBUTTONUP:
+				if (ZL_SDL_Mouse_IgnoreButton) { ZL_SDL_Mouse_IgnoreButton--; continue; }
 				out.type = (in.type == SDL_MOUSEBUTTONDOWN ? ZL_EVENT_MOUSEBUTTONDOWN : ZL_EVENT_MOUSEBUTTONUP);
 				out.button.which = 0;
 				out.button.button = in.button.button;
@@ -403,6 +414,42 @@ void ProcessSDLEvents()
 				out.wheel.which = 0;
 				out.wheel.x = (scalar)(in.wheel.x*120);
 				out.wheel.y = (scalar)(in.wheel.y*120);
+				break;
+			case SDL_FINGERMOTION:
+				if ((out.motion.which = ZL_SDL_FingerIDGetIndex(in.tfinger.fingerId)) == 0xFF) continue;
+				if (out.motion.which == 0) ZL_SDL_Mouse_IgnoreMotion = 1;
+				out.type = ZL_EVENT_MOUSEMOTION;
+				out.motion.state = 1;
+				out.motion.x = (scalar)in.tfinger.x * (scalar)ZL_SDL_Window->w;
+				out.motion.y = (scalar)in.tfinger.y * (scalar)ZL_SDL_Window->h;
+				out.motion.xrel = (scalar)in.tfinger.dx * (scalar)ZL_SDL_Window->w;
+				out.motion.yrel = (scalar)in.tfinger.dy * (scalar)ZL_SDL_Window->h;
+				break;
+			case SDL_FINGERDOWN:
+			case SDL_FINGERUP:
+				out.button.is_down = (in.type == SDL_FINGERDOWN);
+				if ((out.motion.which = ZL_SDL_FingerIDGetIndex(out.button.is_down ? 0 : in.tfinger.fingerId)) == 0xFF) continue;
+				if (out.button.is_down)
+				{
+					if (out.motion.which == 0)
+					{
+						if (!ZL_SDL_FingerCount) ZL_SDL_Mouse_IgnoreButton = 2;
+						else if ((out.motion.which = ZL_SDL_FingerIDGetIndex(0, 1)) == 0xFF) continue;
+					}
+					ZL_SDL_FingerIDs[out.motion.which] = in.tfinger.fingerId;
+					ZL_SDL_FingerCount++;
+					out.type = ZL_EVENT_MOUSEBUTTONDOWN;
+				}
+				else
+				{
+					if (out.motion.which == 0) ZL_SDL_Mouse_IgnoreMotion = 0;
+					ZL_SDL_FingerIDs[out.motion.which] = 0;
+					ZL_SDL_FingerCount--;
+					out.type = ZL_EVENT_MOUSEBUTTONUP;
+				}
+				out.button.button = 1;
+				out.button.x = (scalar)in.tfinger.x * (scalar)ZL_SDL_Window->w;
+				out.button.y = (scalar)in.tfinger.y * (scalar)ZL_SDL_Window->h;
 				break;
 			case SDL_KEYDOWN:
 			case SDL_KEYUP:
@@ -484,34 +531,36 @@ void ProcessSDLEvents()
 				if ((out.window.event == ZL_WINDOWEVENT_MINIMIZED || out.window.event == ZL_WINDOWEVENT_FOCUS) && !ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS)) SDL_ResetMouse();
 				#endif
 				break;
+
 			#if 0 //defined(ZILLALOG)
-			case SDL_APP_TERMINATING: printf("UNUSED SDL EVENT [SDL_APP_TERMINATING]\n"); break;
-			case SDL_APP_LOWMEMORY: printf("UNUSED SDL EVENT [SDL_APP_LOWMEMORY]\n"); break;
-			case SDL_APP_WILLENTERBACKGROUND: printf("UNUSED SDL EVENT [SDL_APP_WILLENTERBACKGROUND]\n"); break;
-			case SDL_APP_DIDENTERBACKGROUND: printf("UNUSED SDL EVENT [SDL_APP_DIDENTERBACKGROUND]\n"); break;
-			case SDL_APP_WILLENTERFOREGROUND: printf("UNUSED SDL EVENT [SDL_APP_WILLENTERFOREGROUND]\n"); break;
-			case SDL_APP_DIDENTERFOREGROUND: printf("UNUSED SDL EVENT [SDL_APP_DIDENTERFOREGROUND]\n"); break;
-			case SDL_SYSWMEVENT: printf("UNUSED SDL EVENT [SDL_SYSWMEVENT]\n"); break;
-			case SDL_TEXTEDITING: printf("UNUSED SDL EVENT [SDL_TEXTEDITING]\n"); break;
-			case SDL_JOYDEVICEADDED: printf("UNUSED SDL EVENT [SDL_JOYDEVICEADDED]\n"); break;
-			case SDL_JOYDEVICEREMOVED: printf("UNUSED SDL EVENT [SDL_JOYDEVICEREMOVED]\n"); break;
-			case SDL_CONTROLLERAXISMOTION: printf("UNUSED SDL EVENT [SDL_CONTROLLERAXISMOTION]\n"); break;
-			case SDL_CONTROLLERBUTTONDOWN: printf("UNUSED SDL EVENT [SDL_CONTROLLERBUTTONDOWN]\n"); break;
-			case SDL_CONTROLLERBUTTONUP: printf("UNUSED SDL EVENT [SDL_CONTROLLERBUTTONUP]\n"); break;
-			case SDL_CONTROLLERDEVICEADDED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEADDED]\n"); break;
-			case SDL_CONTROLLERDEVICEREMOVED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEREMOVED]\n"); break;
-			case SDL_CONTROLLERDEVICEREMAPPED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEREMAPPED]\n"); break;
-			case SDL_FINGERDOWN: printf("UNUSED SDL EVENT [SDL_FINGERDOWN]\n"); break;
-			case SDL_FINGERUP: printf("UNUSED SDL EVENT [SDL_FINGERUP]\n"); break;
-			case SDL_FINGERMOTION: printf("UNUSED SDL EVENT [SDL_FINGERMOTION]\n"); break;
-			case SDL_DOLLARGESTURE: printf("UNUSED SDL EVENT [SDL_DOLLARGESTURE]\n"); break;
-			case SDL_DOLLARRECORD: printf("UNUSED SDL EVENT [SDL_DOLLARRECORD]\n"); break;
-			case SDL_MULTIGESTURE: printf("UNUSED SDL EVENT [SDL_MULTIGESTURE]\n"); break;
-			case SDL_CLIPBOARDUPDATE: printf("UNUSED SDL EVENT [SDL_CLIPBOARDUPDATE]\n"); break;
-			case SDL_DROPFILE: printf("UNUSED SDL EVENT [SDL_DROPFILE]\n"); break;
-			case SDL_RENDER_TARGETS_RESET: printf("UNUSED SDL EVENT [SDL_RENDER_TARGETS_RESET]\n"); break;
-			case SDL_USEREVENT: printf("UNUSED SDL EVENT [SDL_USEREVENT]\n"); break;
+			case SDL_APP_TERMINATING: printf("UNUSED SDL EVENT [SDL_APP_TERMINATING]\n"); continue;
+			case SDL_APP_LOWMEMORY: printf("UNUSED SDL EVENT [SDL_APP_LOWMEMORY]\n"); continue;
+			case SDL_APP_WILLENTERBACKGROUND: printf("UNUSED SDL EVENT [SDL_APP_WILLENTERBACKGROUND]\n"); continue;
+			case SDL_APP_DIDENTERBACKGROUND: printf("UNUSED SDL EVENT [SDL_APP_DIDENTERBACKGROUND]\n"); continue;
+			case SDL_APP_WILLENTERFOREGROUND: printf("UNUSED SDL EVENT [SDL_APP_WILLENTERFOREGROUND]\n"); continue;
+			case SDL_APP_DIDENTERFOREGROUND: printf("UNUSED SDL EVENT [SDL_APP_DIDENTERFOREGROUND]\n"); continue;
+			case SDL_SYSWMEVENT: printf("UNUSED SDL EVENT [SDL_SYSWMEVENT]\n"); continue;
+			case SDL_TEXTEDITING: printf("UNUSED SDL EVENT [SDL_TEXTEDITING]\n"); continue;
+			case SDL_JOYDEVICEADDED: printf("UNUSED SDL EVENT [SDL_JOYDEVICEADDED]\n"); continue;
+			case SDL_JOYDEVICEREMOVED: printf("UNUSED SDL EVENT [SDL_JOYDEVICEREMOVED]\n"); continue;
+			case SDL_CONTROLLERAXISMOTION: printf("UNUSED SDL EVENT [SDL_CONTROLLERAXISMOTION]\n"); continue;
+			case SDL_CONTROLLERBUTTONDOWN: printf("UNUSED SDL EVENT [SDL_CONTROLLERBUTTONDOWN]\n"); continue;
+			case SDL_CONTROLLERBUTTONUP: printf("UNUSED SDL EVENT [SDL_CONTROLLERBUTTONUP]\n"); continue;
+			case SDL_CONTROLLERDEVICEADDED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEADDED]\n"); continue;
+			case SDL_CONTROLLERDEVICEREMOVED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEREMOVED]\n"); continue;
+			case SDL_CONTROLLERDEVICEREMAPPED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEREMAPPED]\n"); continue;
+			case SDL_FINGERDOWN: printf("UNUSED SDL EVENT [SDL_FINGERDOWN]\n"); continue;
+			case SDL_FINGERUP: printf("UNUSED SDL EVENT [SDL_FINGERUP]\n"); continue;
+			case SDL_FINGERMOTION: printf("UNUSED SDL EVENT [SDL_FINGERMOTION]\n"); continue;
+			case SDL_DOLLARGESTURE: printf("UNUSED SDL EVENT [SDL_DOLLARGESTURE]\n"); continue;
+			case SDL_DOLLARRECORD: printf("UNUSED SDL EVENT [SDL_DOLLARRECORD]\n"); continue;
+			case SDL_MULTIGESTURE: printf("UNUSED SDL EVENT [SDL_MULTIGESTURE]\n"); continue;
+			case SDL_CLIPBOARDUPDATE: printf("UNUSED SDL EVENT [SDL_CLIPBOARDUPDATE]\n"); continue;
+			case SDL_DROPFILE: printf("UNUSED SDL EVENT [SDL_DROPFILE]\n"); continue;
+			case SDL_RENDER_TARGETS_RESET: printf("UNUSED SDL EVENT [SDL_RENDER_TARGETS_RESET]\n"); continue;
+			case SDL_USEREVENT: printf("UNUSED SDL EVENT [SDL_USEREVENT]\n"); continue;
 			#endif
+			default: continue;
 		}
 		ZL_Display_Process_Event(out);
 	}
