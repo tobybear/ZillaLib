@@ -64,6 +64,8 @@ namespace ZL_Display3D_Shaders
 	#define Z3L_LIGHTDIM         ZL_SHADERVARNAME("LI", "l_lightdim")
 	#define Z3L_DIRECTION2LIGHT  ZL_SHADERVARNAME("DL", "l_direction2light")
 	#define Z3D_SHADOWMAP "SM"
+	#define Z3MAX_BONES 60
+	#define Z3MAX_BONES_STRING "60"
 
 	static const char S_VoidMain[] = "void main(){";
 
@@ -116,7 +118,7 @@ namespace ZL_Display3D_Shaders
 			{ MMUSE_NORMAL,                           0, "attribute vec3 " Z3A_NORMAL ";uniform mat4 " Z3U_NORMAL ";" },
 			{ MMUSE_TANGENT,        MO_PRECISIONTANGENT, "attribute vec3 " Z3A_TANGENT ";uniform vec3 " Z3U_VIEWPOS ";" },
 			{ MMUSE_TANGENT,       -MO_PRECISIONTANGENT, "attribute vec3 " Z3A_TANGENT ";" },
-			{ MO_SKELETALMESH,                        0, "attribute vec4 " Z3A_JOINTS ", " Z3A_WEIGHTS ";uniform mat4 " Z3U_BONES "[100];" },
+			{ MO_SKELETALMESH,                        0, "attribute vec4 " Z3A_JOINTS ", " Z3A_WEIGHTS ";uniform mat4 " Z3U_BONES "[" Z3MAX_BONES_STRING "];" },
 			{ MR_TIME,                                0, "uniform float " Z3U_TIME ";" },
 		},
 		VSRules[] = {
@@ -1280,6 +1282,12 @@ struct ZL_SkeletalMesh_Impl : public ZL_Mesh_Impl
 
 	static ZL_Mesh_Impl* GLTFLoadSkeletal(const ZL_FileLink& file, ZL_Material_Impl* Material)
 	{
+		#if defined(ZILLALOG)
+		GLint MAX_VERTEX_UNIFORM_VECTORS;
+		glGetIntegerv(GL_MAX_VERTEX_UNIFORM_VECTORS, &MAX_VERTEX_UNIFORM_VECTORS);
+		ZL_ASSERTMSG2(MAX_VERTEX_UNIFORM_VECTORS <= 1 || MAX_VERTEX_UNIFORM_VECTORS > Z3MAX_BONES*4+10, "This GLSL platform does not offer enough vertex uniform vectors, need at least %d, have MAX %d", Z3MAX_BONES*4+10, MAX_VERTEX_UNIFORM_VECTORS);
+		#endif
+
 		struct MakeFunc { static ZL_Mesh_Impl* Make(GLubyte AttributeMask, const ZL_Json& gltf, const GLubyte* buf, size_t buflen)
 		{
 			size_t ViewOffset, ViewStride, SourceComps; GLenum SourceType;
@@ -1290,6 +1298,7 @@ struct ZL_SkeletalMesh_Impl : public ZL_Mesh_Impl
 			ZL_STATIC_ASSERTMSG(GL_FLOAT == GL_SCALAR, support_only_float);
 
 			size_t BoneCount = joints.Size(), MemoryIndicesOffset = ALIGN_UP(5 * BoneCount * sizeof(ZL_Matrix), sizeof(int)), MemoryIndicesSize = BoneCount * sizeof(int);
+			ZL_ASSERTMSG1(BoneCount <= Z3MAX_BONES, "glTF error: Number of bones (%d) is more than max supported (" Z3MAX_BONES_STRING ")", BoneCount);
 			ZL_SkeletalMesh_Impl* res = new ZL_SkeletalMesh_Impl(AttributeMask);
 			res->BoneCount = BoneCount;
 			res->BoneMemory = malloc(MemoryIndicesOffset + MemoryIndicesSize);
@@ -1344,7 +1353,7 @@ struct ZL_SkeletalMesh_Impl : public ZL_Mesh_Impl
 			GLint Offset = it->Material->ShaderProgram->GetUniformOffset(Z3U_BONES "[0]", ZL_MaterialProgram::UniformEntry::TYPE_MAT4, true);
 			if (Offset < 0) continue;
 			ZL_Material_Impl::UniformArrayValue* UniformBonesArray = reinterpret_cast<ZL_Material_Impl::UniformArrayValue*>(it->Material->UniformSet.Values+Offset);
-			UniformBonesArray->Count = (GLsizei)BoneCount;
+			UniformBonesArray->Count = (GLsizei)(BoneCount > Z3MAX_BONES ? Z3MAX_BONES : BoneCount);
 			UniformBonesArray->Ptr = (UniformBonesArray->Count ? (scalar*)&InverseBoneMatrices[0] : NULL);
 			it->Material->UniformSet.CalcValueChksum();
 		}
@@ -1602,12 +1611,10 @@ struct ZL_ParticleEmitter_Impl : public ZL_Mesh_Impl
 		}
 
 		#if defined(ZILLALOG)
-		GLint MAX_VERTEX_UNIFORM_VECTORS, MAX_FRAGMENT_UNIFORM_VECTORS;
+		GLint MAX_VERTEX_UNIFORM_VECTORS;
 		glGetIntegerv(GL_MAX_VERTEX_UNIFORM_VECTORS, &MAX_VERTEX_UNIFORM_VECTORS);
-		glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS, &MAX_FRAGMENT_UNIFORM_VECTORS);
 		//ZL_LOG2("[3D]", "MAX_VERTEX_UNIFORM_VECTORS: %d - MAX_FRAGMENT_UNIFORM_VECTORS: %d", MAX_VERTEX_UNIFORM_VECTORS, MAX_FRAGMENT_UNIFORM_VECTORS);
-		ZL_ASSERTMSG2(MAX_VERTEX_UNIFORM_VECTORS <= 1   || MAX_VERTEX_UNIFORM_VECTORS   > SD_COUNT+10, "This GLSL platform does not offer enough vertex uniform vectors, need at least %d, have MAX %d", SD_COUNT+10, MAX_VERTEX_UNIFORM_VECTORS);
-		ZL_ASSERTMSG2(MAX_FRAGMENT_UNIFORM_VECTORS <= 1 || MAX_FRAGMENT_UNIFORM_VECTORS > SD_COUNT+10, "This GLSL platform does not offer enough fragment uniform vectors, need at least %d, have MAX %d", SD_COUNT+10, MAX_FRAGMENT_UNIFORM_VECTORS);
+		ZL_ASSERTMSG2(MAX_VERTEX_UNIFORM_VECTORS <= 1 || MAX_VERTEX_UNIFORM_VECTORS > SD_COUNT+10, "This GLSL platform does not offer enough vertex uniform vectors, need at least %d, have MAX %d", SD_COUNT+10, MAX_VERTEX_UNIFORM_VECTORS);
 		#endif
 
 		using namespace ZL_MaterialModes;
