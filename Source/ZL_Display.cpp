@@ -196,7 +196,8 @@ bool ZL_Display::Init(const char* title, int width, int height, int displayflags
 
 	memset(KeyDown, 0, sizeof(KeyDown));
 	memset(MouseDown, 0, sizeof(MouseDown));
-	PointerX = PointerY = 0;
+	PointerX = ZLHALFW;
+	PointerY = ZLHALFH;
 
 	return true;
 }
