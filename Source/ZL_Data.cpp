@@ -984,7 +984,7 @@ bool ZL_Compression::Decompress(const void* InBuffer, size_t InSize, const void*
 
 unsigned int ZL_Checksum::CRC32(const void* Data, size_t DataSize)
 {
-	return crc32(0, (unsigned char*)Data, DataSize);
+	return (unsigned int)crc32(0, (unsigned char*)Data, (unsigned int)DataSize);
 	//if (!Data) return 0;
 	//unsigned int crcu32 = ~(unsigned int)0;
 	//unsigned char b, *p = (unsigned char*)Data;

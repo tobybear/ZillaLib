@@ -12,8 +12,8 @@
 		0497E281160DBBC20099A6A4 /* stb_image.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0497E27F160DBBC20099A6A4 /* stb_image.cpp */; };
 		0497E282160DBBC20099A6A4 /* stb_vorbis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0497E280160DBBC20099A6A4 /* stb_vorbis.cpp */; };
 		049A5096168DDC2400CB2996 /* ZL_PlatformGLSL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 049A5095168DDC2400CB2996 /* ZL_PlatformGLSL.cpp */; };
-		9455D9471D04638000B4571A /* ZL_Display3D.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9455D9461D04638000B4571A /* ZL_Display3D.cpp */; settings = {ASSET_TAGS = (); }; };
-		949488E81BD8085900486A3F /* ZL_File_ZIP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488E71BD8085900486A3F /* ZL_File_ZIP.cpp */; settings = {ASSET_TAGS = (); }; };
+		9455D9471D04638000B4571A /* ZL_Display3D.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9455D9461D04638000B4571A /* ZL_Display3D.cpp */; };
+		949488E81BD8085900486A3F /* ZL_File_ZIP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 949488E71BD8085900486A3F /* ZL_File_ZIP.cpp */; };
 		A98F8F2711C0BB350023655C /* ZL_Application.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A98F8E4211C0BB350023655C /* ZL_Application.cpp */; };
 		A98F8F2811C0BB350023655C /* ZL_Display.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A98F8E4311C0BB350023655C /* ZL_Display.cpp */; };
 		A98F8F2B11C0BB350023655C /* ZL_File.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A98F8E4611C0BB350023655C /* ZL_File.cpp */; };
@@ -218,7 +218,7 @@
 		29B97313FDCFA39411CA2CEA /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0700;
+				LastUpgradeCheck = 1010;
 			};
 			buildConfigurationList = C01FCF4E08A954540054247B /* Build configuration list for PBXProject "ZillaLib-iOS" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -284,17 +284,18 @@
 		C01FCF4F08A954540054247B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = armv7;
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUILD_DIR = "$(SRCROOT)/ZillaLib-iOS.xcodeproj/Debug";
 				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
 				CONFIGURATION_BUILD_DIR = "$(SRCROOT)/ZillaLib-iOS.xcodeproj/Debug";
 				CONFIGURATION_TEMP_DIR = "$(SRCROOT)/ZillaLib-iOS.xcodeproj/Debug";
 				COPY_PHASE_STRIP = NO;
+				ENABLE_TESTABILITY = YES;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				HEADER_SEARCH_PATHS = Include;
-				IPHONEOS_DEPLOYMENT_TARGET = 4.3;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				OBJROOT = "$(SRCROOT)/ZillaLib-iOS.xcodeproj/Debug";
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = (
@@ -307,14 +308,13 @@
 				SHARED_PRECOMPS_DIR = "$(SRCROOT)/ZillaLib-iOS.xcodeproj/Debug";
 				SKIP_INSTALL = YES;
 				SYMROOT = "$(SRCROOT)/ZillaLib-iOS.xcodeproj/Debug";
-				VALID_ARCHS = "armv7 i386";
 			};
 			name = Debug;
 		};
 		C01FCF5008A954540054247B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = armv7;
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUILD_DIR = "$(SRCROOT)/ZillaLib-iOS.xcodeproj/Release";
 				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
 				CONFIGURATION_BUILD_DIR = "$(SRCROOT)/ZillaLib-iOS.xcodeproj/Release";
@@ -323,7 +323,7 @@
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				HEADER_SEARCH_PATHS = Include;
-				IPHONEOS_DEPLOYMENT_TARGET = 4.3;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				OBJROOT = "$(SRCROOT)/ZillaLib-iOS.xcodeproj/Release";
 				OTHER_CFLAGS = (
 					"-DNDEBUG",
@@ -336,19 +336,20 @@
 				SHARED_PRECOMPS_DIR = "$(SRCROOT)/ZillaLib-iOS.xcodeproj/Release";
 				SKIP_INSTALL = YES;
 				SYMROOT = "$(SRCROOT)/ZillaLib-iOS.xcodeproj/Release";
-				VALID_ARCHS = "armv7 i386";
 			};
 			name = Release;
 		};
 		FD6526640DE8FCCB002AD96B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 			};
 			name = Debug;
 		};
 		FD6526650DE8FCCB002AD96B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
 			};
 			name = Release;
 		};

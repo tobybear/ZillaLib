@@ -774,8 +774,7 @@ static int unzReadCurrentFile(unz_s* file, voidp buf, unsigned len)
 		}
 		else
 		{
-			unzu32 uTotalOutBefore, uTotalOutAfter;
-			unzu32 uOutThis;
+			size_t uTotalOutBefore, uTotalOutAfter;
 			int flush = Z_SYNC_FLUSH;
 
 			uTotalOutBefore = pfile_in_zip_read_info->stream.total_out;
@@ -786,9 +785,8 @@ static int unzReadCurrentFile(unz_s* file, voidp buf, unsigned len)
 				err = Z_DATA_ERROR;
 
 			uTotalOutAfter = pfile_in_zip_read_info->stream.total_out;
-			uOutThis = uTotalOutAfter - uTotalOutBefore;
 
-			pfile_in_zip_read_info->rest_read_uncompressed -= uOutThis;
+			pfile_in_zip_read_info->rest_read_uncompressed -= (unzu32)(uTotalOutAfter - uTotalOutBefore);
 
 			iRead += (uInt)(uTotalOutAfter - uTotalOutBefore);
 
@@ -829,7 +827,7 @@ ZL_RWops *ZL_RWopsZIP::Open(const ZL_FileLink& zipfilelink, const unz_s* dir_uf,
 	s->filestream = ZL_ImplFromOwner<ZL_File_Impl>(zipfile)->src;
 	s->pfile_in_zip_read = NULL;
 
-	if ((unzSetOffset(s, index) != UNZ_OK) || (unzOpenCurrentFile(s) != UNZ_OK))
+	if ((unzSetOffset(s, (unzu32)index) != UNZ_OK) || (unzOpenCurrentFile(s) != UNZ_OK))
 	{
 		unzClose(s);
 		return NULL;
@@ -873,7 +871,7 @@ ptrdiff_t ZL_RWopsZIP::seektell(ptrdiff_t offset, int mode)
 	if (pos > f->stream.total_out)
 	{
 		char tmpbuf[1024];
-		for (unzu32 i = f->stream.total_out; i < pos; i += 1024)
+		for (size_t i = f->stream.total_out; i < pos; i += 1024)
 			unzReadCurrentFile(unz_file, tmpbuf, (unsigned)(i + 1024 > pos ? pos - i : 1024));
 	}
 

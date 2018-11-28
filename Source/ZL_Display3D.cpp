@@ -2074,8 +2074,8 @@ static ZL_Mesh_Impl* ZL_Mesh_Impl_BuildExtrudeContour(void (*AddContours)(TESSte
 		TessMemPool(size_t init) : begin((char*)malloc(init)), end(begin), last(begin+init), OutsideAlloc(0) {}
 		~TessMemPool() { free(begin); }
 		void Clear()   { end = begin; OutsideAlloc = 0; }
-		char *begin, *end, *last; unsigned int OutsideAlloc;
-		static void* Alloc(TessMemPool* self, unsigned int size)
+		char *begin, *end, *last; size_t OutsideAlloc;
+		static void* Alloc(TessMemPool* self, size_t size)
 		{
 			if (!size) return NULL;
 			if (self->end + size >= self->last) { self->OutsideAlloc += size; return malloc(size); }
@@ -2098,7 +2098,7 @@ static ZL_Mesh_Impl* ZL_Mesh_Impl_BuildExtrudeContour(void (*AddContours)(TESSte
 	int BaseBuckedSize = (8+((int)TotalNumPoints/8));
 	TessMemPool MemPool(3072 + 256 * TotalNumPoints); //tesselation uses at least 3588 bytes of memory (for 1 contour with 3 points)
 	TESSalloc ma;
-	ma.memalloc = (void*(*)(void*, unsigned int))TessMemPool::Alloc;
+	ma.memalloc = (void*(*)(void*, size_t))TessMemPool::Alloc;
 	ma.memfree = (void(*)(void*, void*))TessMemPool::Free;
 	ma.memrealloc = NULL;
 	ma.userData = &MemPool;

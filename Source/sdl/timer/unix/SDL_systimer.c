@@ -105,15 +105,15 @@ SDL_GetTicks(void)
                                                  start_ts.tv_nsec) / 1000000;
 #elif defined(__APPLE__)
         uint64_t now = mach_absolute_time();
-        ticks = (((now - start_mach) * mach_base_info.numer) / mach_base_info.denom) / 1000000;
+        ticks = (Uint32)((((now - start_mach) * mach_base_info.numer) / mach_base_info.denom) / 1000000);
 #endif
     } else {
         struct timeval now;
 
         gettimeofday(&now, NULL);
         ticks =
-            (now.tv_sec - start_tv.tv_sec) * 1000 + (now.tv_usec -
-                                                  start_tv.tv_usec) / 1000;
+            (Uint32)((now.tv_sec - start_tv.tv_sec) * 1000 + (now.tv_usec -
+                                                  start_tv.tv_usec) / 1000);
     }
     return (ticks);
 }

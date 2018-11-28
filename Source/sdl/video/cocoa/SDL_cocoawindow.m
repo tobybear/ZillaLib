@@ -680,7 +680,7 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
         button = SDL_BUTTON_MIDDLE;
         break;
     default:
-        button = [theEvent buttonNumber] + 1;
+        button = (int)([theEvent buttonNumber] + 1);
         break;
     }
     SDL_SendMouseButton(_data->window, 0, SDL_PRESSED, button);
@@ -716,7 +716,7 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
         button = SDL_BUTTON_MIDDLE;
         break;
     default:
-        button = [theEvent buttonNumber] + 1;
+        button = (int)([theEvent buttonNumber] + 1);
         break;
     }
     SDL_SendMouseButton(_data->window, 0, SDL_RELEASED, button);
@@ -1018,7 +1018,7 @@ Cocoa_CreateWindow(_THIS, SDL_Window * window)
     NSArray *screens = [NSScreen screens];
     NSScreen *screen = nil;
     NSScreen *candidate;
-    int i, count = [screens count];
+    int i, count = (int)[screens count];
     for (i = 0; i < count; ++i) {
         candidate = [screens objectAtIndex:i];
         NSRect screenRect = [candidate frame];

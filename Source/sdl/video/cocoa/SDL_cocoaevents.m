@@ -60,7 +60,7 @@
 - (void)setAppleMenu:(NSMenu *)menu;
 @end
 
-@interface SDLAppDelegate : NSObject <NSFileManagerDelegate> {
+@interface SDLAppDelegate : NSObject <NSFileManagerDelegate, NSApplicationDelegate> {
 @public
     BOOL seenFirstActivate;
 }

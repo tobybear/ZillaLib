@@ -177,9 +177,9 @@ GetDisplayMode(_THIS, const void *moderef, SDL_DisplayMode *mode)
     default: /* Totally unrecognizable bit depth. */
         return SDL_FALSE;
     }
-    mode->w = width;
-    mode->h = height;
-    mode->refresh_rate = refreshRate;
+    mode->w = (int)width;
+    mode->h = (int)height;
+    mode->refresh_rate = (int)refreshRate;
     mode->driverdata = data;
     return SDL_TRUE;
 }

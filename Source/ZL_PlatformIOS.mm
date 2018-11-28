@@ -416,7 +416,7 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	[ZL_IOS_uiwindow setRootViewController:ZL_IOS_viewcontroller];
 
 	CGRect rec = ZL_IOS_uiwindow.bounds;
-	UIInterfaceOrientation orientation = ZL_IOS_viewcontroller.interfaceOrientation;
+	UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
 	if (UIInterfaceOrientationIsPortrait(orientation) == (rec.size.width > rec.size.height)) { CGFloat tmp = rec.size.width; rec.size.width = rec.size.height; rec.size.height = tmp; }
 
 	ZL_IOS_view = [[ZL_UIKitView alloc] initWithFrame:rec];

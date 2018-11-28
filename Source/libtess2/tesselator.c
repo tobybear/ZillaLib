@@ -3752,13 +3752,13 @@ int tessMeshSetWindingNumber( TESSmesh *mesh, int value,
 	return 1;
 }
 
-void* heapAlloc( void* userData, unsigned int size )
+void* heapAlloc( void* userData, size_t size )
 {
 	TESS_NOTUSED( userData );
 	return malloc( size );
 }
 
-void* heapRealloc( void *userData, void* ptr, unsigned int size )
+void* heapRealloc( void *userData, void* ptr, size_t size )
 {
 	TESS_NOTUSED( userData );
 	return realloc( ptr, size );

@@ -813,8 +813,8 @@ struct ZL_Polygon_Impl : ZL_Impl
 		TessMemPool(size_t init) : begin((char*)malloc(init)), end(begin), last(begin+init), OutsideAlloc(0) {}
 		~TessMemPool() { /*printf("[TessMemPool] Free with unused amount: %d of %d - Outside: %d\n", last - end, last - begin, OutsideAlloc);*/ free(begin); }
 		void Clear()   { /*printf("[TessMemPool] Clear with unused amount: %d of %d - Outside: %d\n", last - end, last - begin, OutsideAlloc);*/ end = begin; OutsideAlloc = 0; }
-		char *begin, *end, *last; unsigned int OutsideAlloc;
-		static void* Alloc(void* userdata, unsigned int size)
+		char *begin, *end, *last; size_t OutsideAlloc;
+		static void* Alloc(void* userdata, size_t size)
 		{
 			TessMemPool* self = (TessMemPool*)userdata;
 			if (!size) return NULL;
