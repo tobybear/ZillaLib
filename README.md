@@ -15,12 +15,12 @@ ZillaLib Game SDK
     * [Chrome Portable Native Client](#chrome-portable-native-client)
     * [Emscripten (HTML5)](#emscripten-html5)
     * [Linux](#linux)
-    * [Max OS X](#max-os-x)
+    * [macOS](#macos)
   * [Asset File Handling](#asset-file-handling)
 
 ## Welcome to ZillaLib
 
-ZillaLib is a 2D (and 3D!) game creation framework that runs on pretty much every open platform out there. Windows, Linux, Mac OS X, Android, iOS, Chrome Native Client and Emscripten (HTML5).
+ZillaLib is a [2D](#rendering) and [3D](#3d-rendering) game creation framework that runs on pretty much every open platform out there. Windows, Linux, macOS, Android, iOS, Chrome Native Client and Emscripten (HTML5).
 
 It's a sleek C++ library that compiles to all platforms with zero change in the game code. Truly write once, run everywhere. Of course it is still possible to deviate parts easily where needed. For instance for touchscreen inputs.
 
@@ -55,7 +55,7 @@ Here's a list of features provided by the ZillaLib.
 - [Chrome Portable Native Client](#chrome-portable-native-client)
 - [Emscripten (HTML5)](#emscripten-html5)
 - [Linux](#linux)
-- [Max OS X](#max-os-x)
+- [macOS](#macos)
 
 ### Rendering
 - Drawing of simple 2D geometry (lines, circles, polygons, etc)
@@ -107,6 +107,8 @@ Here's a list of features provided by the ZillaLib.
 - Thread support
 - Open URL in default system browser
 - Base64 encoding/decoding
+- Data compression and checksum functions
+- Custom easy to use XML and JSON handling
 
 ### 3D Rendering
 - Scene management with camera and light objects
@@ -116,6 +118,7 @@ Here's a list of features provided by the ZillaLib.
 - Mesh generators (plane, box, sphere, ...)
 - Shadow mapping
 - 3D particle system
+- Skeletal mesh with IK
 
 ## License
 
@@ -158,8 +161,8 @@ See [README.md under Emscripten](Emscripten) for how to setup and build for Emsc
 ### Linux
 See [README.md under Linux](Linux) for how to setup and build for Linux.
 
-### Max OS X
-See [README.md under ZillaLib-OSX.xcodeproj](ZillaLib-OSX.xcodeproj) for how to setup and build for Mac OS X.
+### macOS
+See [README.md under ZillaLib-OSX.xcodeproj](ZillaLib-OSX.xcodeproj) for how to setup and build for macOS.
 
 ## Asset File Handling
 
@@ -171,7 +174,7 @@ Files are loaded through the ZL_File class. ZL_File can reference actual files o
 
 There is a global file container ZL_File::DefaultReadFileContainer which will be used automatically for reading files. Depending on the platform and build configuration, this default container will be automatically set on startup. Generally similar platform types have similar asset handling.
 
-### Desktop (Windows, Linux, Mac OS X)
+### Desktop (Windows, Linux, macOS)
 
 Debug builds always load asset files directly. It is recommended to call the LoadReleaseDesktopDataBundle method at the beginning of Load of your ZL_Application subclass. LoadReleaseDesktopDataBundle takes an optional file name as parameter. It should name a zip-file (does not need a .zip ending) which will be used as the default read file container in release builds.  
 Alternatively, if your project was set-up with the 'Embed Assets in Binary' option, the optional parameter can be left empty. In that case, the executable binary of the game itself will be loaded as default container. A project with that option enabled will automatically package all assets during the release build process into the output binary just for that.  
