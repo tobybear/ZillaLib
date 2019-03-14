@@ -428,6 +428,12 @@ struct ZL_Math
 	//Returns the absolute value of a scalar value
 	static inline scalar Abs(const scalar val) { return (val < 0 ? -val : val); }
 
+	//Returns the sign (-1 or +1) of a scalar value
+	static inline scalar Sign(const scalar val) { return (val < 0 ? s(-1) : 1); }
+
+	//Returns the sign (-1 or +1) of a scalar value if its absolute is larget than epsilon, otherwise return 0
+	static inline scalar Sign0(const scalar val, const scalar epsilon = 0) { return (val > epsilon ? 1 : (val < -epsilon ? s(-1) : 0)); }
+
 	//Clamp value between min and max
 	static inline scalar Clamp(const scalar val, const scalar min, const scalar max) { return (val > max ? max : (val < min ? min : val)); }
 
@@ -506,8 +512,8 @@ struct ZL_Rand
 
 	//randomize order of vectors, c-arrays, or array-like classes with a given size
 	template <typename O> static void Shuffle(O& vec) { for (int i = (int)vec.size() - 1; i > 0; i--) std::swap(vec[i], vec[Int(i)]); }
-	template <typename O> static void ShuffleArray(O& arr) { for (int i = (int)COUNT_OF(arr) - 1; i > 0; i--) std::swap(arr[i], arr[Int(i)]); }
-	template <typename O> static void Shuffle(O& arr, size_t count) { for (int i = (int)count - 1; i > 0; i--) std::swap(arr[i], arr[Int(i)]); }
+	template <typename O> static void ShuffleArray(O* arr) { for (int i = (int)COUNT_OF(arr) - 1; i > 0; i--) std::swap(arr[i], arr[Int(i)]); }
+	template <typename O> static void Shuffle(O* arr, size_t count) { for (int i = (int)count - 1; i > 0; i--) std::swap(arr[i], arr[Int(i)]); }
 };
 
 //instantiatable seedable random number generator that returns the same sequence of pseudo random values on all platforms
@@ -540,8 +546,8 @@ struct ZL_SeededRand
 
 	//randomize order of vectors, c-arrays, or array-like classes with a given size
 	template <typename O> void Shuffle(O& vec) { for (int i = (int)vec.size() - 1; i > 0; i--) std::swap(vec[i], vec[Int(i)]); }
-	template <typename O> void ShuffleArray(O& arr) { for (int i = (int)COUNT_OF(arr) - 1; i > 0; i--) std::swap(arr[i], arr[Int(i)]); }
-	template <typename O> void Shuffle(O& arr, size_t count) { for (int i = (int)count - 1; i > 0; i--) std::swap(arr[i], arr[Int(i)]); }
+	template <typename O> void ShuffleArray(O* arr) { for (int i = (int)COUNT_OF(arr) - 1; i > 0; i--) std::swap(arr[i], arr[Int(i)]); }
+	template <typename O> void Shuffle(O* arr, size_t count) { for (int i = (int)count - 1; i > 0; i--) std::swap(arr[i], arr[Int(i)]); }
 
 	unsigned int w, z;
 };

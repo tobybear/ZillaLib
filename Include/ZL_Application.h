@@ -119,6 +119,7 @@ typedef unsigned int ticks_t;
 #define ZLUNTIL(t)         ((int)((ticks_t)(t)-ZL_Application::Ticks))
 #define ZLUNTILF(t,factor) (s((int)((ticks_t)(t)-ZL_Application::Ticks))/s(factor))
 #define ZLUNTILSECONDS(t)  (s((int)((ticks_t)(t)-ZL_Application::Ticks))/s(1000))
+#define ZLPASSED(t)        (((int)(ZL_Application::Ticks-(ticks_t)(t)))>=0)
 
 //The core of initialization and the game loop. Needs to be subclassed in any application using ZillaLib.
 struct ZL_Application

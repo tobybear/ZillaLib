@@ -156,6 +156,7 @@ $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE)_WithData : $(APPOUTDIR)/$(ZillaApp)_$(CPUTYP
 	$(info packing data assets into $@ ...)
 	@cat $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE) >$@
 	@cat $(ASSET_ZIP) >>$@
+	@chmod 755 $@
 
 #------------------------------------------------------------------------------------------------------
 else

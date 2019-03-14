@@ -256,6 +256,7 @@ struct ZL_Camera
 	ZL_Camera& SetAspectRatio(scalar ar); //default -1 (use display ratio)
 	ZL_Camera& SetClipPlane(scalar znear, scalar zfar); //default (0.1, 1000.0)
 	ZL_Camera& SetAmbientLightColor(const ZL_Color& color); //default (0.2, 0.2, 0.2)
+	ZL_Matrix GetViewProjection();
 	ZL_Vector3 GetPosition() const;
 	ZL_Vector3 GetDirection() const;
 	ZL_Vector3 GetUpDirection() const;
@@ -295,6 +296,7 @@ struct ZL_Light
 	ZL_Light& SetShadowBias(scalar bias); //for shadowmapping, default 0.001
 	ZL_Light& SetFalloff(scalar distance); //default infinite
 	ZL_Light& SetColor(const ZL_Color& color); //default white
+	ZL_Matrix GetViewProjection();
 	ZL_Vector3 GetPosition() const;
 	ZL_Vector3 GetDirection() const;
 	ZL_Color GetColor() const;
@@ -316,6 +318,8 @@ struct ZL_RenderList
 	void Add(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix);
 	void Add(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix, const ZL_Material& OverrideMaterial);
 	void AddReferenced(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix); //keep mesh reference in list
+	ZL_Matrix GetMeshMatrix(size_t MeshIndex);
+	void SetMeshMatrix(size_t MeshIndex, const ZL_Matrix& Matrix);
 
 	#if defined(ZILLALOG) && !defined(ZL_VIDEO_OPENGL_ES2)
 	//Debug functionality is only available on desktop debug builds

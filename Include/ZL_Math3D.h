@@ -93,6 +93,9 @@ struct ZL_Vector3
 	inline bool Far(const ZL_Vector3 &v, scalar l) const { return (x-v.x)*(x-v.x) + (y-v.y)*(y-v.y) + (z-v.z)*(z-v.z) > (l*l); }
 	inline bool AlmostZero(scalar ErrorTolerance = SMALL_NUMBER) const { return sabs(x)<ErrorTolerance && sabs(y)<ErrorTolerance && sabs(z)<ErrorTolerance; }
 	inline bool AlmostEqual(const ZL_Vector3 &v, scalar ErrorTolerance = SMALL_NUMBER) const { return sabs(x-v.x)<ErrorTolerance && sabs(y-v.y)<ErrorTolerance && sabs(z-v.z)<ErrorTolerance; }
+	inline ZL_Vector ToXY() { return ZL_Vector(x, y); }
+	inline ZL_Vector ToXZ() { return ZL_Vector(x, z); }
+	inline ZL_Vector ToYZ() { return ZL_Vector(y, z); }
 	inline ZL_String ToString() const { return ZL_String::format("{ x: %f, y: %f, z: %f }", x, y, z); }
 
 	//Self modifying operators as functions (non const call)
@@ -307,6 +310,7 @@ struct ZL_Matrix
 	inline ZL_Vector3 GetAxisY() const { return ZL_Vector3(m[4], m[5], m[6]); }
 	inline ZL_Vector3 GetAxisZ() const { return ZL_Vector3(m[8], m[9], m[10]); }
 	inline ZL_Vector3 GetTranslate() const { return ZL_Vector3(m[12], m[13], m[14]); }
+	inline ZL_Vector  GetTranslateXY() const { return ZL_Vector(m[12], m[13]); }
 	inline ZL_Vector3 GetScale() const { return ZL_Vector3(ssqrt(m[0]*m[0]+m[1]*m[1]+m[2]*m[2]), ssqrt(m[4]*m[4]+m[5]*m[5]+m[6]*m[6]), ssqrt(m[8]*m[8]+m[9]*m[9]+m[10]*m[10])); }
 	inline float      GetScaleX() const { return ssqrt(m[0]*m[0]+m[1]*m[1]+m[2]*m[2]); }
 	inline ZL_Quat    GetRotate() const { return ZL_Quat(*this); }

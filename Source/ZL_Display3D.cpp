@@ -1744,7 +1744,7 @@ struct ZL_ParticleEmitter_Impl : public ZL_Mesh_Impl
 
 struct ZL_RenderList_Impl : public ZL_Impl
 {
-	struct MeshEntry { ZL_Mesh_Impl* Mesh; ZL_Matrix ModelMatrix, NormalMatrix; MeshEntry(ZL_Mesh_Impl* Mesh, const ZL_Matrix& ModelMatrix, const ZL_Matrix& NormalMatrix) : Mesh(Mesh), ModelMatrix(ModelMatrix), NormalMatrix(NormalMatrix) {} };
+	struct MeshEntry { ZL_Mesh_Impl* Mesh; ZL_Matrix ModelMatrix, NormalMatrix; MeshEntry(ZL_Mesh_Impl* Mesh, const ZL_Matrix& ModelMatrix, bool UseNormalMatrix) : Mesh(Mesh), ModelMatrix(ModelMatrix) { if (UseNormalMatrix) NormalMatrix = ModelMatrix.GetInverseTransposed(); else NormalMatrix.m[0] = FLT_MAX; } };
 	struct PartEntry { ZL_Mesh_Impl::MeshPart* Part; ZL_Material_Impl* Material; GLushort MeshIndex; GLuint Checksum; PartEntry(ZL_Mesh_Impl::MeshPart* Part, ZL_Material_Impl* Material, GLushort MeshIndex, GLuint Checksum) : Part(Part), Material(Material), MeshIndex(MeshIndex), Checksum(Checksum) {} };
 	std::vector<ZL_Mesh_Impl*> ReferencedMeshes;
 	std::vector<MeshEntry> Meshes;
@@ -1771,7 +1771,7 @@ struct ZL_RenderList_Impl : public ZL_Impl
 			Parts.push_back(PartEntry(p, m, MeshIndex, (m->ShaderProgram->ShaderIDs.Program ^ m->UniformSet.ValueChksum ^ m->UniformSet.TextureChksum)));
 		}
 		mesh->LastRenderFrame = ZL_Application::FrameCount;
-		Meshes.push_back(MeshEntry(mesh, matrix, (UseNormalMatrix ? matrix.GetInverseTransposed() : ZL_Matrix(ZL_NoInit))));
+		Meshes.push_back(MeshEntry(mesh, matrix, UseNormalMatrix));
 	}
 
 	void AddReferenced(ZL_Mesh_Impl* mesh, const ZL_Matrix& matrix)
@@ -2266,6 +2266,7 @@ ZL_Camera& ZL_Camera::SetOrtho(scalar size) { impl->IsOrtho = true; impl->Size =
 ZL_Camera& ZL_Camera::SetAspectRatio(scalar ar) { impl->Aspect = ar; impl->UpdateMatrix(); return *this; }
 ZL_Camera& ZL_Camera::SetClipPlane(scalar znear, scalar zfar) { impl->Near = znear; impl->Far = zfar; impl->UpdateMatrix(); return *this; }
 ZL_Camera& ZL_Camera::SetAmbientLightColor(const ZL_Color& color) { impl->AmbientLightColor = ZL_Vector3(color.r*color.a, color.g*color.a, color.b*color.a); return *this; }
+ZL_Matrix ZL_Camera::GetViewProjection() { return impl->VP; }
 ZL_Vector3 ZL_Camera::GetPosition() const { return impl->Pos; }
 ZL_Vector3 ZL_Camera::GetDirection() const { return impl->Dir; }
 ZL_Vector3 ZL_Camera::GetUpDirection() const { return impl->VP.GetInverted().GetAxisY().Norm(); }
@@ -2312,6 +2313,7 @@ ZL_Light& ZL_Light::SetFalloff(scalar distance) { impl->Falloff = distance; retu
 ZL_Light& ZL_Light::SetOutsideLit(bool OutsideLit) { impl->LightFactorOutside = (OutsideLit ? s(1) : s(0)); return *this; }
 ZL_Light& ZL_Light::SetShadowBias(scalar bias) { impl->ShadowBias = bias; return *this; }
 ZL_Light& ZL_Light::SetColor(const ZL_Color& color) { impl->Color = ZL_Vector3(color.r*color.a, color.g*color.a, color.b*color.a); return *this; }
+ZL_Matrix ZL_Light::GetViewProjection() { return impl->VP; }
 ZL_Vector3 ZL_Light::GetPosition() const { return impl->Pos; }
 ZL_Vector3 ZL_Light::GetDirection() const { return impl->Dir; }
 ZL_Color ZL_Light::GetColor() const { return ZL_Color(impl->Color.x, impl->Color.y, impl->Color.z); }
@@ -2322,6 +2324,8 @@ void ZL_RenderList::Reset() { impl->Reset(); }
 void ZL_RenderList::Add(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix) { impl->Add(ZL_ImplFromOwner<ZL_Mesh_Impl>(Mesh), Matrix, NULL); }
 void ZL_RenderList::Add(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix, const ZL_Material& OverrideMaterial) { impl->Add(ZL_ImplFromOwner<ZL_Mesh_Impl>(Mesh), Matrix, ZL_ImplFromOwner<ZL_Material_Impl>(OverrideMaterial)); }
 void ZL_RenderList::AddReferenced(const ZL_Mesh& Mesh, const ZL_Matrix& Matrix) { impl->AddReferenced(ZL_ImplFromOwner<ZL_Mesh_Impl>(Mesh), Matrix); }
+ZL_Matrix ZL_RenderList::GetMeshMatrix(size_t MeshIndex) { return (MeshIndex < impl->Meshes.size() ? impl->Meshes[MeshIndex].ModelMatrix : ZL_Matrix::Identity); }
+void ZL_RenderList::SetMeshMatrix(size_t MeshIndex, const ZL_Matrix& Matrix) { if (MeshIndex < impl->Meshes.size()) { ZL_RenderList_Impl::MeshEntry& m = impl->Meshes[MeshIndex]; m.ModelMatrix = Matrix; if (m.NormalMatrix.m[0] != FLT_MAX) m.NormalMatrix = Matrix.GetInverseTransposed(); } }
 
 #if defined(ZILLALOG) && !defined(ZL_VIDEO_OPENGL_ES2)
 void ZL_RenderList::DebugDump()

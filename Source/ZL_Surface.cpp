@@ -141,6 +141,7 @@ ZL_Surface_Impl::~ZL_Surface_Impl()
 void ZL_Surface_Impl::CalcContentSizes(const scalar scalew, const scalar scaleh)
 {
 	if (fScaleW == scalew && fScaleH == scaleh) return;
+	ZL_ASSERT(scalew && scaleh);
 	fHCW = GetHCW(scalew);
 	fHCH = GetHCH(scaleh);
 	fScaleW = scalew;
@@ -193,7 +194,7 @@ void ZL_Surface_Impl::Draw(scalar x, scalar y, const scalar rotate, const scalar
 		case ZL_Origin::BottomRight:  x-=hcw, y+=hch; break;
 		default:
 			x -= hcw * (ZL_Origin::FromCustomGetX(orDraw)*s(2)-s(1));
-			y += hcw * (ZL_Origin::FromCustomGetY(orDraw)*s(2)-s(1));
+			y += hch * (ZL_Origin::FromCustomGetY(orDraw)*s(2)-s(1));
 	}
 	if (rotate == 0)
 	{
