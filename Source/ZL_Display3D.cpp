@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -2020,8 +2020,8 @@ ZL_Mesh ZL_Mesh::BuildSphere(scalar Radius, int Segments, bool Inside, const ZL_
 
 ZL_Mesh ZL_Mesh::BuildExtrudePixels(scalar Scale, scalar Depth, const ZL_FileLink& ImgFile, const ZL_Material& Material, bool KeepAlpha, bool AlphaDepth, scalar AlphaDepthAlign, const ZL_Matrix& Transform)
 {
-	unsigned char* Pixels; int w, h;
-	if (!ZL_Texture_Impl::LoadPixelsRGBA(ImgFile.Open(), &Pixels, &w, &h)) return ZL_Mesh();
+	ZL_BitmapSurface bmp = ZL_Texture_Impl::LoadBitmapSurface(ImgFile.Open(), 4);
+	if (!bmp.pixels) return ZL_Mesh();
 
 	const GLscalar CubeVerts[12*6*4] = {
 		 s(.5), s(.5), s(.5),  0, 0, 1, 1,1,  1, 0, 0, 0 , -s(.5), s(.5), s(.5),  0, 0, 1, 0,1,  1, 0, 0, 0 , -s(.5),-s(.5), s(.5),  0, 0, 1, 0,0,  1, 0, 0, 0 ,  s(.5),-s(.5), s(.5),  0, 0, 1, 1,0,  1, 0, 0, 0, 
@@ -2035,10 +2035,10 @@ ZL_Mesh ZL_Mesh::BuildExtrudePixels(scalar Scale, scalar Depth, const ZL_FileLin
 
 	std::vector<GLscalar> Verts;
 	std::vector<GLushort> Indices;
-	unsigned char* pPixels = Pixels;
-	for (GLscalar y = -h * .5f + .5f, yEnd = y + h - .5f; y < yEnd; y += 1)
+	unsigned char* pPixels = bmp.pixels;
+	for (GLscalar y = -bmp.h * .5f + .5f, yEnd = y + bmp.h - .5f; y < yEnd; y += 1)
 	{
-		for (GLscalar x = -w * .5f + .5f, xEnd = x + w - .5f; x < xEnd; x += 1, pPixels += 4)
+		for (GLscalar x = -bmp.w * .5f + .5f, xEnd = x + bmp.w - .5f; x < xEnd; x += 1, pPixels += 4)
 		{
 			if (pPixels[3] == 0) continue;
 			GLscalar PixelDepth = (AlphaDepth ? pPixels[3] / s(255) : s(1)), PixelDepthShift = (1.f - PixelDepth) * (AlphaDepthAlign - .5f);
@@ -2062,7 +2062,7 @@ ZL_Mesh ZL_Mesh::BuildExtrudePixels(scalar Scale, scalar Depth, const ZL_FileLin
 				*pIndices += IndexOffset;
 		}
 	}
-	free(Pixels);
+	free(bmp.pixels);
 	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl::Make((ZL_Mesh_Impl::VAMASK_NORMAL|ZL_Mesh_Impl::VAMASK_TEXCOORD|ZL_Mesh_Impl::VAMASK_TANGENT|ZL_Mesh_Impl::VAMASK_COLOR), &Indices[0], (GLsizei)Indices.size(), &Verts[0], (GLsizei)(Verts.size()/12), ZL_ImplFromOwner<ZL_Material_Impl>(Material)), false);
 }
 

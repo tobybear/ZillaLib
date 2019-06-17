@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -34,6 +34,7 @@ struct ZL_Surface
 	ZL_Surface();
 	ZL_Surface(const ZL_FileLink& file);
 	ZL_Surface(int width, int height, bool use_alpha = false); //can fail when framebuffers not supported by gpu
+	ZL_Surface(const unsigned char* pixels, int width, int height, int BytesPerPixel = 4);
 	~ZL_Surface();
 	ZL_Surface(const ZL_Surface &source);
 	ZL_Surface &operator =(const ZL_Surface &source);
@@ -130,6 +131,9 @@ struct ZL_Surface
 	void DrawQuad(scalar x1, scalar y1, scalar x2, scalar y2, scalar x3, scalar y3, scalar x4, scalar y4, const ZL_Color &color);
 
 	void DrawBox(const scalar* VerticesBox, const scalar* TexCoordBox, const ZL_Color &color) const;
+
+	//Returns bitmap data which needs to be free()'d after use
+	static unsigned char* GetPixelsFromFile(const ZL_FileLink& ImgFile, int* pOutWidth = NULL, int* pOutHeight = NULL, int* pOutBytesPerPixel = NULL, int RequestBytesPerPixel = 0);
 
 	private: struct ZL_Surface_Impl* impl;
 };

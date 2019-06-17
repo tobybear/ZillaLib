@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,12 +24,14 @@
 #include <assert.h>
 #include "stb/stb_image.h"
 
-static int stdio_read(void *user, char *data, int size) { return (int)ZL_RWread((ZL_RWops*)user, data, 1, size); }
-static void stdio_skip(void *user, int n) { ZL_RWseektell((ZL_RWops*)user, n, RW_SEEK_CUR); }
-static int stdio_eof(void *user) { return ZL_RWeof((ZL_RWops*)user); }
-static const stbi_io_callbacks stbi_zlrwops_callbacks = { stdio_read, stdio_skip, stdio_eof };
+static int  zlrwops_read(void *user, char *data, int size) { return (int)ZL_RWread((ZL_RWops*)user, data, 1, size); }
+static void zlrwops_skip(void *user, int n) { ZL_RWseektell((ZL_RWops*)user, n, RW_SEEK_CUR); }
+static int  zlrwops_eof(void *user) { return ZL_RWeof((ZL_RWops*)user); }
+static const stbi_io_callbacks stbi_zlrwops_callbacks = { zlrwops_read, zlrwops_skip, zlrwops_eof };
 
 static std::map<ZL_FileLink, ZL_Texture_Impl*>* pLoadedTextures = NULL;
+static ZL_TextureFrameBuffer *pActiveFrameBuffer = NULL;
+
 #ifdef ZL_VIDEO_WEAKCONTEXT
 static std::vector<ZL_Texture_Impl*> *pLoadedFrameBufferTextures = NULL;
 #endif
@@ -64,44 +66,24 @@ static bool OGL_ProbeTexture(GLint w, GLint h, GLint maxSize, GLint, GLenum)
 #define OGL_ProbeTexture(a,b,c,d,e) true
 #endif
 
-ZL_Texture_Impl* ZL_Texture_Impl::LoadTextureRef(const ZL_FileLink& file, ZL_BitmapSurface* out_surface)
+static bool LoadBitmapData(ZL_BitmapSurface* surface, ZL_File_Impl* fileimpl, int RequestBytesPerPixel = 0)
 {
-	if (!pLoadedTextures) pLoadedTextures = new std::map<ZL_FileLink, ZL_Texture_Impl*>();
-	std::map<ZL_FileLink, ZL_Texture_Impl*>::iterator it = pLoadedTextures->find(file);
-	if (it != pLoadedTextures->end())
-	{
-		it->second->AddRef();
-		if (out_surface) it->second->LoadSurfaceData(file.Open(), out_surface);
-		return it->second;
-	}
-	ZL_Texture_Impl* t = new ZL_Texture_Impl(file.Open(), out_surface);
-	pLoadedTextures->operator[](file) = t;
-	return t;
-}
+	unsigned char data[8];
+	ZL_RWseektell(fileimpl->src, 0, RW_SEEK_SET);
+	ZL_RWread(fileimpl->src, data, 1, 8);
+	int len = ZL_RWseektell(fileimpl->src, 0, RW_SEEK_END);
+	ZL_RWseektell(fileimpl->src, 0, RW_SEEK_SET);
 
-bool ZL_Texture_Impl::LoadPixelsRGBA(const ZL_File& file, unsigned char** pixels, int *w, int *h)
-{
-	ZL_File_Impl* fileimpl = ZL_ImplFromOwner<ZL_File_Impl>(file);
-	if (!fileimpl) { return false; }
-	*pixels = stbi_load_from_callbacks(&stbi_zlrwops_callbacks, fileimpl->src, w, h, NULL, 4);
-	if (!pixels || !w || !h) { ZL_LOG2("TEXTURE", "Cannot load image file: %s (err: %s)", fileimpl->filename.c_str(), stbi_failure_reason()); return false; }
+	surface->pixels = stbi_load_from_callbacks(&stbi_zlrwops_callbacks, fileimpl->src, &surface->w, &surface->h, &surface->BytesPerPixel, RequestBytesPerPixel);
+	if (!surface->pixels || !surface->w || !surface->h) { ZL_LOG2("TEXTURE", "Cannot load image file: %s (err: %s)", fileimpl->filename.c_str(), stbi_failure_reason()); return false; }
+	//ZL_LOG4("SURFACE", "Loaded bitmap: %s - x: %d - y: %d - bpp: %d", fileimpl->filename.c_str(), surface->w, surface->h, surface->BytesPerPixel);
 	return true;
 }
 
-ZL_Texture_Impl::ZL_Texture_Impl(const ZL_File& file, ZL_BitmapSurface* out_surface) : gltexid(0), wraps(GL_CLAMP_TO_EDGE), wrapt(GL_CLAMP_TO_EDGE), filtermin(GL_LINEAR), filtermag(GL_LINEAR), pFrameBuffer(NULL)
+static bool PrepareSurfaceData(ZL_Texture_Impl* t, ZL_BitmapSurface* surface, const char* filename)
 {
-	LoadSurfaceAndTexture(file, out_surface);
-}
-
-unsigned char* ZL_Texture_Impl::LoadSurfaceData(const ZL_File& file, ZL_BitmapSurface* out_surface)
-{
-	ZL_File_Impl* fileimpl = ZL_ImplFromOwner<ZL_File_Impl>(file);
-	if (!fileimpl) { return NULL; }
-
-	int BytesPerPixel;
-	unsigned char* pixels = stbi_load_from_callbacks(&stbi_zlrwops_callbacks, fileimpl->src, &w, &h, &BytesPerPixel, 0);
-	if (!pixels || !w || !h) { ZL_LOG2("TEXTURE", "Cannot load image file: %s (err: %s)", fileimpl->filename.c_str(), stbi_failure_reason()); return NULL; }
-	//ZL_LOG4("SURFACE", "Loaded bitmap: %s - x: %d - y: %d - bpp: %d", fileimpl->filename.c_str(), surface->w, surface->h, surface->BytesPerPixel);
+	int w = surface->w, h = surface->h, BytesPerPixel = surface->BytesPerPixel;
+	unsigned char* pixels = surface->pixels;
 
 	size_t pitch = w * BytesPerPixel;
 	unsigned char StackTempRow[1024], *TempRow = (pitch > 1024 ? (unsigned char*)malloc(pitch) : StackTempRow);
@@ -113,15 +95,15 @@ unsigned char* ZL_Texture_Impl::LoadSurfaceData(const ZL_File& file, ZL_BitmapSu
 	}
 	if (pitch > 1024) free(TempRow);
 
-	wRep = wTex = w;
-	hRep = hTex = h;
+	int wTex = t->wRep = w;
+	int hTex = t->hRep = h;
 
 	/* Get the color format of the surface */
-	if      (BytesPerPixel==4) format = GL_RGBA;
-	else if (BytesPerPixel==3) format = GL_RGB;
-	else if (BytesPerPixel==2) format = GL_LUMINANCE_ALPHA;
-	else if (BytesPerPixel==1) format = GL_LUMINANCE;
-	else { ZL_LOG2("SURFACE", "Cannot load image file %s with unsupported %d bytes per pixel", fileimpl->filename.c_str(), BytesPerPixel); free(pixels); return NULL; }
+	if      (BytesPerPixel == 4) t->format = GL_RGBA;
+	else if (BytesPerPixel == 3) t->format = GL_RGB;
+	else if (BytesPerPixel == 2) t->format = GL_LUMINANCE_ALPHA;
+	else if (BytesPerPixel == 1) t->format = GL_LUMINANCE;
+	else { ZL_LOG2("SURFACE", "Cannot load image file %s with unsupported %d bytes per pixel", filename, surface->BytesPerPixel); return false; }
 
 	static GLint maxSize = 0;
 	if (!maxSize) glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
@@ -134,7 +116,7 @@ unsigned char* ZL_Texture_Impl::LoadSurfaceData(const ZL_File& file, ZL_BitmapSu
 	{
 		wTex = OGL_GetPOT(wTex, maxSize);
 		hTex = OGL_GetPOT(hTex, maxSize);
-		if(!OGL_ProbeTexture(wTex, hTex, maxSize, 4, GL_RGBA)) { ZL_LOG3("SURFACE", "Cannot load image file %s with size %d x %d due to being unsupported by GPU", fileimpl->filename.c_str(), wTex, hTex); free(pixels); return NULL; }
+		if(!OGL_ProbeTexture(wTex, hTex, maxSize, 4, GL_RGBA)) { ZL_LOG3("SURFACE", "Cannot load image file %s with size %d x %d due to being unsupported by GPU", filename, wTex, hTex); return false; }
 	}
 
 	bool reBlit = false;
@@ -145,7 +127,7 @@ unsigned char* ZL_Texture_Impl::LoadSurfaceData(const ZL_File& file, ZL_BitmapSu
 		reBlit = true;
 	}
 	#elif !defined(ZL_VIDEO_OPENGL_ES1)
-	if (format != GL_RGBA && ((wTex&1)||(hTex&1)||(wTex&2)||(hTex&2)))
+	if (t->format != GL_RGBA && ((wTex&1)||(hTex&1)||(wTex&2)||(hTex&2)))
 	{
 		//somehow non RGBA textures need to be dividable by 4 sizes or RGBA on PC OpenGL and GLES2
 		reBlit = true; //reblit to RGBA format
@@ -155,8 +137,8 @@ unsigned char* ZL_Texture_Impl::LoadSurfaceData(const ZL_File& file, ZL_BitmapSu
 	if (reBlit)
 	{
 		// The original surface size and/or color format wasn't ok for direct conversion. Do an RGBA-copy of it with the suggested size
-		ZL_LOG3("SURFACE", (w > wTex || h > hTex ? "Sizing image from file %s down to %d x %d due to being over maximum GPU supported size - Image should be scaled down" : (w < wTex || h < hTex ? "Adding borders to texture from file %s to increase size to %d x %d due to unsupported format - Image should be stored in this size to avoid slow loading" : "Converting texture from file %s to RGBA due to its size %d x %d not being dividable by 4 - Image should be stored in such a size or as RGBA to avoid slow loading")), fileimpl->filename.c_str(), wTex, hTex);
-		format = GL_RGBA;
+		ZL_LOG3("SURFACE", (w > wTex || h > hTex ? "Sizing image from file %s down to %d x %d due to being over maximum GPU supported size - Image should be scaled down" : (w < wTex || h < hTex ? "Adding borders to texture from file %s to increase size to %d x %d due to unsupported format - Image should be stored in this size to avoid slow loading" : "Converting texture from file %s to RGBA due to its size %d x %d not being dividable by 4 - Image should be stored in such a size or as RGBA to avoid slow loading")), filename, wTex, hTex);
+		t->format = GL_RGBA;
 		int srcbpp = BytesPerPixel, srcw = w;
 		unsigned char * const srcpixels = pixels;
 		if (wTex < w) w = wTex;
@@ -195,37 +177,143 @@ unsigned char* ZL_Texture_Impl::LoadSurfaceData(const ZL_File& file, ZL_BitmapSu
 		}
 		free(srcpixels);
 	}
-
-	if (out_surface)
-	{
-		out_surface->BytesPerPixel = BytesPerPixel;
-		out_surface->w = wTex;
-		out_surface->h = hTex;
-		out_surface->pixels = pixels;
-	}
-	return pixels;
+	t->w = w;
+	t->h = h;
+	surface->w = t->wTex = wTex;
+	surface->h = t->hTex = hTex;
+	surface->BytesPerPixel = BytesPerPixel;
+	surface->pixels = pixels;
+	return true;
 }
 
-bool ZL_Texture_Impl::LoadSurfaceAndTexture(const ZL_File& file, ZL_BitmapSurface* out_surface)
+static bool LoadSurfaceDataFromFile(ZL_Texture_Impl* t, const ZL_File& file, ZL_BitmapSurface* surface)
 {
-	unsigned char* pixels = LoadSurfaceData(file, out_surface);
-	if (!pixels) return false;
-	glGenTextures(1, &gltexid);
-	glBindTexture(GL_TEXTURE_2D, gltexid);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtermin);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtermag);
+	ZL_File_Impl* fileimpl = ZL_ImplFromOwner<ZL_File_Impl>(file);
+	if (!fileimpl) return false;
+	if (!LoadBitmapData(surface, fileimpl)) return false;
+	if (!PrepareSurfaceData(t, surface, fileimpl->filename.c_str())) { free(surface->pixels); surface->pixels = NULL; return false; }
+	return true;
+}
+
+static void LoadBitmapIntoTexture(ZL_Texture_Impl* t, ZL_BitmapSurface* surface)
+{
+	glGenTextures(1, &t->gltexid);
+	glBindTexture(GL_TEXTURE_2D, t->gltexid);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, t->filtermin);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, t->filtermag);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, (!(w&7) ? 8 : (!(w&3) ? 4 : (!(w&1) ? 2 : 1))));
-	if (wTex != w || hTex != h)
+	glPixelStorei(GL_UNPACK_ALIGNMENT, (!(t->w&7) ? 8 : (!(t->w&3) ? 4 : (!(t->w&1) ? 2 : 1))));
+	if (t->wTex != t->w || t->hTex != t->h)
 	{
-		glTexImage2D(GL_TEXTURE_2D, 0, format, wTex, hTex, 0, format, GL_UNSIGNED_BYTE, NULL);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, format, GL_UNSIGNED_BYTE, pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, t->format, t->wTex, t->hTex, 0, t->format, GL_UNSIGNED_BYTE, NULL);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, t->w, t->h, t->format, GL_UNSIGNED_BYTE, surface->pixels);
 	}
 	else
-		glTexImage2D(GL_TEXTURE_2D, 0, format, wTex, hTex, 0, format, GL_UNSIGNED_BYTE, pixels);
-	if (!out_surface) free(pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, t->format, t->wTex, t->hTex, 0, t->format, GL_UNSIGNED_BYTE, surface->pixels);
+}
+
+static bool LoadFileIntoTexture(ZL_Texture_Impl* t, const ZL_File& file, ZL_BitmapSurface* out_surface = NULL)
+{
+	ZL_BitmapSurface tmpSurface;
+	ZL_BitmapSurface* surface = (out_surface ? out_surface : &tmpSurface);
+	if (!LoadSurfaceDataFromFile(t, file, surface)) return false;
+	LoadBitmapIntoTexture(t, surface);
+	if (!out_surface) free(surface->pixels);
 	return true;
+}
+
+static void SetupFrameBuffer(ZL_Texture_Impl* t, int width, int height)
+{
+	t->w = t->wTex = t->wRep = width;
+	t->h = t->hTex = t->hRep = height;
+	glGenTextures(1, &t->gltexid);
+	glGenFramebuffers(1, &t->pFrameBuffer->glFB);
+	t->pFrameBuffer->viewport[0] = t->pFrameBuffer->viewport[1] = 0;
+	glBindTexture(GL_TEXTURE_2D, t->gltexid);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, t->filtermin);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, t->filtermag);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	#ifndef ZL_VIDEO_WEAKCONTEXT
+	glTexImage2D(GL_TEXTURE_2D, 0, t->format, (t->pFrameBuffer->viewport[2] = t->w), (t->pFrameBuffer->viewport[3] = t->h), 0, t->format, GL_UNSIGNED_BYTE, NULL);
+	#else
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glTexImage2D(GL_TEXTURE_2D, 0, t->format, (t->pFrameBuffer->viewport[2] = t->w), (t->pFrameBuffer->viewport[3] = t->h), 0, t->format, GL_UNSIGNED_BYTE, t->pFrameBuffer->pStorePixelData);
+	if (t->pFrameBuffer->pStorePixelData) { free(t->pFrameBuffer->pStorePixelData); t->pFrameBuffer->pStorePixelData = NULL; }
+	#endif
+	glBindFramebuffer(GL_FRAMEBUFFER, t->pFrameBuffer->glFB);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t->gltexid, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, active_framebuffer);
+}
+
+ZL_Texture_Impl* ZL_Texture_Impl::CreateFromBitmap(const unsigned char* pixels, int width, int height, int BytesPerPixel)
+{
+	ZL_Texture_Impl* t = new ZL_Texture_Impl();
+	if (!pixels || !width || !height || !BytesPerPixel) return t;
+	ZL_BitmapSurface tmp = { BytesPerPixel, width, height };
+	tmp.pixels = (unsigned char*)malloc(tmp.w*tmp.h*tmp.BytesPerPixel);
+	memcpy(tmp.pixels, pixels, tmp.w*tmp.h*tmp.BytesPerPixel);
+	if (PrepareSurfaceData(t, &tmp, "memory")) LoadBitmapIntoTexture(t, &tmp);
+	free(tmp.pixels);
+	return t;
+}
+
+ZL_Texture_Impl* ZL_Texture_Impl::LoadTextureRef(const ZL_FileLink& file, ZL_BitmapSurface* out_surface)
+{
+	if (!pLoadedTextures) pLoadedTextures = new std::map<ZL_FileLink, ZL_Texture_Impl*>();
+	std::map<ZL_FileLink, ZL_Texture_Impl*>::iterator it = pLoadedTextures->find(file);
+	if (it != pLoadedTextures->end())
+	{
+		it->second->AddRef();
+		if (out_surface) LoadSurfaceDataFromFile(it->second, file.Open(), out_surface);
+		return it->second;
+	}
+	ZL_Texture_Impl* t = new ZL_Texture_Impl();
+	LoadFileIntoTexture(t, file.Open(), out_surface);
+	pLoadedTextures->operator[](file) = t;
+	return t;
+}
+
+ZL_Texture_Impl* ZL_Texture_Impl::GenerateTexture(int width, int height, bool use_alpha)
+{
+	ZL_Texture_Impl* t = new ZL_Texture_Impl();
+	#ifdef ZL_VIDEO_OPENGL2
+	if (glGenFramebuffers == NULL) return t;
+	#endif
+	t->format = (use_alpha ? GL_RGBA : GL_RGB);
+	t->pFrameBuffer = new ZL_TextureFrameBuffer();
+	#ifdef ZL_VIDEO_WEAKCONTEXT
+	t->pFrameBuffer->pStorePixelData = NULL;
+	#endif
+	SetupFrameBuffer(t, width, height);
+	#ifdef ZL_VIDEO_WEAKCONTEXT
+	if (!pLoadedFrameBufferTextures) pLoadedFrameBufferTextures = new std::vector<ZL_Texture_Impl*>();
+	pLoadedFrameBufferTextures->push_back(t);
+	#endif
+	return t;
+}
+
+ZL_Texture_Impl::ZL_Texture_Impl() : gltexid(0), wraps(GL_CLAMP_TO_EDGE), wrapt(GL_CLAMP_TO_EDGE), filtermin(GL_LINEAR), filtermag(GL_LINEAR), pFrameBuffer(NULL)
+{
+}
+
+ZL_Texture_Impl::~ZL_Texture_Impl()
+{
+	if (!pFrameBuffer)
+		for (std::map<ZL_FileLink, ZL_Texture_Impl*>::iterator it = pLoadedTextures->begin(); it != pLoadedTextures->end(); ++it)
+			if (it->second == this) { pLoadedTextures->erase(it); break; }
+	if (pFrameBuffer)
+	{
+		#ifdef ZL_VIDEO_WEAKCONTEXT
+		if (pFrameBuffer->pStorePixelData) free(pFrameBuffer->pStorePixelData);
+		for (std::vector<ZL_Texture_Impl*>::iterator it = pLoadedFrameBufferTextures->begin(); it != pLoadedFrameBufferTextures->end(); ++it)
+			if (*it == this) { pLoadedFrameBufferTextures->erase(it); break; }
+		#endif
+		if (pFrameBuffer->glFB) glDeleteFramebuffers(1, &pFrameBuffer->glFB);
+		delete pFrameBuffer;
+	}
+	if (gltexid) glDeleteTextures(1, &gltexid);
 }
 
 void ZL_Texture_Impl::SetTextureFilter(GLint newfiltermin, GLint newfiltermag)
@@ -321,69 +409,9 @@ void ZL_Texture_Impl::SetTextureWrap(GLint newwraps, GLint newwrapt)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapt = newwrapt);
 }
 
-ZL_Texture_Impl::~ZL_Texture_Impl()
-{
-	if (!pFrameBuffer)
-		for (std::map<ZL_FileLink, ZL_Texture_Impl*>::iterator it = pLoadedTextures->begin(); it != pLoadedTextures->end(); ++it)
-			if (it->second == this) { pLoadedTextures->erase(it); break; }
-	#ifdef ZL_VIDEO_WEAKCONTEXT
-	if (pFrameBuffer)
-	{
-		if (pFrameBuffer->pStorePixelData) free(pFrameBuffer->pStorePixelData);
-		for (std::vector<ZL_Texture_Impl*>::iterator it = pLoadedFrameBufferTextures->begin(); it != pLoadedFrameBufferTextures->end(); ++it)
-			if (*it == this) { pLoadedFrameBufferTextures->erase(it); break; }
-	}
-	#endif
-	if (pFrameBuffer) { glDeleteFramebuffers(1, &pFrameBuffer->glFB); delete pFrameBuffer; }
-	if (gltexid) glDeleteTextures(1, &gltexid);
-}
-
-ZL_Texture_Impl::ZL_Texture_Impl(int width, int height, bool use_alpha) : gltexid(0), wraps(GL_CLAMP_TO_EDGE), wrapt(GL_CLAMP_TO_EDGE), filtermin(GL_LINEAR), filtermag(GL_LINEAR), pFrameBuffer(NULL)
-{
-	#ifdef ZL_VIDEO_OPENGL2
-	if (glGenFramebuffers == NULL) return;
-	#endif
-	format = (use_alpha ? GL_RGBA : GL_RGB);
-	pFrameBuffer = new ZL_TextureFrameBuffer();
-	#ifdef ZL_VIDEO_WEAKCONTEXT
-	pFrameBuffer->pStorePixelData = NULL;
-	#endif
-	SetupFrameBuffer(width, height);
-	#ifdef ZL_VIDEO_WEAKCONTEXT
-	if (!pLoadedFrameBufferTextures) pLoadedFrameBufferTextures = new std::vector<ZL_Texture_Impl*>();
-	pLoadedFrameBufferTextures->push_back(this);
-	#endif
-}
-
-void ZL_Texture_Impl::SetupFrameBuffer(int width, int height)
-{
-	w = wTex = wRep = width;
-	h = hTex = hRep = height;
-	glGenTextures(1, &gltexid);
-	glGenFramebuffers(1, &pFrameBuffer->glFB);
-	pFrameBuffer->viewport[0] = pFrameBuffer->viewport[1] = 0;
-	glBindTexture(GL_TEXTURE_2D, gltexid);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtermin);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtermag);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	#ifndef ZL_VIDEO_WEAKCONTEXT
-	glTexImage2D(GL_TEXTURE_2D, 0, format, (pFrameBuffer->viewport[2] = w), (pFrameBuffer->viewport[3] = h), 0, format, GL_UNSIGNED_BYTE, NULL);
-	#else
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glTexImage2D(GL_TEXTURE_2D, 0, format, (pFrameBuffer->viewport[2] = w), (pFrameBuffer->viewport[3] = h), 0, format, GL_UNSIGNED_BYTE, pFrameBuffer->pStorePixelData);
-	if (pFrameBuffer->pStorePixelData) { free(pFrameBuffer->pStorePixelData); pFrameBuffer->pStorePixelData = NULL; }
-	#endif
-	glBindFramebuffer(GL_FRAMEBUFFER, pFrameBuffer->glFB);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gltexid, 0);
-	glBindFramebuffer(GL_FRAMEBUFFER, active_framebuffer);
-}
-
-static ZL_TextureFrameBuffer *pActiveFrameBuffer = NULL;
-
 void ZL_Texture_Impl::FrameBufferBegin(bool clear)
 {
-	#if defined(ZL_VIDEO_OPENGL_ES1) || defined(ZL_VIDEO_OPENGL_ES2)
+	#if ((defined(ZL_VIDEO_OPENGL_ES1) || defined(ZL_VIDEO_OPENGL_ES2)) && !defined(__WEBAPP__))
 	//Some (older?) GLES hardware implementations require an "empty" render call like this glClear with no bits set
 	//Because if the framebuffer was to be used while the main window render buffer was still processing the last frame,
 	//artifacts would appear inside this framebuffer. With this call we wait until the GPU is ready for more (FBO) rendering.
@@ -431,6 +459,14 @@ void ZL_Texture_Impl::FrameBufferEnd()
 	glViewport(active_viewport[0], active_viewport[1], active_viewport[2], active_viewport[3]);
 }
 
+ZL_BitmapSurface ZL_Texture_Impl::LoadBitmapSurface(const ZL_File& file, int RequestBytesPerPixel)
+{
+	ZL_BitmapSurface res;
+	ZL_File_Impl* fileimpl = ZL_ImplFromOwner<ZL_File_Impl>(file);
+	if (!fileimpl || !LoadBitmapData(&res, fileimpl, RequestBytesPerPixel)) res.pixels = NULL;
+	return res;
+}
+
 #ifdef ZL_VIDEO_WEAKCONTEXT
 #ifndef ZL_VIDEO_USE_GLSL
 bool CheckTexturesIfContextLost()
@@ -447,7 +483,7 @@ void RecreateAllTexturesOnContextLost()
 		for (std::map<ZL_FileLink, ZL_Texture_Impl*>::iterator it = pLoadedTextures->begin(); it != pLoadedTextures->end(); ++it)
 		{
 			ZL_LOG2("TEXTURE", "   Reload Tex ID: %d (%s)", it->second->gltexid, it->first.Name().c_str());
-			if (!it->second->LoadSurfaceAndTexture(it->first.Open())) continue;
+			if (!LoadFileIntoTexture(it->second, it->first.Open())) continue;
 			it->second->SetTextureWrap(it->second->wraps, it->second->wrapt);
 		}
 	}
@@ -457,7 +493,7 @@ void RecreateAllTexturesOnContextLost()
 		for (std::vector<ZL_Texture_Impl*>::iterator it = pLoadedFrameBufferTextures->begin(); it != pLoadedFrameBufferTextures->end(); ++it)
 		{
 			ZL_LOG4("TEXTURE", "   Reload Framebuffer Tex ID: %d (size: %d x %d - has buffer: %d)", (*it)->gltexid, (*it)->wRep, (*it)->hRep, ((*it)->pFrameBuffer->pStorePixelData != NULL));
-			(*it)->SetupFrameBuffer((*it)->wRep, (*it)->hRep);
+			SetupFrameBuffer(*it, (*it)->wRep, (*it)->hRep);
 			(*it)->SetTextureWrap((*it)->wraps, (*it)->wrapt);
 		}
 	}

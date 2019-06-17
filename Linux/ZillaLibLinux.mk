@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2018 Bernhard Schelling
+#  Copyright (C) 2010-2019 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages

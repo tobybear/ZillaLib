@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -104,25 +104,11 @@ struct ZL_Surface_BatchRenderContext
 
 std::vector<ZL_Surface_BatchRenderContext*> *ZL_Surface_BatchRenderContext::ActiveContexts = NULL;
 
-ZL_Surface_Impl::ZL_Surface_Impl(const ZL_FileLink& file)
- : pBatchRender(NULL), hasClipping(false), fRotate(0), fScaleW(1), fScaleH(1), fOpacity(1), orDraw(ZL_Origin::BottomLeft), orRotate(ZL_Origin::Center), color(ZL_Color::White)
-{
-	tex = ZL_Texture_Impl::LoadTextureRef(file);
-	if (!tex->gltexid) { tex->DelRef(); tex = NULL; return; }
-	CalcUnclippedTexCoordBoxAndContentSize();
-}
-
-ZL_Surface_Impl::ZL_Surface_Impl(int width, int height, bool use_alpha)
- : pBatchRender(NULL), hasClipping(false), fRotate(0), fScaleW(1), fScaleH(1), fOpacity(1), orDraw(ZL_Origin::BottomLeft), orRotate(ZL_Origin::Center), color(ZL_Color::White)
-{
-	tex = new ZL_Texture_Impl(width, height, use_alpha);
-	if (!tex->gltexid) { tex->DelRef(); tex = NULL; return; }
-	CalcUnclippedTexCoordBoxAndContentSize();
-}
-ZL_Surface_Impl::ZL_Surface_Impl(ZL_Texture_Impl* tex)
+ZL_Surface_Impl::ZL_Surface_Impl(ZL_Texture_Impl* tex, bool add_ref)
  : tex(tex), pBatchRender(NULL), hasClipping(false), fRotate(0), fScaleW(1), fScaleH(1), fOpacity(1), orDraw(ZL_Origin::BottomLeft), orRotate(ZL_Origin::Center), color(ZL_Color::White)
 {
-	tex->AddRef();
+	if (add_ref) tex->AddRef();
+	if (!tex->gltexid) { tex->DelRef(); tex = NULL; return; }
 	CalcUnclippedTexCoordBoxAndContentSize();
 }
 ZL_Surface_Impl::ZL_Surface_Impl(const ZL_Surface_Impl* src)
@@ -252,12 +238,17 @@ void ZL_Surface_Impl::DrawTo(const scalar x1, const scalar y1, const scalar x2, 
 
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_Surface)
 
-ZL_Surface::ZL_Surface(const ZL_FileLink& file) : impl(new ZL_Surface_Impl(file))
+ZL_Surface::ZL_Surface(const ZL_FileLink& file) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::LoadTextureRef(file))) //impl(new ZL_Surface_Impl(file))
 {
 	if (!impl->tex) { delete impl; impl = NULL; }
 }
 
-ZL_Surface::ZL_Surface(int width, int height, bool use_alpha) : impl(new ZL_Surface_Impl(width, height, use_alpha))
+ZL_Surface::ZL_Surface(int width, int height, bool use_alpha) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::GenerateTexture(width, height, use_alpha))) //impl(new ZL_Surface_Impl(width, height, use_alpha))
+{
+	if (!impl->tex) { delete impl; impl = NULL; }
+}
+
+ZL_Surface::ZL_Surface(const unsigned char* pixels, int width, int height, int BytesPerPixel) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::CreateFromBitmap(pixels, width, height, BytesPerPixel)))
 {
 	if (!impl->tex) { delete impl; impl = NULL; }
 }
@@ -581,4 +572,13 @@ void ZL_Surface::DrawBox(const scalar* VerticesBox, const scalar* TexCoordBox, c
 	ZLGL_TEXCOORDPOINTER(2, GL_SCALAR, 0, TexCoordBox);
 	ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, VerticesBox);
 	glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+unsigned char* ZL_Surface::GetPixelsFromFile(const ZL_FileLink& ImgFile, int* pOutWidth, int* pOutHeight, int* pOutBytesPerPixel, int RequestBytesPerPixel)
+{
+	ZL_BitmapSurface bmp = ZL_Texture_Impl::LoadBitmapSurface(ImgFile.Open(), RequestBytesPerPixel);
+	if (pOutWidth) *pOutWidth = bmp.w;
+	if (pOutHeight) *pOutHeight = bmp.h;
+	if (pOutBytesPerPixel) *pOutBytesPerPixel = bmp.BytesPerPixel;
+	return bmp.pixels;
 }

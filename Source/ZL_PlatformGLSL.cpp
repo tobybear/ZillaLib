@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -477,7 +477,7 @@ struct ZL_PostProcess_Impl : ZL_Impl
 		if (!(PROGRAM = ZLGLSL::CreateProgramFromVertexAndFragmentShaders(COUNT_OF(postprocess_vertex_shader_srcs), postprocess_vertex_shader_srcs, 1, &code_fragment, COUNT_OF(attr), attr))) return;
 		if (name_uniform_float_1) UNI_1 = (GLuint)glGetUniformLocation(PROGRAM, name_uniform_float_1);
 		if (name_uniform_float_2) UNI_2 = (GLuint)glGetUniformLocation(PROGRAM, name_uniform_float_2);
-		tex = new ZL_Texture_Impl(window_viewport[2], window_viewport[3], use_alpha);
+		tex = ZL_Texture_Impl::GenerateTexture(window_viewport[2], window_viewport[3], use_alpha);
 		if (!tex->gltexid) { tex->DelRef(); tex = NULL; return; }
 		#ifdef ZL_VIDEO_WEAKCONTEXT
 		strCodeFragment = code_fragment;

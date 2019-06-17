@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -218,7 +218,7 @@ struct ZL_Quat
 	inline scalar Dot(const ZL_Quat& q) const { return x*q.x + y*q.y + z*q.z + w*q.w; }
 	inline scalar GetLength() const { return ssqrt(x*x + y*y + z*z + w*w); }
 	inline scalar GetLengthSq() const { return x*x + y*y + z*z + w*w; }
-	inline scalar GetAngle() const { return 2.f * sacos(w); }
+	inline scalar GetAngle() const { return 2.f * sacos(w < -1 ? -1 : (w > 1 ? 1 : w)); }
 	inline ZL_Vector3 GetRotationAxis() const { float wsq = (w > 1 ? 0 : ssqrt(1.f - (w*w))); return (wsq >= 0.0001f ? ZL_Vector3(x / wsq, y / wsq, z / wsq) : ZL_Vector3(1,0,0)); }
 	inline ZL_Quat GetTwist(const ZL_Vector3& TwistAxis) const { ZL_Vector3 p = TwistAxis*(TwistAxis|ZL_Vector3(x,y,z)); return (p.x||p.y||p.z||w ? FromVector(p, w).Norm() : ZL_Quat()); }
 	inline ZL_Quat GetSwing(const ZL_Vector3& TwistAxis) const { ZL_Vector3 p = TwistAxis*(TwistAxis|ZL_Vector3(x,y,z)); return (p.x||p.y||p.z||w ? *this * FromVector(p, w).Norm().Invert() : *this).QuatNorm(); }
@@ -318,7 +318,7 @@ struct ZL_Matrix
 	inline ZL_Vector3 TransformDirection(const ZL_Vector3& v) const { return ZL_Vector3(v.x*m[0]+v.y*m[4]+v.z*m[8], v.x*m[1]+v.y*m[5]+v.z*m[9], v.x*m[2]+v.y*m[6]+v.z*m[10]); }
 	inline ZL_Vector3 TransformPosition(const ZL_Vector3& v) const { return ZL_Vector3(v.x*m[0]+v.y*m[4]+v.z*m[8]+m[12], v.x*m[1]+v.y*m[5]+v.z*m[9]+m[13], v.x*m[2]+v.y*m[6]+v.z*m[10]+m[14]); }
 	inline ZL_Vector3 PerspectiveTransformPosition(const ZL_Vector3& v) const { scalar w = (v.x*m[3]+v.y*m[7]+v.z*m[11]+m[15]); w=w?s(1)/w:s(1); return ZL_Vector3((v.x*m[0]+v.y*m[4]+v.z*m[8]+m[12])*w, (v.x*m[1]+v.y*m[5]+v.z*m[9]+m[13])*w, (v.x*m[2]+v.y*m[6]+v.z*m[10]+m[14])*w); }
-	inline ZL_Vector PerspectiveTransformPositionTo2D(const ZL_Vector3& v) const { scalar w = (v.x*m[3]+v.y*m[7]+v.z*m[11]+m[15]); w=w?s(1)/w:s(1); return ZL_Vector((v.x*m[0]+v.y*m[4]+v.z*m[8]+m[12])*w, (v.x*m[1]+v.y*m[5]+v.z*m[9]+m[13])*w); }
+	inline ZL_Vector  PerspectiveTransformPositionTo2D(const ZL_Vector3& v) const { scalar w = (v.x*m[3]+v.y*m[7]+v.z*m[11]+m[15]); w=w?s(1)/w:s(1); return ZL_Vector((v.x*m[0]+v.y*m[4]+v.z*m[8]+m[12])*w, (v.x*m[1]+v.y*m[5]+v.z*m[9]+m[13])*w); }
 
 	inline ZL_Matrix GetTransposed() const { return ZL_Matrix(m[0],m[4],m[8],m[12],m[1],m[5],m[9],m[13],m[2],m[6],m[10],m[14],m[3],m[7],m[11],m[15]); }
 	inline ZL_Matrix GetInverted() const
@@ -443,7 +443,7 @@ inline ZL_Quat::ZL_Quat(const struct ZL_Matrix& m)
 	else
 	{
 		float r = sqrtf(s(1)+m.m[10]-m.m[0]-m.m[5]), rr;
-		if (r) { rr = s(.5)/r; x = (m.m[2]+m.m[8])*rr, y = (m.m[9]+m.m[6])*rr, z = r/2, w = (m.m[1]-m.m[4])*rr; return; }
+		if (r&&r==r) { rr = s(.5)/r; x = (m.m[2]+m.m[8])*rr, y = (m.m[9]+m.m[6])*rr, z = r/2, w = (m.m[1]-m.m[4])*rr; return; }
 	}
 	x = 0, y = 0, z = 0, w = 1;
 }

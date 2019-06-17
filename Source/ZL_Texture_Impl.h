@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -29,12 +29,6 @@
 #include "ZL_Platform.h"
 #include "ZL_File_Impl.h"
 
-struct ZL_BitmapSurface
-{
-	int BytesPerPixel, w, h;
-	unsigned char* pixels;
-};
-
 struct ZL_TextureFrameBuffer
 {
 	GLuint glFB;
@@ -44,6 +38,12 @@ struct ZL_TextureFrameBuffer
 	#ifdef ZL_VIDEO_WEAKCONTEXT
 	void *pStorePixelData;
 	#endif
+};
+
+struct ZL_BitmapSurface
+{
+	int BytesPerPixel, w, h;
+	unsigned char* pixels;
 };
 
 struct ZL_Texture_Impl : ZL_Impl
@@ -56,8 +56,9 @@ struct ZL_Texture_Impl : ZL_Impl
 	GLint wraps, wrapt, filtermin, filtermag;
 	ZL_TextureFrameBuffer *pFrameBuffer;
 
+	static ZL_Texture_Impl* CreateFromBitmap(const unsigned char* pixels, int width, int height, int BytesPerPixel);
 	static ZL_Texture_Impl* LoadTextureRef(const ZL_FileLink& file, ZL_BitmapSurface* out_surface = NULL);
-	static bool LoadPixelsRGBA(const ZL_File& file, unsigned char** pixels, int *w, int *h);
+	static ZL_Texture_Impl* GenerateTexture(int width, int height, bool use_alpha);
 
 	void SetTextureFilter(GLint newfiltermin, GLint newfiltermag);
 	void SetTextureWrap(GLint newwraps, GLint newwrapt);
@@ -65,14 +66,10 @@ struct ZL_Texture_Impl : ZL_Impl
 	void FrameBufferBegin(bool clear);
 	void FrameBufferEnd();
 
-	bool LoadSurfaceAndTexture(const ZL_File& file, ZL_BitmapSurface* out_surface = NULL);
-	void SetupFrameBuffer(int width, int height);
-
-	ZL_Texture_Impl(int width, int height, bool use_alpha);
+	static ZL_BitmapSurface LoadBitmapSurface(const ZL_File& file, int RequestBytesPerPixel = 0);
 
 private:
-	ZL_Texture_Impl(const ZL_File& file, ZL_BitmapSurface* out_surface);
-	unsigned char* LoadSurfaceData(const ZL_File& file, ZL_BitmapSurface* out_surface);
+	ZL_Texture_Impl();
 	~ZL_Texture_Impl();
 };
 
@@ -88,9 +85,7 @@ struct ZL_Surface_Impl : ZL_Impl
 	ZL_Origin::Type orDraw, orRotate;
 	ZL_Color color;
 	GLscalar TexCoordBox[8];
-	ZL_Surface_Impl(const ZL_FileLink& file);
-	ZL_Surface_Impl(int width, int height, bool use_alpha);
-	ZL_Surface_Impl(ZL_Texture_Impl* tex);
+	ZL_Surface_Impl(ZL_Texture_Impl* tex, bool add_ref = true);
 	ZL_Surface_Impl(const ZL_Surface_Impl* src);
 	~ZL_Surface_Impl();
 	inline scalar GetHCW(const scalar scalew) { return (fScaleW == scalew ? fHCW : (fScaleW == -scalew ? -fHCW : (hasClipping ? fHCW*scalew/fScaleW : tex->w*scalew*s(.5)))); }

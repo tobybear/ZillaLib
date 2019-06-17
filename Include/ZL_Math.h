@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -431,7 +431,7 @@ struct ZL_Math
 	//Returns the sign (-1 or +1) of a scalar value
 	static inline scalar Sign(const scalar val) { return (val < 0 ? s(-1) : 1); }
 
-	//Returns the sign (-1 or +1) of a scalar value if its absolute is larget than epsilon, otherwise return 0
+	//Returns the sign (-1 or +1) of a scalar value if its absolute is larger than epsilon, otherwise return 0
 	static inline scalar Sign0(const scalar val, const scalar epsilon = 0) { return (val > epsilon ? 1 : (val < -epsilon ? s(-1) : 0)); }
 
 	//Clamp value between min and max
