@@ -16,7 +16,7 @@ ZillaLib on Emscripten
 # Setup
 There are two ways of installing Emscripten.  
 Either installing it with the official installer and guide, which will place a bunch of configuration, temporary build and cache files into your system user directory.
-Or by installing just the necessary parts required for building ZillaLib (or other projects using a similar independent build script) and by keeping the configuration and caches inside the actual build folder.
+Or by installing just the necessary parts required for building ZillaLib (or other projects using a similar independent build script) and by keeping the configuration and caches inside the actual build directory.
 
 ## The official installer
 This is recommended if you plan on using Emscripten for other things besides ZillaLib related projects.
@@ -30,8 +30,8 @@ When done, you should be set up with Emscripten compiling at least its hello_wor
 
 ### On Windows
 You need these 4 packages from the Emscripten file archive (replace '64bit' with '32bit' if you're running a 32bit OS):
- - [emscripten-latest.zip](http://s3.amazonaws.com/mozilla-games/emscripten/packages/emscripten/nightly/win/emscripten-latest.zip) (directories 'tests', 'site', 'docs', 'media' and 'cmake' can  be skipped when extracting)
- - [emscripten-llvm-latest.zip](http://s3.amazonaws.com/mozilla-games/emscripten/packages/llvm/nightly/win_64bit/emscripten-llvm-latest.zip) (or the latest stable release listed [here](http://s3.amazonaws.com/mozilla-games/emscripten/packages/llvm/tag/win_64bit/index.txt))
+ - [emscripten-x.y.z.zip](https://github.com/kripken/emscripten/releases) (directories 'tests', 'site', 'docs', 'media', '.circleci' and 'cmake' can  be skipped when extracting)
+ - [emscripten-llvm-x.y.z.zip](http://s3.amazonaws.com/mozilla-games/emscripten/packages/llvm/tag/win_64bit/index.txt) (replace index.txt in the url with the matching version zip)
  - [node_4.1.1_64bit.zip](http://s3.amazonaws.com/mozilla-games/emscripten/packages/node_4.1.1_64bit.zip) (everything but 'node.exe' can be skipped when extracting)
  - [python_2.7.5.3_64bit.zip](http://s3.amazonaws.com/mozilla-games/emscripten/packages/python_2.7.5.3_64bit.zip) (everything but 'python.exe', 'python27.dll', 'DLLs' and 'Lib' can be skipped when extracting)
 
@@ -124,3 +124,6 @@ Some things to consider when adapting the loader:
 If your game doesn't show up properly, make sure to check your browsers debug console (usually F12 key). 
 Changing certain project properties (name, asset settings) might invalidate the filename references in the generated test HTML file. 
 To re-create the HTML file, just delete it inside the Debug-emscripten or Release-emscripten subdirectory and re-run the build process.
+
+# Updating Emscripten
+After updating emscripten or parts of it, make sure to delete the directories 'build', 'build-debug' and 'cache' inside your local ZillaLib directory under the Emscripten sub-directory.

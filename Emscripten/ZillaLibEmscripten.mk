@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2018 Bernhard Schelling
+#  Copyright (C) 2010-2019 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -30,7 +30,8 @@ ifeq ($(EMSCRIPTEN_ROOT),)
   $(info Please create the file $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with the following definitions:)
   $(info )
   $(info EMSCRIPTEN_ROOT = $(if $(ISWIN),d:)/path/to/emscripten)
-  $(info LLVM_ROOT = $(if $(ISWIN),d:)/path/to/clang/bin)
+  $(info LLVM_ROOT = $(if $(ISWIN),d:)/path/to/clang)
+  $(info BINARYEN_ROOT = $(if $(ISWIN),d:)/path/to/clang/binaryen
   $(info EMSCRIPTEN_NATIVE_OPTIMIZER = $(if $(ISWIN),d:)/path/to/emscripten/tools/optimizer/optimizer$(if $(ISWIN),.exe))
   $(info NODE_JS = $(if $(ISWIN),d:)/path/to/node/node$(if $(ISWIN),.exe))
   $(info PYTHON = $(if $(ISWIN),d:)/path/to/python/python$(if $(ISWIN),.exe))
@@ -44,13 +45,13 @@ ifeq ($(BUILD),RELEASE)
   ZLOUTDIR  := $(ZILLALIB_DIR)Emscripten/build
   APPOUTDIR := Release-emscripten
   ZILLAFLAG :=
-  LDFLAGS   := -O3
+  EMCCFLAGS := -O3
   DBGCFLAGS := -DNDEBUG
 else
   ZLOUTDIR  := $(ZILLALIB_DIR)Emscripten/build-debug
   APPOUTDIR := Debug-emscripten
   ZILLAFLAG := -DZILLALOG
-  LDFLAGS   := -O1
+  EMCCFLAGS := -O1
   DBGCFLAGS := -DDEBUG -D_DEBUG
 endif
 
@@ -78,17 +79,17 @@ CLANGFLAGS += -fno-vectorize -fno-slp-vectorize
 #add defines from the make command line (e.g. D=MACRO=VALUE)
 APPFLAGS += $(subst \\\,$(sp),$(foreach F,$(subst \$(sp),\\\,$(D)),"-D$(F)"))
 
-#global LD flags
-LDFLAGS  += --memory-init-file 0
-LD_EXPORTED_FUNCTIONS := '_main','_ZLFNDraw','_ZLFNText','_ZLFNKey','_ZLFNMove','_ZLFNMouse','_ZLFNWheel','_ZLFNWindow','_ZLFNAudio','_ZLFNHTTP','_ZLFNWebSocket'
-
 # Compute tool paths
 ifeq ($(wildcard $(EMSCRIPTEN_ROOT)/emcc),)
   $(error Emscripten not found in set EMSCRIPTEN_ROOT path ($(EMSCRIPTEN_ROOT)))
 endif
 ifeq ($(wildcard $(LLVM_ROOT)/clang*),)
-  $(error clang executables not found in set LLVM_ROOT path ($(LLVM_ROOT)). Set custom path in $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with LLVM_ROOT = $(if $(ISWIN),d:)/path/to/clang/bin)
+  $(error clang executables not found in set LLVM_ROOT path ($(LLVM_ROOT)). Set custom path in $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with LLVM_ROOT = $(if $(ISWIN),d:)/path/to/clang)
 endif
+##not needed with -s WASM_BACKEND=0 -s WASM=0
+#ifeq ($(wildcard $(BINARYEN_ROOT)/bin/wasm*),)
+#  $(error binaryen executables not found in set BINARYEN_ROOT path ($(BINARYEN_ROOT)). Set custom path in $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with BINARYEN_ROOT = $(if $(ISWIN),d:)/path/to/clang/binaryen)
+#endif
 PYTHON_NOQUOTE := $(if $(PYTHON),$(wildcard $(PYTHON)),$(call sub_checkexe_run,python,-c "print 1"))
 ifeq ($(PYTHON_NOQUOTE),)
   $(error Python executable not found in PATH and not correctly set with PYTHON setting ($(PYTHON)). Set custom path in $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with PYTHON = $(if $(ISWIN),d:)/path/to/python/python$(if $(ISWIN),.exe))
@@ -105,30 +106,15 @@ ifeq ($(if $(7ZIP),$(wildcard $(7ZIP)),-,),)
   $(error 7-Zip executable not found in set 7ZIP path ($(7ZIP)). Fix path in $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with 7ZIP = $(if $(ISWIN),d:)/path/to/7zip/7z$(if $(ISWIN),.exe))
 endif
 
-#as of Emscripten 1.35.0, closure is broken for SIMD.js code and calls to Math.fround in library_gl.js
-undefine JAVA
-LDFLAGS += --closure 0
-##setup closure if building release and java is available
-#ifeq ($(BUILD),RELEASE)
-#  #quickly check for java by running either $(JAVA), the java found in environment variable JAVA_HOME, or java in PATH
-#  ifeq ($(if $(JAVA),$(wildcard $(JAVA)),-,),)
-#    $(error Java executable not found in set JAVA path '$(JAVA)'. Set custom path in $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with JAVA = $(if $(ISWIN),d:)/path/to/java/bin/java$(if $(ISWIN),.exe))
-#  endif
-#  JAVA := $(if $(JAVA),$(JAVA),$(if $(JAVA_HOME),$(call sub_checkexe_run,$(subst \,/,$(JAVA_HOME))/bin/java,-verbose -version)))
-#  JAVA := $(if $(JAVA),$(JAVA),$(call sub_checkexe_run,java,-verbose -version))
-#  LDFLAGS += --closure $(if $(JAVA),1,0)
-#else
-#  LDFLAGS += --closure 0
-#endif
-
 #set EM_CACHE environment variable because setting only --cache commandline parameter is not enough
-EM_CACHE := $(abspath $(ZILLALIB_DIR)Emscripten/cache)
+EM_CACHE := $(subst $(if $(ISWIN),/,\),$(if $(ISWIN),\,/),$(abspath $(ZILLALIB_DIR)Emscripten/cache))
 export EM_CACHE
 
 #setup em-config parameter (Emscripten configuration file replacement)
 EM_CONFIG := --em-config "$(strip \
 		)EMSCRIPTEN_ROOT='$(EMSCRIPTEN_ROOT)';$(strip \
 		)LLVM_ROOT='$(LLVM_ROOT)';$(strip \
+		)BINARYEN_ROOT='$(BINARYEN_ROOT)';$(strip \
 		)PYTHON='$(subst \,/,$(PYTHON_NOQUOTE))';$(strip \
 		)EMSCRIPTEN_NATIVE_OPTIMIZER='$(EMSCRIPTEN_NATIVE_OPTIMIZER)';$(strip \
 		)NODE_JS='$(NODE_JS)';$(strip \
@@ -174,9 +160,30 @@ ifeq ($(APPSOURCES),)
   $(error No source files found for $(ZillaApp))
 endif
 
-LDFLAGS += -s "EXPORTED_FUNCTIONS=[$(LD_EXPORTED_FUNCTIONS)$(if $(ZLEMSCRIPTEN_ADD_EXPORTS),$(strip ,)'$(subst $(sp),$(strip ','),$(strip $(ZLEMSCRIPTEN_ADD_EXPORTS)))',)]"
-LDFLAGS += $(if $(ZLEMSCRIPTEN_TOTAL_MEMORY),-s "TOTAL_MEMORY=$(ZLEMSCRIPTEN_TOTAL_MEMORY)")
-LDFLAGS += $(if $(ZLEMSCRIPTEN_ALLOW_MEMORY_GROWTH),-s "ALLOW_MEMORY_GROWTH=1")
+#global LD flags
+LD_EXPORTED_FUNCTIONS := '_main','_ZLFNDraw','_ZLFNText','_ZLFNKey','_ZLFNMove','_ZLFNMouse','_ZLFNWheel','_ZLFNWindow','_ZLFNAudio','_ZLFNHTTP','_ZLFNWebSocket'
+EMCCFLAGS += --memory-init-file 0
+EMCCFLAGS += -s "EXPORTED_FUNCTIONS=[$(LD_EXPORTED_FUNCTIONS)$(if $(ZLEMSCRIPTEN_ADD_EXPORTS),$(strip ,)'$(subst $(sp),$(strip ','),$(strip $(ZLEMSCRIPTEN_ADD_EXPORTS)))',)]"
+EMCCFLAGS += $(if $(ZLEMSCRIPTEN_TOTAL_MEMORY),-s "TOTAL_MEMORY=$(ZLEMSCRIPTEN_TOTAL_MEMORY)")
+EMCCFLAGS += $(if $(ZLEMSCRIPTEN_ALLOW_MEMORY_GROWTH),-s "ALLOW_MEMORY_GROWTH=1")
+EMCCFLAGS += -s WASM_BACKEND=0 -s WASM=0 -s STRICT=1 -lGL
+EMCCFLAGS += --js-library $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js
+
+#as of Emscripten 1.38.12, closure function renaming breaks FS.createDataFile calls and other internal emscripten functions
+undefine JAVA
+EMCCFLAGS += --closure 0
+##setup closure if building release and java is available
+#ifeq ($(BUILD),RELEASE)
+#  #quickly check for java by running either $(JAVA), the java found in environment variable JAVA_HOME, or java in PATH
+#  ifeq ($(if $(JAVA),$(wildcard $(JAVA)),-,),)
+#    $(error Java executable not found in set JAVA path '$(JAVA)'. Set custom path in $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with JAVA = $(if $(ISWIN),d:)/path/to/java/bin/java$(if $(ISWIN),.exe))
+#  endif
+#  JAVA := $(if $(JAVA),$(JAVA),$(if $(JAVA_HOME),$(call sub_checkexe_run,$(subst \,/,$(JAVA_HOME))/bin/java,-verbose -version)))
+#  JAVA := $(if $(JAVA),$(JAVA),$(call sub_checkexe_run,java,-verbose -version))
+#  EMCCFLAGS += --closure $(if $(JAVA),1,0)
+#else
+#  EMCCFLAGS += --closure 0
+#endif
 
 -include assets.mk
 ASSET_ALL_PATHS := $(strip $(foreach F,$(ASSETS),$(wildcard ./$(F)) $(wildcard ./$(F)/*) $(wildcard ./$(F)/*/*) $(wildcard ./$(F)/*/*/*) $(wildcard ./$(F)/*/*/*/*) $(wildcard ./$(F)/*/*/*/*/*)))
@@ -222,11 +229,12 @@ $(APPOUTDIR)/$(ZillaApp).bc : $(APPOBJS)
 
 $(APPOUTDIR)/$(ZillaApp).js : $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js
 	$(info Linking $@ ...)
-	@$(PYTHON) "$(EMSCRIPTEN_ROOT)/emcc" -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(LDFLAGS) --js-library $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js $(EM_CONFIG)
-#	$(if $(ISWIN),set ,)EMCC_DEBUG=1$(if $(ISWIN),&&, )$(PYTHON) "$(EMSCRIPTEN_ROOT)/emcc" -s VERBOSE=1 -v -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(LDFLAGS) --js-library $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js $(EM_CONFIG)
+	@$(PYTHON) "$(EMSCRIPTEN_ROOT)/emcc" -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(EMCCFLAGS) $(EM_CONFIG)
+#	$(if $(ISWIN),set ,)EMCC_DEBUG=1$(if $(ISWIN),&&, )$(PYTHON) "$(EMSCRIPTEN_ROOT)/emcc" -s VERBOSE=1 -v -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(ZLOUTDIR)/ZillaLib.bc $(EMCCFLAGS) $(EM_CONFIG)
 
 $(ASSET_JS) : $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)))
 	$(info Building $@ with $(words $(ASSET_ALL_STARS)) assets ...)
+	@$(if $(wildcard $(dir $@)),,$(shell $(PYTHON) -c "import os;os.makedirs('$(dir $@)')"))
 	@$(CMD_MAKE_EMBED_JS_B64) $(subst *, ,$(subst $(sp)," ","$(ASSET_ALL_STARS)")) >"$@"
 
 $(APPOUTDIR)/$(ZillaApp)_WithData.js : $(APPOUTDIR)/$(ZillaApp).js $(ASSET_JS)
@@ -235,7 +243,7 @@ $(APPOUTDIR)/$(ZillaApp)_WithData.js : $(APPOUTDIR)/$(ZillaApp).js $(ASSET_JS)
 
 $(APPOUTDIR)/%.js.gz : $(APPOUTDIR)/%.js
 	$(info Compressing $^ to $@ ...)
-	@$(if $(wildcard $@),$(if $(ISWIN),del "$(subst /,\,$@)" ,rm "$@" >/dev/null),)
+	@$(if $(wildcard $@),$(if $(ISWIN),del "$(subst /,\,$@)",rm "$@" >/dev/null),)
 	@$(if $(7ZIP),$(7ZIP) a -bd -si -tgzip -mx9 $@ <$^ >$(if $(ISWIN),nul,/dev/null),$(PYTHON) -c "import gzip;gzip.GzipFile('','wb',9,open('$@','wb'),0).writelines(open('$^','r'))")
 
 $(APPOUTDIR)/$(ZillaApp).html : $(dir $(THIS_MAKEFILE))ZillaLibEmscripten.html
