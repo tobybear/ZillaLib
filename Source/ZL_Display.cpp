@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -298,7 +298,7 @@ void InitGL(int width, int height)
 	glEnable(GL_LINE_SMOOTH);
 	//glEnable(GL_POLYGON_SMOOTH);
 	//glPolygonMode( GL_FRONT_AND_BACK, GL_LINE ); //wireframe debuggingbla
-	#if defined(GL_MULTISAMPLE) && !defined(__EMSCRIPTEN__)
+	#if defined(GL_MULTISAMPLE) && !defined(__wasm__) && !defined(__EMSCRIPTEN__)
 	if (use_aa) glEnable(GL_MULTISAMPLE); else glDisable(GL_MULTISAMPLE);
 	#endif
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -329,7 +329,7 @@ void InitGL(int width, int height)
 void ZL_Display::SetAA(bool aa)
 {
 	use_aa = aa;
-	#if defined(GL_MULTISAMPLE) && !defined(__EMSCRIPTEN__)
+	#if defined(GL_MULTISAMPLE) && !defined(__wasm__) && !defined(__EMSCRIPTEN__)
 	if (use_aa) glEnable(GL_MULTISAMPLE); else glDisable(GL_MULTISAMPLE);
 	#endif
 }

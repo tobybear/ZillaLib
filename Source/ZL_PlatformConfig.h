@@ -39,11 +39,11 @@
    #define __SMARTPHONE__
   #endif
  #endif
+#elif defined(__wasm__) || defined(__EMSCRIPTEN__)
+#define __WEBAPP__
 #elif defined(__native_client__)
- #define __NACL__
- #define __WEBAPP__
-#elif defined(__EMSCRIPTEN__)
- #define __WEBAPP__
+#define __NACL__
+#define __WEBAPP__
 #endif
 
 #if defined(__ANDROID__)
@@ -80,7 +80,7 @@
 	#define ZL_USE_PTHREAD
 	#define ZL_HAS_FULLSCREEN
 	#define ZL_HAS_POINTERLOCK
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__WEBAPP__)
 	#define ZL_VIDEO_USE_GLSL
 	#define ZL_VIDEO_OPENGL_ES2
 	#define ZL_HAS_FULLSCREEN

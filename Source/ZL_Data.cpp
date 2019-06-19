@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -116,7 +116,7 @@ private:
 		Type = TYPE_PROXY, Flags = FLAG_KEYNEEDFREE|FLAG_ISROOT, ObjectKey = (char*)malloc(srclen + 1), ObjectKeyLen = 0, DataProxy = NULL;
 		memcpy(ObjectKey, src, srclen); ObjectKey[srclen] = '\0';
 		char *end = ObjectKey + srclen, *parseend = Parse(EndOfWhitespace(ObjectKey), end);
-		if (DataProxy->Type != PARSE_ERROR && EndOfWhitespace(parseend) == end) return; //success
+		if (Type != PARSE_ERROR && EndOfWhitespace(parseend) == end) return; //success
 
 		ZL_LOG2("JSON", "Parsing Error - Offset: %d - Error At: %.100s\n", parseend - ObjectKey, parseend);
 		free(ObjectKey); ObjectKey = NULL; Flags &= ~FLAG_KEYNEEDFREE; ResetValue(); //cleanup
@@ -821,7 +821,7 @@ ZL_String ZL_Base64::Encode(const void* InputBuffer, size_t BufSize)
 	if (BufSize == 0) return "";
 	unsigned int n = 0;
 	unsigned char n0, n1, n2, n3;
-	std::stringstream res;
+	ZL_String res;
 	const unsigned char *p = (const unsigned char*)InputBuffer;
 	for (size_t x = 0; x < BufSize; x += 3)
 	{
@@ -837,8 +837,8 @@ ZL_String ZL_Base64::Encode(const void* InputBuffer, size_t BufSize)
 		if ((x + 1) < BufSize) res << base64chars[n2];
 		if ((x + 2) < BufSize) res << base64chars[n3];
 	}
-	for (size_t pad_count = 0; pad_count < res.str().size() % 4; pad_count++) res << base64pad;
-	return res.str();
+	for (size_t pad_count = 0; pad_count < res.size() % 4; pad_count++) res << base64pad;
+	return res;
 }
 
 size_t ZL_Base64::Decode(const ZL_String& Base64Data, std::vector<unsigned char> &output)

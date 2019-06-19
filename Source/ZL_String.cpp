@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -28,6 +28,7 @@
 #endif
 
 ZL_String ZL_String::EmptyString = ZL_String();
+static char ZL_String_ConvBuf[32];
 
 ZL_String ZL_String::vformat(const char *format, va_list ap)
 {
@@ -95,3 +96,24 @@ std::vector<ZL_String> ZL_String::split(const ZL_String &delimiter) const
 	}
 	return splits;
 }
+
+ZL_String& ZL_String::operator <<(const unsigned int source)   { sprintf(ZL_String_ConvBuf, "%u", source);  return operator<<(ZL_String_ConvBuf); }
+ZL_String& ZL_String::operator <<(const signed int source)     { sprintf(ZL_String_ConvBuf, "%d", source);  return operator<<(ZL_String_ConvBuf); }
+ZL_String& ZL_String::operator <<(const unsigned short source) { sprintf(ZL_String_ConvBuf, "%u", source);  return operator<<(ZL_String_ConvBuf); }
+ZL_String& ZL_String::operator <<(const signed short source)   { sprintf(ZL_String_ConvBuf, "%d", source);  return operator<<(ZL_String_ConvBuf); }
+ZL_String& ZL_String::operator <<(const unsigned long source)  { sprintf(ZL_String_ConvBuf, "%lu", source); return operator<<(ZL_String_ConvBuf); }
+ZL_String& ZL_String::operator <<(const signed long source)    { sprintf(ZL_String_ConvBuf, "%ld", source); return operator<<(ZL_String_ConvBuf); }
+ZL_String& ZL_String::operator <<(const double source)         { sprintf(ZL_String_ConvBuf, "%g", source);  return operator<<(ZL_String_ConvBuf); }
+ZL_String& ZL_String::operator <<(const float source)          { sprintf(ZL_String_ConvBuf, "%g", source);  return operator<<(ZL_String_ConvBuf); }
+#if (!defined(_MSC_VER) || _MSC_VER > 1200)
+#if defined(_MSC_VER)
+#define PRLLD "%I64d"
+#define PRLLU "%I64u"
+#else
+typedef signed long long INT64;
+#define PRLLD "%lld"
+#define PRLLU "%llu"
+#endif
+ZL_String& ZL_String::operator<<(const u64 source)             { sprintf(ZL_String_ConvBuf, PRLLU, source); return operator<<(ZL_String_ConvBuf); }
+ZL_String& ZL_String::operator<<(const i64 source)             { sprintf(ZL_String_ConvBuf, PRLLD, source); return operator<<(ZL_String_ConvBuf); }
+#endif

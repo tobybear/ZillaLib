@@ -126,8 +126,8 @@ template <typename C_ARRAY, size_t N> char (&__COUNT_OF_HELPER(C_ARRAY(&)[N]))[N
 #define RAND_COLOR               (ZL_Color(RAND_FACTOR,RAND_FACTOR,RAND_FACTOR)) // random color (any brightness)
 #define RAND_BRIGHTCOLOR         (ZL_Color::HSVA(RAND_FACTOR,1,1))               // random hued color with max brightness
 #define RAND_CHANCE(val)         (ZL_Rand::Int((int)(val)-1)==0)                 // returns true one out of [val] times
-#define RAND_ARRAYELEMENT(arr)   arr[ZL_Rand::Int(COUNT_OF(arr)-1)]              // random element of c-array
-#define RAND_VECTORELEMENT(vec)  vec[ZL_Rand::Int(vec.size()-1)]                 // random element of vector
+#define RAND_ARRAYELEMENT(arr)   (arr)[ZL_Rand::Int(COUNT_OF(arr)-1)]            // random element of c-array
+#define RAND_VECTORELEMENT(vec)  (vec)[ZL_Rand::Int((int)(vec).size()-1)]        // random element of vector
 
 #undef MAX
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))

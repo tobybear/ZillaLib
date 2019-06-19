@@ -4,6 +4,7 @@
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '12.0' Or '$(PlatformToolsetVersion)' == '120' Or '$(MSBuildToolsVersion)' == '12.0'">2013</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '14.0' Or '$(PlatformToolsetVersion)' == '140' Or '$(MSBuildToolsVersion)' == '14.0'">2015</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '15.0' Or '$(PlatformToolsetVersion)' == '141' Or '$(MSBuildToolsVersion)' == '15.0'">2017</VisualStudioYear>
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '16.0' Or '$(PlatformToolsetVersion)' == '142' Or '$(MSBuildToolsVersion)' == '16.0'">2019</VisualStudioYear>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <Import Project="ZillaLib-vs.props" Condition="exists('ZillaLib-vs.props')" />
@@ -13,6 +14,7 @@
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2013'">v120_xp</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2015'">v140$(PlatformToolsetPostfix)</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2017'">v141$(PlatformToolsetPostfix)</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2019'">v142$(PlatformToolsetPostfix)</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -22,6 +24,9 @@
   <PropertyGroup Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='WebAssembly-Debug' Or '$(Configuration)'=='WebAssembly-Release'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Debug' Or '$(Configuration)'=='Emscripten-Release'" Label="Configuration">
     <ConfigurationType>Makefile</ConfigurationType>
@@ -44,28 +49,40 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>Debug-vs$(VisualStudioYear)\</OutDir>
-    <IntDir>Debug-vs$(VisualStudioYear)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|Win32'">
     <OutDir>Release-vs$(VisualStudioYear)\</OutDir>
-    <IntDir>Release-vs$(VisualStudioYear)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>Debug-vs$(VisualStudioYear)x64\</OutDir>
-    <IntDir>Debug-vs$(VisualStudioYear)x64\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|x64'">
     <OutDir>Release-vs$(VisualStudioYear)x64\</OutDir>
-    <IntDir>Release-vs$(VisualStudioYear)x64\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(DataAssets)'!='' And ('$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB')">
     <LocalDebuggerCommand>$(OutDir)$(TargetName)_WithData.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='WebAssembly-Debug'">
+    <OutDir>Debug-wasm\</OutDir>
+    <NMakeBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/WebAssembly/ZillaLibWasm.mk" "ZillaApp=$(ProjectName)" MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" -B --no-print-directory -f "$(ZillaLibDir)/WebAssembly/ZillaLibWasm.mk" "ZillaApp=$(ProjectName)" MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/WebAssembly/ZillaLibWasm.mk" "ZillaApp=$(ProjectName)" clean</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/WebAssembly/ZillaLibWasm.mk" "ZillaApp=$(ProjectName)" run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
+    <NMakePreprocessorDefinitions>__wasm__</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='WebAssembly-Release'">
+    <OutDir>Release-wasm\</OutDir>
+    <NMakeBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/WebAssembly/ZillaLibWasm.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" -B --no-print-directory -f "$(ZillaLibDir)/WebAssembly/ZillaLibWasm.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/WebAssembly/ZillaLibWasm.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE clean</NMakeCleanCommandLine>
+    <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/WebAssembly/ZillaLibWasm.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
+    <NMakePreprocessorDefinitions>__wasm__</NMakePreprocessorDefinitions>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Debug'">
     <OutDir>Debug-emscripten\</OutDir>
-    <IntDir>Debug-emscripten\</IntDir>
-    <BaseIntermediateOutputPath>Debug-emscripten\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" MSVC=1</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" -B --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" MSVC=1</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" clean</NMakeCleanCommandLine>
@@ -75,8 +92,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Release'">
     <OutDir>Release-emscripten\</OutDir>
-    <IntDir>Release-emscripten\</IntDir>
-    <BaseIntermediateOutputPath>Release-emscripten\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" -B --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE clean</NMakeCleanCommandLine>
@@ -86,8 +101,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='NACL-Debug'">
     <OutDir>Debug-nacl\</OutDir>
-    <IntDir>Debug-nacl\</IntDir>
-    <BaseIntermediateOutputPath>Debug-nacl\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" MSVC=1</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" -B --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" MSVC=1</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" clean</NMakeCleanCommandLine>
@@ -97,19 +110,15 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='NACL-Release'">
     <OutDir>Release-nacl\</OutDir>
-    <IntDir>Release-nacl\</IntDir>
-    <BaseIntermediateOutputPath>Release-nacl\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>"$(ZillaLibDir)/Tools/make.exe" -B --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>"$(ZillaLibDir)/Tools/make.exe" --no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE clean</NMakeCleanCommandLine>
     <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Android-Debug'">
     <OutDir>Android\bin\</OutDir>
-    <IntDir>Android\obj\</IntDir>
-    <BaseIntermediateOutputPath>Android\obj\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=1 "ZillaApp=$(ProjectName)"</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=1 "ZillaApp=$(ProjectName)" -B</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=1 "ZillaApp=$(ProjectName)" clean</NMakeCleanCommandLine>
@@ -119,14 +128,17 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Android-Release'">
     <OutDir>Android\bin\</OutDir>
-    <IntDir>Android\obj\</IntDir>
-    <BaseIntermediateOutputPath>Android\obj\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=0 "ZillaApp=$(ProjectName)"</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=0 "ZillaApp=$(ProjectName)" -B</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>"$(ZillaLibDir)\Tools\make.exe" -f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=0 "ZillaApp=$(ProjectName)" clean</NMakeCleanCommandLine>
     <LocalDebuggerCommand>$(ZillaLibDir)\Tools\make.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>-f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=0 "ZillaApp=$(ProjectName)" -k install pauseatend</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup>
+    <IntDir>$(OutDir)</IntDir>
+    <TLogLocation>$(OutDir)</TLogLocation>
+    <IntermediateOutputPath>$(OutDir)</IntermediateOutputPath>
   </PropertyGroup>
   <ItemDefinitionGroup><BuildLog><Path>nul:</Path></BuildLog></ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">

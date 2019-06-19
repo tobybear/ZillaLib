@@ -77,13 +77,12 @@
 <div><label for="for_vs">Visual Studio:</label><input type="checkbox" name="for_vs" id="for_vs" value="1" checked><span class="chk">(2012 - 2017)</span></div>
 <div><label for="for_vc9">Visual Studio 2010:</label><input type="checkbox" name="for_vc9" id="for_vc9" value="1"><span class="chk">(VC9)</span></div>
 <div><label for="for_vc6">Visual Studio 6.0:</label><input type="checkbox" name="for_vc6" id="for_vc6" value="1"><span class="chk">(VC6)</span></div>
+<div><label for="for_nacl">WebAssembly:</label><input type="checkbox" name="for_wasm" id="for_wasm" value="1" checked><span class="chk">(LLVM)</span></div>
+</td><td style="padding-left:20px;border-left:1px dotted #888">
 <div><label for="for_linux">Linux:</label><input type="checkbox" name="for_linux" id="for_linux" value="1" checked><span class="chk">(Makefile)</span></div>
 <div><label for="for_osx">Mac OS X:</label><input type="checkbox" name="for_osx" id="for_osx" value="1" checked><span class="chk">(Xcode)</span></div>
-</td><td style="padding-left:20px;border-left:1px dotted #888">
 <div><label for="for_android">Android:</label><input type="checkbox" name="for_android" id="for_android" value="1" checked><span class="chk">(Android SDK)</span></div>
 <div><label for="for_ios">iOS:</label><input type="checkbox" name="for_ios" id="for_ios" value="1" checked><span class="chk">(Xcode)</span></div>
-<div><label for="for_nacl">NaCl:</label><input type="checkbox" name="for_nacl" id="for_nacl" value="1" checked><span class="chk">(Chrome <a href="https://developer.chrome.com/native-client" target="_blank">Native Client</a>)</span></div>
-<div><label for="for_emscripten">HTML5:</label><input type="checkbox" name="for_emscripten" id="for_emscripten" value="1" checked><span class="chk">(Using <a href="https://github.com/kripken/emscripten" target="_blank">Emscripten</a>)</span></div>
 </td></tr></tbody></table>
 <br>
 
@@ -356,8 +355,9 @@ function generate_project_zip(form)
 	var for_androideclipse = false; //form['for_androideclipse'].checked;
 	var for_ios            = form['for_ios'].checked;
 	var for_wp8            = false; //form['for_wp8'].checked;
-	var for_nacl           = form['for_nacl'].checked;
-	var for_emscripten     = form['for_emscripten'].checked;
+	var for_wasm           = form['for_wasm'].checked;
+	var for_emscripten     = false; //form['for_emscripten'].checked;
+	var for_nacl           = false; //form['for_nacl'].checked;
 
 	var gen_makefile    = form['gen_makefile'].checked;
 	var package_identifier = (package_identifier_base+'.'+proj.toLowerCase());
@@ -781,22 +781,27 @@ function generate_project_zip(form)
 		dsp += '# Microsoft Developer Studio Generated Build File, Format Version 6.00'+nl;
 		dsp += '# ** DO EDIT **'+nl;
 		dsp += '# TARGTYPE "Win32 (x86) Console Application" 0x0103'+nl;
-		if (for_nacl || for_emscripten)
+		if (for_wasm || for_emscripten || for_nacl || for_android)
 			dsp += '# TARGTYPE "Win32 (x86) External Target" 0x0106'+nl;
 		dsp += 'CFG='+proj+' - Win32 Debug'+nl;
 		dsp += '!MESSAGE NMAKE /f "'+proj+'.mak".'+nl;
 		dsp += '!MESSAGE NMAKE /f "'+proj+'.mak" CFG="'+proj+' - Win32 Debug"'+nl;
 		dsp += '!MESSAGE "'+proj+' - Win32 Release" (based on  "Win32 (x86) Console Application")'+nl;
 		dsp += '!MESSAGE "'+proj+' - Win32 Debug" (based on  "Win32 (x86) Console Application")'+nl;
-		if (for_nacl)
+		if (for_wasm)
 		{
-			dsp += '!MESSAGE "'+proj+' - NACL Release" (based on  "Win32 (x86) External Target")'+nl;
-			dsp += '!MESSAGE "'+proj+' - NACL Debug" (based on  "Win32 (x86) External Target")'+nl;
+			dsp += '!MESSAGE "'+proj+' - WebAssembly Release" (based on  "Win32 (x86) External Target")'+nl;
+			dsp += '!MESSAGE "'+proj+' - WebAssembly Debug" (based on  "Win32 (x86) External Target")'+nl;
 		}
 		if (for_emscripten)
 		{
 			dsp += '!MESSAGE "'+proj+' - Emscripten Release" (based on  "Win32 (x86) External Target")'+nl;
 			dsp += '!MESSAGE "'+proj+' - Emscripten Debug" (based on  "Win32 (x86) External Target")'+nl;
+		}
+		if (for_nacl)
+		{
+			dsp += '!MESSAGE "'+proj+' - NACL Release" (based on  "Win32 (x86) External Target")'+nl;
+			dsp += '!MESSAGE "'+proj+' - NACL Debug" (based on  "Win32 (x86) External Target")'+nl;
 		}
 		if (for_android)
 		{
@@ -858,20 +863,20 @@ function generate_project_zip(form)
 		dsp += 'LINK32=link.exe'+nl;
 		dsp += '# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept'+nl;
 		dsp += '# ADD LINK32 "'+zillalibbase+'/Debug-vc6/ZillaLib.lib" /nologo /subsystem:console /incremental:yes /pdb:"Debug-vc6/'+proj+'.pdb" /debug /machine:I386 /out:"Debug-vc6/'+proj+'.exe" /pdbtype:sept'+nl;
-		if (for_nacl)
+		if (for_wasm)
 		{
-			dsp += nl+'!ELSEIF  "$(CFG)" == "'+proj+' - NACL Release"'+nl+nl;
-			dsp += '# PROP Output_Dir "Release-nacl"'+nl;
-			dsp += '# PROP Intermediate_Dir "Release-nacl"'+nl;
-			dsp += '# PROP Cmd_Line "python '+zillalibbase+'/NACL/ZillaLibNACL.py build -rel -vc '+proj+'"'+nl;
+			dsp += nl+'!ELSEIF  "$(CFG)" == "'+proj+' - WebAssembly Release"'+nl+nl;
+			dsp += '# PROP Output_Dir "Release-wasm"'+nl;
+			dsp += '# PROP Intermediate_Dir "Release-wasm"'+nl;
+			dsp += '# PROP Cmd_Line "python '+zillalibbase+'/WebAssembly/ZillaLibWasm.py build -rel -vc '+proj+'"'+nl;
 			dsp += '# PROP Rebuild_Opt "-clean"'+nl;
-			dsp += '# PROP Target_File "Release-nacl/'+proj+'_x86_64.nexe.gz.exe"'+nl;
-			dsp += nl+'!ELSEIF  "$(CFG)" == "'+proj+' - NACL Debug"'+nl+nl;
-			dsp += '# PROP Output_Dir "Debug-nacl"'+nl;
-			dsp += '# PROP Intermediate_Dir "Debug-nacl"'+nl;
-			dsp += '# PROP Cmd_Line "python '+zillalibbase+'/NACL/ZillaLibNACL.py build -vc '+proj+'"'+nl;
+			dsp += '# PROP Target_File "Release-wasm/'+proj+'.js.exe"'+nl;
+			dsp += nl+'!ELSEIF  "$(CFG)" == "'+proj+' - WebAssembly Debug"'+nl+nl;
+			dsp += '# PROP Output_Dir "Debug-wasm"'+nl;
+			dsp += '# PROP Intermediate_Dir "Debug-wasm"'+nl;
+			dsp += '# PROP Cmd_Line "python '+zillalibbase+'/WebAssembly/ZillaLibWasm.py build -vc '+proj+'"'+nl;
 			dsp += '# PROP Rebuild_Opt "-clean"'+nl;
-			dsp += '# PROP Target_File "Debug-nacl/'+proj+'_x86_64.nexe.gz.exe"'+nl;
+			dsp += '# PROP Target_File "Debug-wasm/'+proj+'.js.exe"'+nl;
 		}
 		if (for_emscripten)
 		{
@@ -887,6 +892,21 @@ function generate_project_zip(form)
 			dsp += '# PROP Cmd_Line "python '+zillalibbase+'/Emscripten/ZillaLibEmscripten.py build -vc '+proj+'"'+nl;
 			dsp += '# PROP Rebuild_Opt "-clean"'+nl;
 			dsp += '# PROP Target_File "Debug-emscripten/'+proj+'.js.exe"'+nl;
+		}
+		if (for_nacl)
+		{
+			dsp += nl+'!ELSEIF  "$(CFG)" == "'+proj+' - NACL Release"'+nl+nl;
+			dsp += '# PROP Output_Dir "Release-nacl"'+nl;
+			dsp += '# PROP Intermediate_Dir "Release-nacl"'+nl;
+			dsp += '# PROP Cmd_Line "python '+zillalibbase+'/NACL/ZillaLibNACL.py build -rel -vc '+proj+'"'+nl;
+			dsp += '# PROP Rebuild_Opt "-clean"'+nl;
+			dsp += '# PROP Target_File "Release-nacl/'+proj+'_x86_64.nexe.gz.exe"'+nl;
+			dsp += nl+'!ELSEIF  "$(CFG)" == "'+proj+' - NACL Debug"'+nl+nl;
+			dsp += '# PROP Output_Dir "Debug-nacl"'+nl;
+			dsp += '# PROP Intermediate_Dir "Debug-nacl"'+nl;
+			dsp += '# PROP Cmd_Line "python '+zillalibbase+'/NACL/ZillaLibNACL.py build -vc '+proj+'"'+nl;
+			dsp += '# PROP Rebuild_Opt "-clean"'+nl;
+			dsp += '# PROP Target_File "Debug-nacl/'+proj+'_x86_64.nexe.gz.exe"'+nl;
 		}
 		if (for_android)
 		{
@@ -907,15 +927,20 @@ function generate_project_zip(form)
 		dsp += '# Begin Target'+nl;
 		dsp += '# Name "'+proj+' - Win32 Release"'+nl;
 		dsp += '# Name "'+proj+' - Win32 Debug"'+nl;
-		if (for_nacl)
+		if (for_wasm)
 		{
-			dsp += '# Name "'+proj+' - NACL Release"'+nl;
-			dsp += '# Name "'+proj+' - NACL Debug"'+nl;
+			dsp += '# Name "'+proj+' - WebAssembly Release"'+nl;
+			dsp += '# Name "'+proj+' - WebAssembly Debug"'+nl;
 		}
 		if (for_emscripten)
 		{
 			dsp += '# Name "'+proj+' - Emscripten Release"'+nl;
 			dsp += '# Name "'+proj+' - Emscripten Debug"'+nl;
+		}
+		if (for_nacl)
+		{
+			dsp += '# Name "'+proj+' - NACL Release"'+nl;
+			dsp += '# Name "'+proj+' - NACL Debug"'+nl;
 		}
 		if (for_android)
 		{
@@ -996,20 +1021,20 @@ function generate_project_zip(form)
 		vc9proj += '			<Tool Name="VCPostBuildEventTool"/>'+nl;
 		vc9proj += '		</Configuration>'+nl;
 
-		if (for_nacl)
+		if (for_wasm)
 		{
-			vc9proj += '		<Configuration Name="NACL-Debug|Win32" OutputDirectory="Debug-nacl" IntermediateDirectory="Debug-nacl" ConfigurationType="0">'+nl;
+			vc9proj += '		<Configuration Name="WebAssembly-Debug|Win32" OutputDirectory="Debug-wasm" IntermediateDirectory="Debug-wasm" ConfigurationType="0">'+nl;
 			vc9proj += '			<Tool Name="VCNMakeTool"'+nl;
-			vc9proj += '				BuildCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -vc"'+nl;
-			vc9proj += '				ReBuildCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -vc -B"'+nl;
-			vc9proj += '				CleanCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -vc -clean"'+nl;
+			vc9proj += '				BuildCommandLine="python '+zillalibbase+'/WebAssembly/ZillaLibWasm.py build -vc"'+nl;
+			vc9proj += '				ReBuildCommandLine="python '+zillalibbase+'/WebAssembly/ZillaLibWasm.py build -vc -B"'+nl;
+			vc9proj += '				CleanCommandLine="python '+zillalibbase+'/WebAssembly/ZillaLibWasm.py build -vc -clean"'+nl;
 			vc9proj += '				Output="" PreprocessorDefinitions="" IncludeSearchPath="" ForcedIncludes="" AssemblySearchPath="" ForcedUsingAssemblies="" CompileAsManaged=""/>'+nl;
 			vc9proj += '		</Configuration>'+nl;
-			vc9proj += '		<Configuration Name="NACL-Release|Win32" OutputDirectory="Release-nacl" IntermediateDirectory="Release-nacl" ConfigurationType="0">'+nl;
+			vc9proj += '		<Configuration Name="WebAssembly-Release|Win32" OutputDirectory="Release-wasm" IntermediateDirectory="Release-wasm" ConfigurationType="0">'+nl;
 			vc9proj += '			<Tool Name="VCNMakeTool"'+nl;
-			vc9proj += '				BuildCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -rel -vc"'+nl;
-			vc9proj += '				ReBuildCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -rel -vc -B"'+nl;
-			vc9proj += '				CleanCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -rel -vc -clean"'+nl;
+			vc9proj += '				BuildCommandLine="python '+zillalibbase+'/WebAssembly/ZillaLibWasm.py build -rel -vc"'+nl;
+			vc9proj += '				ReBuildCommandLine="python '+zillalibbase+'/WebAssembly/ZillaLibWasm.py build -rel -vc -B"'+nl;
+			vc9proj += '				CleanCommandLine="python '+zillalibbase+'/WebAssembly/ZillaLibWasm.py build -rel -vc -clean"'+nl;
 			vc9proj += '				Output="" PreprocessorDefinitions="" IncludeSearchPath="" ForcedIncludes="" AssemblySearchPath="" ForcedUsingAssemblies="" CompileAsManaged=""/>'+nl;
 			vc9proj += '		</Configuration>'+nl;
 		}
@@ -1027,6 +1052,23 @@ function generate_project_zip(form)
 			vc9proj += '				BuildCommandLine="python '+zillalibbase+'/Emscripten/ZillaLibEmscripten.py build -rel -vc"'+nl;
 			vc9proj += '				ReBuildCommandLine="python '+zillalibbase+'/Emscripten/ZillaLibEmscripten.py build -rel -vc -B"'+nl;
 			vc9proj += '				CleanCommandLine="python '+zillalibbase+'/Emscripten/ZillaLibEmscripten.py build -rel -vc -clean"'+nl;
+			vc9proj += '				Output="" PreprocessorDefinitions="" IncludeSearchPath="" ForcedIncludes="" AssemblySearchPath="" ForcedUsingAssemblies="" CompileAsManaged=""/>'+nl;
+			vc9proj += '		</Configuration>'+nl;
+		}
+		if (for_nacl)
+		{
+			vc9proj += '		<Configuration Name="NACL-Debug|Win32" OutputDirectory="Debug-nacl" IntermediateDirectory="Debug-nacl" ConfigurationType="0">'+nl;
+			vc9proj += '			<Tool Name="VCNMakeTool"'+nl;
+			vc9proj += '				BuildCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -vc"'+nl;
+			vc9proj += '				ReBuildCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -vc -B"'+nl;
+			vc9proj += '				CleanCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -vc -clean"'+nl;
+			vc9proj += '				Output="" PreprocessorDefinitions="" IncludeSearchPath="" ForcedIncludes="" AssemblySearchPath="" ForcedUsingAssemblies="" CompileAsManaged=""/>'+nl;
+			vc9proj += '		</Configuration>'+nl;
+			vc9proj += '		<Configuration Name="NACL-Release|Win32" OutputDirectory="Release-nacl" IntermediateDirectory="Release-nacl" ConfigurationType="0">'+nl;
+			vc9proj += '			<Tool Name="VCNMakeTool"'+nl;
+			vc9proj += '				BuildCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -rel -vc"'+nl;
+			vc9proj += '				ReBuildCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -rel -vc -B"'+nl;
+			vc9proj += '				CleanCommandLine="python '+zillalibbase+'/NACL/ZillaLibNACL.py build -rel -vc -clean"'+nl;
 			vc9proj += '				Output="" PreprocessorDefinitions="" IncludeSearchPath="" ForcedIncludes="" AssemblySearchPath="" ForcedUsingAssemblies="" CompileAsManaged=""/>'+nl;
 			vc9proj += '		</Configuration>'+nl;
 		}
@@ -1085,6 +1127,11 @@ function generate_project_zip(form)
 		nl = "\r\n";
 		if (!vcprojguid) vcprojguid = makeRandomGuid();
 		var vcslnguid = makeRandomGuid();
+		var vctargs = {'':1}
+		if (for_wasm) vctargs['WebAssembly-'] = 1;
+		if (for_emscripten) vctargs['Emscripten-'] = 1;
+		if (for_nacl) vctargs['NACL-'] = 1;
+		if (for_android) vctargs['Android-'] = 1;
 
 		/**********************************************************************************************************************
 		* <PROJ>-vs.vcproj
@@ -1098,53 +1145,24 @@ function generate_project_zip(form)
 		vcprojx += '    <ProjectGuid>{'+vcprojguid+'}</ProjectGuid>'+nl;
 		vcprojx += '  </PropertyGroup>'+nl;
 		vcprojx += '  <ItemGroup Label="ProjectConfigurations">'+nl;
-		vcprojx += '    <ProjectConfiguration Include="Debug|Win32">'+nl;
-		vcprojx += '      <Configuration>Debug</Configuration>'+nl;
-		vcprojx += '      <Platform>Win32</Platform>'+nl;
-		vcprojx += '    </ProjectConfiguration>'+nl;
-		vcprojx += '    <ProjectConfiguration Include="Release|Win32">'+nl;
-		vcprojx += '      <Configuration>Release</Configuration>'+nl;
-		vcprojx += '      <Platform>Win32</Platform>'+nl;
-		vcprojx += '    </ProjectConfiguration>'+nl;
-		vcprojx += '    <ProjectConfiguration Include="Debug|x64">'+nl;
-		vcprojx += '      <Configuration>Debug</Configuration>'+nl;
-		vcprojx += '      <Platform>x64</Platform>'+nl;
-		vcprojx += '    </ProjectConfiguration>'+nl;
-		vcprojx += '    <ProjectConfiguration Include="Release|x64">'+nl;
-		vcprojx += '      <Configuration>Release</Configuration>'+nl;
-		vcprojx += '      <Platform>x64</Platform>'+nl;
-		vcprojx += '    </ProjectConfiguration>'+nl;
-		if (for_emscripten)
+		for (var vctarg in vctargs)
 		{
-			vcprojx += '    <ProjectConfiguration Include="Emscripten-Debug|Win32">'+nl;
-			vcprojx += '      <Configuration>Emscripten-Debug</Configuration>'+nl;
+			vcprojx += '    <ProjectConfiguration Include="'+vctarg+'Debug|Win32">'+nl;
+			vcprojx += '      <Configuration>'+vctarg+'Debug</Configuration>'+nl;
 			vcprojx += '      <Platform>Win32</Platform>'+nl;
 			vcprojx += '    </ProjectConfiguration>'+nl;
-			vcprojx += '    <ProjectConfiguration Include="Emscripten-Release|Win32">'+nl;
-			vcprojx += '      <Configuration>Emscripten-Release</Configuration>'+nl;
+			vcprojx += '    <ProjectConfiguration Include="'+vctarg+'Release|Win32">'+nl;
+			vcprojx += '      <Configuration>'+vctarg+'Release</Configuration>'+nl;
 			vcprojx += '      <Platform>Win32</Platform>'+nl;
 			vcprojx += '    </ProjectConfiguration>'+nl;
-		}
-		if (for_nacl)
-		{
-			vcprojx += '    <ProjectConfiguration Include="NACL-Debug|Win32">'+nl;
-			vcprojx += '      <Configuration>NACL-Debug</Configuration>'+nl;
-			vcprojx += '      <Platform>Win32</Platform>'+nl;
+			if (vctarg) continue;
+			vcprojx += '    <ProjectConfiguration Include="Debug|x64">'+nl;
+			vcprojx += '      <Configuration>Debug</Configuration>'+nl;
+			vcprojx += '      <Platform>x64</Platform>'+nl;
 			vcprojx += '    </ProjectConfiguration>'+nl;
-			vcprojx += '    <ProjectConfiguration Include="NACL-Release|Win32">'+nl;
-			vcprojx += '      <Configuration>NACL-Release</Configuration>'+nl;
-			vcprojx += '      <Platform>Win32</Platform>'+nl;
-			vcprojx += '    </ProjectConfiguration>'+nl;
-		}
-		if (for_android)
-		{
-			vcprojx += '    <ProjectConfiguration Include="Android-Debug|Win32">'+nl;
-			vcprojx += '      <Configuration>Android-Debug</Configuration>'+nl;
-			vcprojx += '      <Platform>Win32</Platform>'+nl;
-			vcprojx += '    </ProjectConfiguration>'+nl;
-			vcprojx += '    <ProjectConfiguration Include="Android-Release|Win32">'+nl;
-			vcprojx += '      <Configuration>Android-Release</Configuration>'+nl;
-			vcprojx += '      <Platform>Win32</Platform>'+nl;
+			vcprojx += '    <ProjectConfiguration Include="Release|x64">'+nl;
+			vcprojx += '      <Configuration>Release</Configuration>'+nl;
+			vcprojx += '      <Platform>x64</Platform>'+nl;
 			vcprojx += '    </ProjectConfiguration>'+nl;
 		}
 		vcprojx += '  </ItemGroup>'+nl;
@@ -1178,114 +1196,36 @@ function generate_project_zip(form)
 		vcsln += 'EndProject'+nl;
 		vcsln += 'Global'+nl;
 		vcsln += '	GlobalSection(SolutionConfigurationPlatforms) = preSolution'+nl;
-		vcsln += '		Debug|Win32 = Debug|Win32'+nl;
-		vcsln += '		Release|Win32 = Release|Win32'+nl;
-		vcsln += '		Debug|x64 = Debug|x64'+nl;
-		vcsln += '		Release|x64 = Release|x64'+nl;
-		if (for_android)
+		for (var vctarg in vctargs)
 		{
-			vcsln += '		Android-Debug|Win32 = Android-Debug|Win32'+nl;
-			vcsln += '		Android-Debug|x64 = Android-Debug|x64'+nl;
-			vcsln += '		Android-Release|Win32 = Android-Release|Win32'+nl;
-			vcsln += '		Android-Release|x64 = Android-Release|x64'+nl;
-		}
-		if (for_emscripten)
-		{
-			vcsln += '		Emscripten-Debug|Win32 = Emscripten-Debug|Win32'+nl;
-			vcsln += '		Emscripten-Debug|x64 = Emscripten-Debug|x64'+nl;
-			vcsln += '		Emscripten-Release|Win32 = Emscripten-Release|Win32'+nl;
-			vcsln += '		Emscripten-Release|x64 = Emscripten-Release|x64'+nl;
-		}
-		if (for_nacl)
-		{
-			vcsln += '		NACL-Debug|Win32 = NACL-Debug|Win32'+nl;
-			vcsln += '		NACL-Debug|x64 = NACL-Debug|x64'+nl;
-			vcsln += '		NACL-Release|Win32 = NACL-Release|Win32'+nl;
-			vcsln += '		NACL-Release|x64 = NACL-Release|x64'+nl;
+			vcsln += '		'+vctarg+'Debug|Win32 = '+vctarg+'Debug|Win32'+nl;
+			vcsln += '		'+vctarg+'Release|Win32 = '+vctarg+'Release|Win32'+nl;
+			vcsln += '		'+vctarg+'Debug|x64 = '+vctarg+'Debug|x64'+nl;
+			vcsln += '		'+vctarg+'Release|x64 = '+vctarg+'Release|x64'+nl;
 		}
 		vcsln += '	EndGlobalSection'+nl;
 		vcsln += '	GlobalSection(ProjectConfigurationPlatforms) = postSolution'+nl;
-		vcsln += '		{'+vcprojguid+'}.Debug|Win32.ActiveCfg = Debug|Win32'+nl;
-		vcsln += '		{'+vcprojguid+'}.Debug|Win32.Build.0 = Debug|Win32'+nl;
-		vcsln += '		{'+vcprojguid+'}.Release|Win32.ActiveCfg = Release|Win32'+nl;
-		vcsln += '		{'+vcprojguid+'}.Release|Win32.Build.0 = Release|Win32'+nl;
-		vcsln += '		{'+vcprojguid+'}.Debug|x64.ActiveCfg = Debug|x64'+nl;
-		vcsln += '		{'+vcprojguid+'}.Debug|x64.Build.0 = Debug|x64'+nl;
-		vcsln += '		{'+vcprojguid+'}.Release|x64.ActiveCfg = Release|x64'+nl;
-		vcsln += '		{'+vcprojguid+'}.Release|x64.Build.0 = Release|x64'+nl;
-		if (for_android)
+		for (var vctarg in vctargs)
 		{
-			vcsln += '		{'+vcprojguid+'}.Android-Debug|Win32.ActiveCfg = Android-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Android-Debug|Win32.Build.0 = Android-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Android-Debug|x64.ActiveCfg = Android-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Android-Debug|x64.Build.0 = Android-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Android-Release|Win32.ActiveCfg = Android-Release|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Android-Release|Win32.Build.0 = Android-Release|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Android-Release|x64.ActiveCfg = Android-Release|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Android-Release|x64.Build.0 = Android-Release|Win32'+nl;
+			vcsln += '		{'+vcprojguid+'}.'+vctarg+'Debug|Win32.ActiveCfg = '+vctarg+'Debug|Win32'+nl;
+			vcsln += '		{'+vcprojguid+'}.'+vctarg+'Debug|Win32.Build.0 = '+vctarg+'Debug|Win32'+nl;
+			vcsln += '		{'+vcprojguid+'}.'+vctarg+'Release|Win32.ActiveCfg = '+vctarg+'Release|Win32'+nl;
+			vcsln += '		{'+vcprojguid+'}.'+vctarg+'Release|Win32.Build.0 = '+vctarg+'Release|Win32'+nl;
+			vcsln += '		{'+vcprojguid+'}.'+vctarg+'Debug|x64.ActiveCfg = '+vctarg+'Debug|'+(vctarg ? 'Win32' : 'x64')+nl;
+			vcsln += '		{'+vcprojguid+'}.'+vctarg+'Debug|x64.Build.0 = '+vctarg+'Debug|'+(vctarg ? 'Win32' : 'x64')+nl;
+			vcsln += '		{'+vcprojguid+'}.'+vctarg+'Release|x64.ActiveCfg = '+vctarg+'Release|'+(vctarg ? 'Win32' : 'x64')+nl;
+			vcsln += '		{'+vcprojguid+'}.'+vctarg+'Release|x64.Build.0 = '+vctarg+'Release|'+(vctarg ? 'Win32' : 'x64')+nl;
 		}
-		if (for_emscripten)
+		for (var vctarg in vctargs)
 		{
-			vcsln += '		{'+vcprojguid+'}.Emscripten-Debug|Win32.ActiveCfg = Emscripten-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Emscripten-Debug|Win32.Build.0 = Emscripten-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Emscripten-Debug|x64.ActiveCfg = Emscripten-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Emscripten-Debug|x64.Build.0 = Emscripten-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Emscripten-Release|Win32.ActiveCfg = Emscripten-Release|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Emscripten-Release|Win32.Build.0 = Emscripten-Release|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Emscripten-Release|x64.ActiveCfg = Emscripten-Release|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.Emscripten-Release|x64.Build.0 = Emscripten-Release|Win32'+nl;
-		}
-		if (for_nacl)
-		{
-			vcsln += '		{'+vcprojguid+'}.NACL-Debug|Win32.ActiveCfg = NACL-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.NACL-Debug|Win32.Build.0 = NACL-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.NACL-Debug|x64.ActiveCfg = NACL-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.NACL-Debug|x64.Build.0 = NACL-Debug|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.NACL-Release|Win32.ActiveCfg = NACL-Release|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.NACL-Release|Win32.Build.0 = NACL-Release|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.NACL-Release|x64.ActiveCfg = NACL-Release|Win32'+nl;
-			vcsln += '		{'+vcprojguid+'}.NACL-Release|x64.Build.0 = NACL-Release|Win32'+nl;
-		}
-		vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Debug|Win32.ActiveCfg = Debug|Win32'+nl;
-		vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Debug|Win32.Build.0 = Debug|Win32'+nl;
-		vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Release|Win32.ActiveCfg = Release|Win32'+nl;
-		vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Release|Win32.Build.0 = Release|Win32'+nl;
-		vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Debug|x64.ActiveCfg = Debug|x64'+nl;
-		vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Debug|x64.Build.0 = Debug|x64'+nl;
-		vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Release|x64.ActiveCfg = Release|x64'+nl;
-		vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Release|x64.Build.0 = Release|x64'+nl;
-		if (for_android)
-		{
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Android-Debug|Win32.ActiveCfg = Android-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Android-Debug|Win32.Build.0 = Android-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Android-Debug|x64.ActiveCfg = Android-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Android-Debug|x64.Build.0 = Android-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Android-Release|Win32.ActiveCfg = Android-Release|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Android-Release|Win32.Build.0 = Android-Release|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Android-Release|x64.ActiveCfg = Android-Release|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Android-Release|x64.Build.0 = Android-Release|Win32'+nl;
-		}
-		if (for_emscripten)
-		{
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Emscripten-Debug|Win32.ActiveCfg = Emscripten-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Emscripten-Debug|Win32.Build.0 = Emscripten-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Emscripten-Debug|x64.ActiveCfg = Emscripten-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Emscripten-Debug|x64.Build.0 = Emscripten-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Emscripten-Release|Win32.ActiveCfg = Emscripten-Release|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Emscripten-Release|Win32.Build.0 = Emscripten-Release|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Emscripten-Release|x64.ActiveCfg = Emscripten-Release|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.Emscripten-Release|x64.Build.0 = Emscripten-Release|Win32'+nl;
-		}
-		if (for_nacl)
-		{
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.NACL-Debug|Win32.ActiveCfg = NACL-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.NACL-Debug|Win32.Build.0 = NACL-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.NACL-Debug|x64.ActiveCfg = NACL-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.NACL-Debug|x64.Build.0 = NACL-Debug|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.NACL-Release|Win32.ActiveCfg = NACL-Release|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.NACL-Release|Win32.Build.0 = NACL-Release|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.NACL-Release|x64.ActiveCfg = NACL-Release|Win32'+nl;
-			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.NACL-Release|x64.Build.0 = NACL-Release|Win32'+nl;
+			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.'+vctarg+'Debug|Win32.ActiveCfg = '+vctarg+'Debug|Win32'+nl;
+			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.'+vctarg+'Debug|Win32.Build.0 = '+vctarg+'Debug|Win32'+nl;
+			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.'+vctarg+'Release|Win32.ActiveCfg = '+vctarg+'Release|Win32'+nl;
+			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.'+vctarg+'Release|Win32.Build.0 = '+vctarg+'Release|Win32'+nl;
+			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.'+vctarg+'Debug|x64.ActiveCfg = '+vctarg+'Debug|'+(vctarg ? 'Win32' : 'x64')+nl;
+			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.'+vctarg+'Debug|x64.Build.0 = '+vctarg+'Debug|'+(vctarg ? 'Win32' : 'x64')+nl;
+			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.'+vctarg+'Release|x64.ActiveCfg = '+vctarg+'Release|'+(vctarg ? 'Win32' : 'x64')+nl;
+			vcsln += '		{2177A217-7A21-77A2-177A-2177A2177777}.'+vctarg+'Release|x64.Build.0 = '+vctarg+'Release|'+(vctarg ? 'Win32' : 'x64')+nl;
 		}
 		vcsln += '	EndGlobalSection'+nl;
 		vcsln += '	GlobalSection(SolutionProperties) = preSolution'+nl;
@@ -1317,7 +1257,7 @@ function generate_project_zip(form)
 		}
 	}
 
-	if (for_linux || for_android || for_nacl || for_emscripten)
+	if (for_linux || for_android || for_wasm || for_emscripten || for_nacl)
 	{
 		zipAddTextFile('ASSETS := '+assetdirs.concat(assetfiles).join(' ')+"\n", ziproot+'assets.mk');
 
@@ -1926,12 +1866,13 @@ function generate_project_zip(form)
 		}
 	}
 
-	if (for_linux || gen_makefile || (assets_embed && (for_nacl || for_emscripten)))
+	if (for_linux || gen_makefile || (assets_embed && (for_wasm || for_emscripten || for_nacl)))
 	{
 		zipAddTextFile('ZillaApp = '+proj+"\n"+
 				(for_linux && assets_embed ? 'ZLLINUX_ASSETS_EMBED = 1'+"\n" : '')+
-				(for_nacl && assets_embed ? 'ZLNACL_ASSETS_EMBED = 1'+"\n" : '')+
+				(for_wasm && assets_embed ? 'ZLWASM_ASSETS_EMBED = 1'+"\n" : '')+
 				(for_emscripten && assets_embed ? 'ZLEMSCRIPTEN_ASSETS_EMBED = 1'+"\n" : '')+
+				(for_nacl && assets_embed ? 'ZLNACL_ASSETS_EMBED = 1'+"\n" : '')+
 				'ZILLALIB_PATH = '+zillalibbase+"\n"+
 				'include $(ZILLALIB_PATH)/Makefile'+"\n",
 			ziproot+'Makefile');
@@ -2146,8 +2087,9 @@ function generate_project_zip(form)
 		if (for_vc9)        ignores = ignores.concat(['Debug-vc9/','Release-vc9/']);
 		if (for_vs)         ignores = ignores.concat(['.vs/','Debug-vs2012/','Debug-vs2012x64/','Debug-vs2013/','Debug-vs2013x64/','Debug-vs2015/','Debug-vs2015x64/','Release-vs2012/','Release-vs2012x64/','Release-vs2013/','Release-vs2013x64/','Release-vs2015/','Release-vs2015x64/']);
 		if (for_linux)      ignores = ignores.concat(['Debug-linux/','Release-linux/']);
-		if (for_nacl)       ignores = ignores.concat(['Debug-nacl/','Release-nacl/']);
+		if (for_wasm)       ignores = ignores.concat(['Debug-wasm/','Release-wasm/']);
 		if (for_emscripten) ignores = ignores.concat(['Debug-emscripten/','Release-emscripten/']);
+		if (for_nacl)       ignores = ignores.concat(['Debug-nacl/','Release-nacl/']);
 		zipAddTextFile(ignores.join('\n'), ziproot+'.gitignore');
 		ignores = undefined;
 		if (for_osx) zipAddTextFile('project.xcworkspace/\nxcuserdata/\nDebug/\nRelease/\n', ziproot+proj+'-OSX.xcodeproj/.gitignore');

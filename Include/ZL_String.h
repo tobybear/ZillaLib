@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -58,8 +58,6 @@ typedef unsigned int u32;
 class ZL_String : public std::string
 {
 	typedef std::string str;
-	typedef std::ostringstream ostr;
-	typedef std::istringstream istr;
 	typedef unsigned char uchr;
 	typedef signed char schr;
 
@@ -92,14 +90,14 @@ public:
 	ZL_String(const chr source)  { assign(1, source); }
 	ZL_String(const uchr source) { assign(1, (chr)source); }
 	ZL_String(const schr source) { assign(1, (chr)source); }
-	ZL_String(const unsigned int source)   { ostr o; if (o << source) assign(o.str()); }
-	ZL_String(const signed int source)     { ostr o; if (o << source) assign(o.str()); }
-	ZL_String(const unsigned short source) { ostr o; if (o << source) assign(o.str()); }
-	ZL_String(const signed short source)   { ostr o; if (o << source) assign(o.str()); }
-	ZL_String(const unsigned long source)  { ostr o; if (o << source) assign(o.str()); }
-	ZL_String(const signed long source)    { ostr o; if (o << source) assign(o.str()); }
-	ZL_String(const float source)          { ostr o; if (o << source) assign(o.str()); }
-	ZL_String(const double source)         { ostr o; if (o << source) assign(o.str()); }
+	ZL_String(const unsigned int source)   { operator<<(source); }
+	ZL_String(const signed int source)     { operator<<(source); }
+	ZL_String(const unsigned short source) { operator<<(source); }
+	ZL_String(const signed short source)   { operator<<(source); }
+	ZL_String(const unsigned long source)  { operator<<(source); }
+	ZL_String(const signed long source)    { operator<<(source); }
+	ZL_String(const float source)          { operator<<(source); }
+	ZL_String(const double source)         { operator<<(source); }
 
 	ZL_String& operator +=(const ZL_String &source) { append(source); return *this; }
 	ZL_String& operator +=(const str &source)       { append(source); return *this; }
@@ -109,14 +107,14 @@ public:
 	ZL_String& operator +=(const chr source)        { append(1, source); return *this; }
 	ZL_String& operator +=(const uchr source)       { append(1, (chr)source); return *this; }
 	ZL_String& operator +=(const schr source)       { append(1, (chr)source); return *this; }
-	ZL_String& operator +=(const unsigned int source)   { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator +=(const signed int source)     { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator +=(const unsigned short source) { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator +=(const signed short source)   { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator +=(const unsigned long source)  { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator +=(const signed long source)    { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator +=(const double source)         { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator +=(const float source)          { ostr o; if (o << source) append(o.str()); return *this; }
+	ZL_String& operator +=(const unsigned int source)   { return operator<<(source); }
+	ZL_String& operator +=(const signed int source)     { return operator<<(source); }
+	ZL_String& operator +=(const unsigned short source) { return operator<<(source); }
+	ZL_String& operator +=(const signed short source)   { return operator<<(source); }
+	ZL_String& operator +=(const unsigned long source)  { return operator<<(source); }
+	ZL_String& operator +=(const signed long source)    { return operator<<(source); }
+	ZL_String& operator +=(const double source)         { return operator<<(source); }
+	ZL_String& operator +=(const float source)          { return operator<<(source); }
 	ZL_String& operator <<(const ZL_String &source) { append(source); return *this; }
 	ZL_String& operator <<(const str &source)       { append(source); return *this; }
 	ZL_String& operator <<(const chr *source)       { append(source); return *this; }
@@ -125,14 +123,14 @@ public:
 	ZL_String& operator <<(const chr source)        { append(1, source); return *this; }
 	ZL_String& operator <<(const uchr source)       { append(1, (chr)source); return *this; }
 	ZL_String& operator <<(const schr source)       { append(1, (chr)source); return *this; }
-	ZL_String& operator <<(const unsigned int source)   { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator <<(const signed int source)     { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator <<(const unsigned short source) { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator <<(const signed short source)   { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator <<(const unsigned long source)  { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator <<(const signed long source)    { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator <<(const double source)         { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator <<(const float source)          { ostr o; if (o << source) append(o.str()); return *this; }
+	ZL_String& operator <<(const unsigned int source);
+	ZL_String& operator <<(const signed int source);
+	ZL_String& operator <<(const unsigned short source);
+	ZL_String& operator <<(const signed short source);
+	ZL_String& operator <<(const unsigned long source);
+	ZL_String& operator <<(const signed long source);
+	ZL_String& operator <<(const double source);
+	ZL_String& operator <<(const float source);
 	ZL_String operator +(const ZL_String &source) const { ZL_String r(*this); r.append(source); return r; }
 	ZL_String operator +(const str &source) const       { ZL_String r(*this); r.append(source); return r; }
 	ZL_String operator +(const chr *source) const       { ZL_String r(*this); r.append(source); return r; }
@@ -141,14 +139,14 @@ public:
 	ZL_String operator +(const chr source) const        { ZL_String r(*this); r.append(1, source); return r; }
 	ZL_String operator +(const uchr source) const       { ZL_String r(*this); r.append(1, (chr)source); return r; }
 	ZL_String operator +(const schr source) const       { ZL_String r(*this); r.append(1, (chr)source); return r; }
-	ZL_String operator +(const unsigned int source) const   { ZL_String r(*this); ostr o; if (o << source) r.append(o.str()); return r; }
-	ZL_String operator +(const signed int source) const     { ZL_String r(*this); ostr o; if (o << source) r.append(o.str()); return r; }
-	ZL_String operator +(const unsigned short source) const { ZL_String r(*this); ostr o; if (o << source) r.append(o.str()); return r; }
-	ZL_String operator +(const signed short source) const   { ZL_String r(*this); ostr o; if (o << source) r.append(o.str()); return r; }
-	ZL_String operator +(const unsigned long source) const  { ZL_String r(*this); ostr o; if (o << source) r.append(o.str()); return r; }
-	ZL_String operator +(const signed long source) const    { ZL_String r(*this); ostr o; if (o << source) r.append(o.str()); return r; }
-	ZL_String operator +(const double source) const         { ZL_String r(*this); ostr o; if (o << source) r.append(o.str()); return r; }
-	ZL_String operator +(const float source)  const         { ZL_String r(*this); ostr o; if (o << source) r.append(o.str()); return r; }
+	ZL_String operator +(const unsigned int source) const   { return *this + ZL_String(source); }
+	ZL_String operator +(const signed int source) const     { return *this + ZL_String(source); }
+	ZL_String operator +(const unsigned short source) const { return *this + ZL_String(source); }
+	ZL_String operator +(const signed short source) const   { return *this + ZL_String(source); }
+	ZL_String operator +(const unsigned long source) const  { return *this + ZL_String(source); }
+	ZL_String operator +(const signed long source) const    { return *this + ZL_String(source); }
+	ZL_String operator +(const double source) const         { return *this + ZL_String(source); }
+	ZL_String operator +(const float source)  const         { return *this + ZL_String(source); }
 
 	void operator *=(int level) { if (level <= 0) erase(); else { size_t len = size(); while (--level) append(c_str(), len); } }
 
@@ -168,14 +166,14 @@ public:
 
 	//Older Visual C++ aren't able to handle 64bit numbers being put into std::ostringstream
 	#if (!defined(_MSC_VER) || _MSC_VER > 1200)
-	ZL_String(const u64 source)                  { ostr o; if (o << source) assign(o.str()); }
-	ZL_String(const i64 source)                  { ostr o; if (o << source) assign(o.str()); }
-	ZL_String& operator +=(const u64 source)     { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator +=(const i64 source)     { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator <<(const u64 source)     { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String& operator <<(const i64 source)     { ostr o; if (o << source) append(o.str()); return *this; }
-	ZL_String operator +(const u64 source) const { ZL_String r(*this); ostr o; if (o << source) r.append(o.str()); return r; }
-	ZL_String operator +(const i64 source) const { ZL_String r(*this); ostr o; if (o << source) r.append(o.str()); return r; }
+	ZL_String(const u64 source)                  { operator<<(source); }
+	ZL_String(const i64 source)                  { operator<<(source); }
+	ZL_String& operator +=(const u64 source)     { return operator<<(source); }
+	ZL_String& operator +=(const i64 source)     { return operator<<(source); }
+	ZL_String& operator <<(const u64 source);
+	ZL_String& operator <<(const i64 source);
+	ZL_String operator +(const u64 source) const { return *this + ZL_String(source); }
+	ZL_String operator +(const i64 source) const { return *this + ZL_String(source); }
 	#endif
 };
 

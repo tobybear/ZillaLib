@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2016 Bernhard Schelling
+#  Copyright (C) 2010-2019 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -36,7 +36,7 @@ if not os.path.exists(proj_name+'-vs.vcxproj'): print 'Could not find ',proj_nam
 if not os.path.exists('Makefile'): print 'Could not find Makefile'; sys.exit(1)
 
 if 'clean' in sys.argv:
-	for p in [ 'Builds', 'Debug-vc6', 'Release-vc6', 'Debug-vs2012', 'Debug-vs2012x64', 'Debug-vs2013', 'Debug-vs2013x64', 'Debug-vs2015', 'Debug-vs2015x64', 'Release-vs2012', 'Release-vs2012x64', 'Release-vs2013', 'Release-vs2013x64', 'Release-vs2015', 'Release-vs2015x64', 'Debug-linux', 'Release-linux', 'Debug-nacl', 'Release-nacl', 'Debug-emscripten', 'Release-emscripten', proj_name+'-iOS.xcodeproj/Debug', proj_name+'-iOS.xcodeproj/Release', proj_name+'-OSX.xcodeproj/Debug', proj_name+'-OSX.xcodeproj/Release' ]:
+	for p in [ 'Builds', 'Debug-vc6', 'Release-vc6', 'Debug-vs2012', 'Debug-vs2012x64', 'Debug-vs2013', 'Debug-vs2013x64', 'Debug-vs2015', 'Debug-vs2015x64', 'Release-vs2012', 'Release-vs2012x64', 'Release-vs2013', 'Release-vs2013x64', 'Release-vs2015', 'Release-vs2015x64', 'Debug-linux', 'Release-linux', 'Debug-wasm', 'Release-wasm', 'Debug-emscripten', 'Release-emscripten', 'Debug-nacl', 'Release-nacl', proj_name+'-iOS.xcodeproj/Debug', proj_name+'-iOS.xcodeproj/Release', proj_name+'-OSX.xcodeproj/Debug', proj_name+'-OSX.xcodeproj/Release' ]:
 		if os.path.exists(p): shutil.rmtree(p, True)
 	sys.exit(0)
 
@@ -44,7 +44,7 @@ zl_dir = buildall_dir + '/..'
 if sys.platform == 'win32': os.environ['PATH'] += os.pathsep+zl_dir.replace('/', os.sep)+os.sep+'Tools'
 linux_cpu_type = ('x86_64' if sys.maxsize > 2**32 else 'x86_32')
 is_rebuild = 'rebuild' in sys.argv
-select_targets = [k for k in sys.argv if k in ['emscripten','nacl','android','win32','win64','linux','osx']]
+select_targets = [k for k in sys.argv if k in ['wasm','emscripten','nacl','android','win32','win64','linux','osx']]
 warnerrors = []
 if not os.path.exists(OUT_DIR): os.makedirs(OUT_DIR)
 
@@ -82,6 +82,12 @@ try:
 	def getoutputexecutable(dir,  basename = proj_name, ext = ''):
 		return (dir + '/' + basename + '_WithData' + ext if os.path.exists(dir + '/' + basename + '_WithData' + ext) else dir + '/' + basename + ext)
 	if sys.platform == 'win32':
+		if buildcheck('wasm', proj_name + '.js'+WEB_GZ, 'Release-wasm'):
+			buildheader('WEBASSEMBLY')
+			building(['make', '-j', '4', 'wasm-release' ])
+			buildcopy(getoutputexecutable('Release-wasm', proj_name, '.js'+WEB_GZ), proj_name + '.js'+WEB_GZ)
+			buildfooter()
+
 		if buildcheck('emscripten', proj_name + '.js'+WEB_GZ, 'Release-emscripten'):
 			buildheader('EMSCRIPTEN')
 			building(['make', '-j', '4', 'emscripten-release' ])

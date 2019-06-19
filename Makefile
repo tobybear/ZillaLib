@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2018 Bernhard Schelling
+#  Copyright (C) 2010-2019 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -23,9 +23,9 @@ ifndef ZL_IS_APP_MAKE
 
 ZILLALIB_PATH := $(or $(ZILLALIB_PATH),$(subst / *,,$(dir $(subst \,/,$(lastword $(MAKEFILE_LIST)))) *))
 
-.PHONY: all help helpheader linux-help emscripten-help nacl-help android-help osx-help ios-help help-all
+.PHONY: all help helpheader linux-help wasm-help emscripten-help nacl-help android-help osx-help ios-help help-all
 all: help
-help-all: help helpheader linux-help emscripten-help nacl-help android-help osx-help ios-help
+help-all: help helpheader linux-help wasm-help emscripten-help nacl-help android-help osx-help ios-help
 ISWIN = $(findstring :,$(firstword $(subst \, ,$(subst /, ,$(abspath .)))))
 ISOSX = $(wildcard /Applications)
 ISLIN = $(wildcard /proc)
@@ -34,13 +34,14 @@ helpheader:
 	$(info $( ) ZillaLib Makefile Help)
 	$(info ========================)
 	$(info )
-help: ZLHELP_OTHER = $(strip $(if $(ISLIN),,linux )$(if $(wildcard $(ZILLALIB_PATH)/Emscripten/ZillaAppLocalConfig.mk),,emscripten )$(if $(wildcard $(ZILLALIB_PATH)/NACL/ZillaAppLocalConfig.mk),,nacl )$(if $(wildcard Android),,android )$(if $(ISOSX),,osx ios ))
+help: ZLHELP_OTHER = $(strip $(if $(ISLIN),,linux )$(if $(wildcard $(ZILLALIB_PATH)/WebAssembly/ZillaAppLocalConfig.mk),,wasm )$(if $(wildcard $(ZILLALIB_PATH)/Emscripten/ZillaAppLocalConfig.mk),,emscripten )$(if $(wildcard $(ZILLALIB_PATH)/NACL/ZillaAppLocalConfig.mk),,nacl )$(if $(wildcard Android),,android )$(if $(ISOSX),,osx ios ))
 help: ZLHELP_ECHOOTHER = $(if $(ZLHELP_OTHER),$(info )$(info Other platforms (requiring further setup): $(ZLHELP_OTHER)))
 help:helpheader
 	$(if $(ISLIN),$(info Platform: linux      - Commands: linux linux-debug linux-release linux-releasedbg linux-clean linux-debug-clean linux-release-clean linux-releasedbg-clean$(if $(ZillaApp), linux-run linux-gdb linux-debug-run linux-release-run linux-releasedbg-run linux-debug-gdb linux-release-gdb linux-releasedbg-gdb)))
+	$(if $(wildcard $(ZILLALIB_PATH)/WebAssembly/ZillaAppLocalConfig.mk),$(info Platform: wasm       - Commands: wasm wasm-clean wasm-debug wasm-release wasm-debug-clean wasm-release-clean$(if $(ZillaApp), wasm-run wasm-debug-run wasm-release-run)))
 	$(if $(wildcard $(ZILLALIB_PATH)/Emscripten/ZillaAppLocalConfig.mk),$(info Platform: emscripten - Commands: emscripten emscripten-clean emscripten-debug emscripten-release emscripten-debug-clean emscripten-release-clean$(if $(ZillaApp), emscripten-run emscripten-debug-run emscripten-release-run)))
 	$(if $(wildcard $(ZILLALIB_PATH)/NACL/ZillaAppLocalConfig.mk),$(info Platform: nacl       - Commands: nacl nacl-clean nacl-run nacl-debug nacl-release nacl-debug-clean nacl-release-clean nacl-debug-run nacl-release-run))
-	$(if $(wildcard Android),$(info Platform: Android    - Commands: android android-clean android-install android-uninstall android-sign android-debug android-release android-debug-clean android-release-clean android-debug-install android-release-install))
+	$(if $(wildcard Android),$(info Platform: android    - Commands: android android-clean android-install android-uninstall android-sign android-debug android-release android-debug-clean android-release-clean android-debug-install android-release-install))
 	$(if $(ISOSX),$(info Platform: osx        - Commands: osx osx-clean osx-cleanall osx-run osx-lldb osx-debug osx-release osx-debug-clean osx-release-clean osx-debug-cleanall osx-release-cleanall osx-debug-run osx-release-run))
 	$(if $(ISOSX),$(info Platform: ios        - Commands: ios ios-clean ios-cleanall ios-run ios-simulator ios-phone ios-simulator-run ios-archive))
 	$(ZLHELP_ECHOOTHER)$(info )
@@ -58,6 +59,22 @@ linux-help:helpheader
 	$(if $(ZillaApp),$(info $( )    linux-run   | linux-debug-run   | linux-release-run   | linux-releasedbg-run   -- Build and run the game))
 	$(if $(ZillaApp),$(info $( )    linux-gdb   | linux-debug-gdb   | linux-release-gdb   | linux-releasedbg-gdb   -- Build and run the game with GDB))
 	$(info )$(info $( )    (if no configuration is supplied in the make target name, the default (debug) configuration will be used))$(info )
+wasm-help:helpheader
+	$(info Wasm Requirements:)
+	$(info $( )    A WebAssembly build environment, see $(ZILLALIB_PATH)/WebAssembly/README.md for further instructions.)
+	$(info $( )    Building requires the configuration file "$(ZILLALIB_PATH)/WebAssembly/ZillaAppLocalConfig.mk" with the following definitions:)
+	$(info $( )        LLVM_ROOT = $(if $(ISWIN),D:)/path/to/clang/e1.35.0_64bit             #path to root of LLVM/Clang (with clang$(if $(ISWIN),.exe) etc. in it))
+	$(info $( )        SYSTEM_ROOT = $(if $(ISWIN),D:)/path/to/emscripten/system             #path to web platform system root (https://github.com/emscripten-core/emscripten/tree/incoming/system))
+	$(info $( )        PYTHON = $(if $(ISWIN),D:)/path/to/python/python$(if $(ISWIN),.exe,    )                  #path to Python executable (only required if not in PATH))
+	$(info $( )        WASMOPT = $(if $(ISWIN),D:)/path/to/binaryen/wasm-opt$(if $(ISWIN),.exe,    )             #[OPTIONAL] path to Wasm optimizer to create smaller .wasm files)
+	$(info $( )        7ZIP = $(if $(ISWIN),D:)/path/to/7z$(if $(ISWIN),.exe,    )                               #[OPTIONAL] path to 7z$(if $(ISWIN),.exe) for better output gz compression)
+	$(info $( )        BROWSER = $(if $(ISWIN),D:)/path/to/browser/browser$(if $(ISWIN),.exe,    )               #[OPTIONAL] path to a browser for run targets)
+	$(info )
+	$(info Wasm Make Targets:)
+	$(info $( )    wasm       | wasm-debug       | wasm-release       -- Builds the $(if $(ZillaApp),game executable,static ZillaLib library))
+	$(info $( )    wasm-clean | wasm-debug-clean | wasm-release-clean -- Clean the build output directory)
+	$(if $(ZillaApp),$(info $( )    wasm-run   | wasm-debug-run   | wasm-release-run   -- Build and run the game))
+	$(info )$(info $( )    (if no configuration is supplied in the make target name, the default (release) configuration will be used))$(info )
 emscripten-help:helpheader
 	$(info Emscripten Requirements:)
 	$(info $( )    An Emscripten build environment, see the Emscripten homepage or $(ZILLALIB_PATH)/Emscripten/README.md for further instructions.)
@@ -184,6 +201,18 @@ linux-debug-gdb linux-release-gdb linux-releasedbg-gdb:; $(ZLLINUX_CMD) gdb
 
 #------------------------------------------------------------------------------------------------------
 
+.PHONY: wasm wasm-clean wasm-run wasm-debug wasm-release wasm-debug-clean wasm-release-clean wasm-debug-run wasm-release-run
+wasm: wasm-release
+wasm-clean: wasm-release-clean
+wasm-run: wasm-release-run
+wasm-release wasm-release-clean wasm-release-run: ZLWASM_PARAMS = BUILD=RELEASE
+ZLWASM_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/WebAssembly/ZillaLibWasm.mk" $(ZLWASM_PARAMS) "ZillaApp=$(ZillaApp)"
+wasm-debug wasm-release:; $(ZLWASM_CMD) $(ZLPARAMS_MAKE)
+wasm-debug-clean wasm-release-clean:; $(ZLWASM_CMD) clean
+wasm-debug-run wasm-release-run:; $(ZLWASM_CMD) $(ZLPARAMS_MAKE) run
+
+#------------------------------------------------------------------------------------------------------
+
 .PHONY: emscripten emscripten-clean emscripten-run emscripten-debug emscripten-release emscripten-debug-clean emscripten-release-clean emscripten-debug-run emscripten-release-run
 emscripten: emscripten-release
 emscripten-clean: emscripten-release-clean
@@ -278,9 +307,19 @@ linux: linux-debug
 linux-clean: linux-debug-clean
 linux-release linux-release-clean: ZLLINUX_BUILD = BUILD=RELEASE
 linux-releasedbg linux-releasedbg-clean: ZLLINUX_BUILD = BUILD=RELEASEDBG
-ZLLINUX_CMD = @+"$(MAKE)" --no-print-directory -f "Linux/ZillaLibLinux.mk" $(ZLLINUX_BUILD)
+ZLLINUX_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/Linux/ZillaLibLinux.mk" $(ZLLINUX_BUILD)
 linux-debug linux-release linux-releasedbg:; $(ZLLINUX_CMD) $(ZLPARAMS_MAKE)
 linux-debug-clean linux-release-clean linux-releasedbg-clean:; $(ZLLINUX_CMD) clean
+
+#------------------------------------------------------------------------------------------------------
+
+.PHONY: wasm wasm-clean wasm-debug wasm-release wasm-debug-clean wasm-release-clean
+wasm: wasm-release
+wasm-clean: wasm-release-clean
+wasm-release wasm-release-clean: ZLWASM_PARAMS = BUILD=RELEASE
+ZLWASM_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/WebAssembly/ZillaLibWasm.mk" $(ZLWASM_PARAMS)
+wasm-debug wasm-release:; $(ZLWASM_CMD) $(ZLPARAMS_MAKE)
+wasm-debug-clean wasm-release-clean:; $(ZLWASM_CMD) clean
 
 #------------------------------------------------------------------------------------------------------
 
@@ -288,7 +327,7 @@ linux-debug-clean linux-release-clean linux-releasedbg-clean:; $(ZLLINUX_CMD) cl
 emscripten: emscripten-release
 emscripten-clean: emscripten-release-clean
 emscripten-release emscripten-release-clean: ZLEMSCRIPTEN_PARAMS = BUILD=RELEASE
-ZLEMSCRIPTEN_CMD = @+"$(MAKE)" --no-print-directory -f "Emscripten/ZillaLibEmscripten.mk" $(ZLEMSCRIPTEN_PARAMS)
+ZLEMSCRIPTEN_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/Emscripten/ZillaLibEmscripten.mk" $(ZLEMSCRIPTEN_PARAMS)
 emscripten-debug emscripten-release:; $(ZLEMSCRIPTEN_CMD) $(ZLPARAMS_MAKE)
 emscripten-debug-clean emscripten-release-clean:; $(ZLEMSCRIPTEN_CMD) clean
 
@@ -298,7 +337,7 @@ emscripten-debug-clean emscripten-release-clean:; $(ZLEMSCRIPTEN_CMD) clean
 nacl: nacl-release
 nacl-clean: nacl-release-clean
 nacl-release nacl-release-clean: ZLNACL_PARAMS = BUILD=RELEASE
-ZLNACL_CMD = @+"$(MAKE)" --no-print-directory -f "NACL/ZillaLibNACL.mk" $(ZLNACL_PARAMS)
+ZLNACL_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/NACL/ZillaLibNACL.mk" $(ZLNACL_PARAMS)
 nacl-debug nacl-release:; $(ZLNACL_CMD) $(ZLPARAMS_MAKE)
 nacl-debug-clean nacl-release-clean:; $(ZLNACL_CMD) clean
 
@@ -309,7 +348,7 @@ android: android-release
 android-clean: android-release-clean
 android-debug android-debug-clean: ZLANDROID_DBG=1
 android-release android-release-clean: ZLANDROID_DBG=0
-ZLANDROID_CMD = @+"$(MAKE)" --no-print-directory -f "Android/ZillaLibAndroid.mk" ZLDEBUG=$(ZLANDROID_DBG)
+ZLANDROID_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/Android/ZillaLibAndroid.mk" ZLDEBUG=$(ZLANDROID_DBG)
 android-debug android-release:; $(ZLANDROID_CMD)
 android-debug-clean android-release-clean:; $(ZLANDROID_CMD) clean
 

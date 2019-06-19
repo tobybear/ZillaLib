@@ -12,15 +12,14 @@ ZillaLib Game SDK
     * [Windows (32 and 64 bit)](#windows-32-and-64-bit)
     * [Android](#android)
     * [iOS (iPhone/iPad/iPod)](#ios-iphoneipadipod)
-    * [Chrome Portable Native Client](#chrome-portable-native-client)
-    * [Emscripten (HTML5)](#emscripten-html5)
+    * [WebAssembly](#webassembly)
     * [Linux](#linux)
     * [macOS](#macos)
   * [Asset File Handling](#asset-file-handling)
 
 ## Welcome to ZillaLib
 
-ZillaLib is a [2D](#rendering) and [3D](#3d-rendering) game creation framework that runs on pretty much every open platform out there. Windows, Linux, macOS, Android, iOS, Chrome Native Client and Emscripten (HTML5).
+ZillaLib is a [2D](#rendering) and [3D](#3d-rendering) game creation framework that runs on pretty much every open platform out there. Windows, Linux, macOS, Android, iOS and on the web.
 
 It's a sleek C++ library that compiles to all platforms with zero change in the game code. Truly write once, run everywhere. Of course it is still possible to deviate parts easily where needed. For instance for touchscreen inputs.
 
@@ -52,8 +51,9 @@ Here's a list of features provided by the ZillaLib.
 - [Windows (32 and 64 bit)](#windows-32-and-64-bit)
 - [Android](#android)
 - [iOS (iPhone/iPad/iPod)](#ios-iphoneipadipod)
+- [WebAssembly](#webassembly)
+- [Emscripten](#emscripten)
 - [Chrome Portable Native Client](#chrome-portable-native-client)
-- [Emscripten (HTML5)](#emscripten-html5)
 - [Linux](#linux)
 - [macOS](#macos)
 
@@ -139,7 +139,7 @@ When finished, click "Generate and Save Project Archive (ZIP)" and everything wi
 ## Platforms and Setup
 
 ### Windows (32 and 64 bit)
-Compiling and debugging is done with Visual Studio. All versions are supported (VC6 until VS2017). If you don't have it installed yet, you can [download Visual Studio Community Edition here](https://www.visualstudio.com/vs/community/). Make sure "Visual C++" is selected during the installation. Optionally you can also install "Windows XP Support for C++" under the features/packages list.
+Compiling and debugging is done with Visual Studio. All versions are supported (VC6 until VS2019). If you don't have it installed yet, you can [download Visual Studio Community Edition here](https://www.visualstudio.com/vs/community/). Make sure "Visual C++" is selected during the installation. Optionally you can also install "Windows XP Support for C++" under the features/packages list.
 
 Once installed, open your GameProject-vs.sln solution file. On your first start-up, it should have your game project selected as the start up project in the Solution Explorer (project name is bold). It should also default to the build configuration "Debug" and the build platform "Win32" on the top of the Visual Studio window. This is fine for now, you can just build and run the sample code with the menu function "Debug / Start Without Debugging".
 
@@ -152,11 +152,16 @@ See [README.md under Android](Android) for how to setup and build for Android.
 ### iOS (iPhone/iPad/iPod)
 See [README.md under ZillaLib-iOS.xcodeproj](ZillaLib-iOS.xcodeproj) for how to setup and build for iOS.
 
-### Chrome Portable Native Client
-See [README.md under NACL](NACL) for how to setup and build for Native Client.
+### WebAssembly
+See [README.md under WebAssembly](WebAssembly) for how to setup and build for WebAssembly.
 
-### Emscripten (HTML5)
+### Emscripten
+This platform is deprecated, [WebAssembly](#webassembly) should be used instead.  
 See [README.md under Emscripten](Emscripten) for how to setup and build for Emscripten.
+
+### Chrome Portable Native Client
+This platform is deprecated, [WebAssembly](#webassembly) should be used instead.  
+See [README.md under NACL](NACL) for how to setup and build for Native Client.
 
 ### Linux
 See [README.md under Linux](Linux) for how to setup and build for Linux.

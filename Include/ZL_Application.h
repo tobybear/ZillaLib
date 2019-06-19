@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -59,10 +59,10 @@
  #endif
 #endif
 #ifndef __WEBAPP__
- #if defined(__native_client__)
-  #define __NACL__
+ #if defined(__wasm__) || defined(__EMSCRIPTEN__)
   #define __WEBAPP__
- #elif defined(__EMSCRIPTEN__)
+ #elif defined(__native_client__)
+  #define __NACL__
   #define __WEBAPP__
  #endif
 #endif

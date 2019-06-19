@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -25,7 +25,7 @@
 #include "ZL_Signal.h"
 #include "ZL_String.h"
 
-#if defined(__native_client__) || defined(__EMSCRIPTEN__)
+#if defined(__wasm__) || defined(__EMSCRIPTEN__) || defined(__native_client__)
 #define ZL_NO_SOCKETS
 #endif
 

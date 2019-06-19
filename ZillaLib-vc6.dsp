@@ -8,10 +8,12 @@ CFG=ZillaLib - Win32 Debug
 !MESSAGE NMAKE /f "ZillaLib-vc6.mak" CFG="ZillaLib - Win32 Debug"
 !MESSAGE "ZillaLib - Win32 Release" (basierend auf  "Win32 (x86) Static Library")
 !MESSAGE "ZillaLib - Win32 Debug" (basierend auf  "Win32 (x86) Static Library")
-!MESSAGE "ZillaLib - NACL Release" (basierend auf  "Win32 (x86) External Target")
-!MESSAGE "ZillaLib - NACL Debug" (basierend auf  "Win32 (x86) External Target")
+!MESSAGE "ZillaLib - WebAssembly Release" (basierend auf  "Win32 (x86) External Target")
+!MESSAGE "ZillaLib - WebAssembly Debug" (basierend auf  "Win32 (x86) External Target")
 !MESSAGE "ZillaLib - Emscripten Release" (basierend auf  "Win32 (x86) External Target")
 !MESSAGE "ZillaLib - Emscripten Debug" (basierend auf  "Win32 (x86) External Target")
+!MESSAGE "ZillaLib - NACL Release" (basierend auf  "Win32 (x86) External Target")
+!MESSAGE "ZillaLib - NACL Debug" (basierend auf  "Win32 (x86) External Target")
 !MESSAGE "ZillaLib - Android Release" (basierend auf  "Win32 (x86) External Target")
 !MESSAGE "ZillaLib - Android Debug" (basierend auf  "Win32 (x86) External Target")
 # Begin Project
@@ -71,23 +73,23 @@ LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"Debug-vc6/ZillaLib.lib"
 
-!ELSEIF  "$(CFG)" == "ZillaLib - NACL Release"
+!ELSEIF  "$(CFG)" == "ZillaLib - WebAssembly Release"
 
-# PROP Output_Dir "NACL/build"
-# PROP Intermediate_Dir "NACL/build"
-# PROP Cmd_Line "python NACL/ZillaLibNACL.py build -rel -vc"
+# PROP Output_Dir "WebAssembly/build"
+# PROP Intermediate_Dir "WebAssembly/build"
+# PROP Cmd_Line "Tools\make.exe --no-print-directory -f WebAssembly/ZillaLibWasm.mk BUILD=RELEASE MSVC=1"
 # PROP Rebuild_Opt "-clean"
-# PROP Target_File "NACL/build/ZillaLib_x86_64.a"
+# PROP Target_File "WebAssembly/build/ZillaLib.bc"
 RSC=rc.exe
 CPP=cl.exe
 
-!ELSEIF  "$(CFG)" == "ZillaLib - NACL Debug"
+!ELSEIF  "$(CFG)" == "ZillaLib - WebAssembly Debug"
 
-# PROP Output_Dir "NACL/build-debug"
-# PROP Intermediate_Dir "NACL/build-debug"
-# PROP Cmd_Line "python NACL/ZillaLibNACL.py build -vc"
+# PROP Output_Dir "WebAssembly/build-debug"
+# PROP Intermediate_Dir "WebAssembly/build-debug"
+# PROP Cmd_Line "Tools\make.exe --no-print-directory -f WebAssembly/ZillaLibWasm.mk MSVC=1"
 # PROP Rebuild_Opt "-clean"
-# PROP Target_File "NACL/build-debug/ZillaLib_x86_64.a"
+# PROP Target_File "WebAssembly/build-debug/ZillaLib.bc"
 RSC=rc.exe
 CPP=cl.exe
 
@@ -95,9 +97,9 @@ CPP=cl.exe
 
 # PROP Output_Dir "Emscripten/build"
 # PROP Intermediate_Dir "Emscripten/build"
-# PROP Cmd_Line "python Emscripten/ZillaLibEmscripten.py build -rel -vc"
+# PROP Cmd_Line "Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk BUILD=RELEASE MSVC=1"
 # PROP Rebuild_Opt "-clean"
-# PROP Target_File "Emscripten/build/ZillaLib_x86_64.a"
+# PROP Target_File "Emscripten/build/ZillaLib.bc"
 RSC=rc.exe
 CPP=cl.exe
 
@@ -105,9 +107,29 @@ CPP=cl.exe
 
 # PROP Output_Dir "Emscripten/build-debug"
 # PROP Intermediate_Dir "Emscripten/build-debug"
-# PROP Cmd_Line "python Emscripten/ZillaLibEmscripten.py build -vc"
+# PROP Cmd_Line "Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk MSVC=1"
 # PROP Rebuild_Opt "-clean"
-# PROP Target_File "Emscripten/build-debug/ZillaLib_x86_64.a"
+# PROP Target_File "Emscripten/build-debug/ZillaLib.bc"
+RSC=rc.exe
+CPP=cl.exe
+
+!ELSEIF  "$(CFG)" == "ZillaLib - NACL Release"
+
+# PROP Output_Dir "NACL/build"
+# PROP Intermediate_Dir "NACL/build"
+# PROP Cmd_Line "Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk BUILD=RELEASE MSVC=1"
+# PROP Rebuild_Opt "-clean"
+# PROP Target_File "NACL/build/ZillaLib.a"
+RSC=rc.exe
+CPP=cl.exe
+
+!ELSEIF  "$(CFG)" == "ZillaLib - NACL Debug"
+
+# PROP Output_Dir "NACL/build-debug"
+# PROP Intermediate_Dir "NACL/build-debug"
+# PROP Cmd_Line "Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk MSVC=1"
+# PROP Rebuild_Opt "-clean"
+# PROP Target_File "NACL/build-debug/ZillaLib.a"
 RSC=rc.exe
 CPP=cl.exe
 
@@ -139,6 +161,8 @@ CPP=cl.exe
 # Name "ZillaLib - Win32 Debug"
 # Name "ZillaLib - NACL Release"
 # Name "ZillaLib - NACL Debug"
+# Name "ZillaLib - WebAssembly Release"
+# Name "ZillaLib - WebAssembly Debug"
 # Name "ZillaLib - Emscripten Release"
 # Name "ZillaLib - Emscripten Debug"
 # Name "ZillaLib - Android Release"

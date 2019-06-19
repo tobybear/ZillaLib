@@ -68,12 +68,6 @@ static bool OGL_ProbeTexture(GLint w, GLint h, GLint maxSize, GLint, GLenum)
 
 static bool LoadBitmapData(ZL_BitmapSurface* surface, ZL_File_Impl* fileimpl, int RequestBytesPerPixel = 0)
 {
-	unsigned char data[8];
-	ZL_RWseektell(fileimpl->src, 0, RW_SEEK_SET);
-	ZL_RWread(fileimpl->src, data, 1, 8);
-	int len = ZL_RWseektell(fileimpl->src, 0, RW_SEEK_END);
-	ZL_RWseektell(fileimpl->src, 0, RW_SEEK_SET);
-
 	surface->pixels = stbi_load_from_callbacks(&stbi_zlrwops_callbacks, fileimpl->src, &surface->w, &surface->h, &surface->BytesPerPixel, RequestBytesPerPixel);
 	if (!surface->pixels || !surface->w || !surface->h) { ZL_LOG2("TEXTURE", "Cannot load image file: %s (err: %s)", fileimpl->filename.c_str(), stbi_failure_reason()); return false; }
 	//ZL_LOG4("SURFACE", "Loaded bitmap: %s - x: %d - y: %d - bpp: %d", fileimpl->filename.c_str(), surface->w, surface->h, surface->BytesPerPixel);

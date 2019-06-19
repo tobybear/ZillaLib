@@ -5,6 +5,7 @@
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '12.0' Or '$(PlatformToolsetVersion)' == '120' Or '$(MSBuildToolsVersion)' == '12.0'">2013</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '14.0' Or '$(PlatformToolsetVersion)' == '140' Or '$(MSBuildToolsVersion)' == '14.0'">2015</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '15.0' Or '$(PlatformToolsetVersion)' == '141' Or '$(MSBuildToolsVersion)' == '15.0'">2017</VisualStudioYear>
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '16.0' Or '$(PlatformToolsetVersion)' == '142' Or '$(MSBuildToolsVersion)' == '16.0'">2019</VisualStudioYear>
   </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -22,6 +23,14 @@
     <ProjectConfiguration Include="Release|x64">
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="WebAssembly-Debug|Win32">
+      <Configuration>WebAssembly-Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="WebAssembly-Release|Win32">
+      <Configuration>WebAssembly-Release</Configuration>
+      <Platform>Win32</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Emscripten-Debug|Win32">
       <Configuration>Emscripten-Debug</Configuration>
@@ -61,6 +70,7 @@
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2013'">v120_xp</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2015'">v140$(PlatformToolsetPostfix)</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2017'">v141$(PlatformToolsetPostfix)</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2019'">v142$(PlatformToolsetPostfix)</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -70,6 +80,9 @@
   <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='WebAssembly-Debug' Or '$(Configuration)'=='WebAssembly-Release'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Debug' Or '$(Configuration)'=='Emscripten-Release'" Label="Configuration">
     <ConfigurationType>Makefile</ConfigurationType>
@@ -86,28 +99,36 @@
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>Debug-vs$(VisualStudioYear)\</OutDir>
-    <IntDir>Debug-vs$(VisualStudioYear)\</IntDir>
     <TargetName>ZillaLib</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>Release-vs$(VisualStudioYear)\</OutDir>
-    <IntDir>Release-vs$(VisualStudioYear)\</IntDir>
     <TargetName>ZillaLib</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>Debug-vs$(VisualStudioYear)x64\</OutDir>
-    <IntDir>Debug-vs$(VisualStudioYear)x64\</IntDir>
     <TargetName>ZillaLib</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>Release-vs$(VisualStudioYear)x64\</OutDir>
-    <IntDir>Release-vs$(VisualStudioYear)x64\</IntDir>
     <TargetName>ZillaLib</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='WebAssembly-Debug'">
+    <OutDir>WebAssembly\build-debug\</OutDir>
+    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f WebAssembly/ZillaLibWasm.mk MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f WebAssembly/ZillaLibWasm.mk MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f WebAssembly/ZillaLibWasm.mk clean</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>__wasm__</NMakePreprocessorDefinitions>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='WebAssembly-Release'">
+    <OutDir>WebAssembly\build\</OutDir>
+    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f WebAssembly/ZillaLibWasm.mk BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
+    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f WebAssembly/ZillaLibWasm.mk BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
+    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f WebAssembly/ZillaLibWasm.mk BUILD=RELEASE clean</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>__wasm__</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Debug'">
     <OutDir>Emscripten\build-debug\</OutDir>
-    <IntDir>Emscripten\build-debug\</IntDir>
-    <BaseIntermediateOutputPath>Emscripten\build-debug\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk MSVC=1</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f Emscripten/ZillaLibEmscripten.mk MSVC=1</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk clean</NMakeCleanCommandLine>
@@ -115,8 +136,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Release'">
     <OutDir>Emscripten\build\</OutDir>
-    <IntDir>Emscripten\build\</IntDir>
-    <BaseIntermediateOutputPath>Emscripten\build\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f Emscripten/ZillaLibEmscripten.mk BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk BUILD=RELEASE clean</NMakeCleanCommandLine>
@@ -124,8 +143,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='NACL-Debug'">
     <OutDir>NACL\build-debug\</OutDir>
-    <IntDir>NACL\build-debug\</IntDir>
-    <BaseIntermediateOutputPath>NACL\build-debug\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk MSVC=1</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f NACL/ZillaLibNACL.mk MSVC=1</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk clean</NMakeCleanCommandLine>
@@ -133,8 +150,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='NACL-Release'">
     <OutDir>NACL\build\</OutDir>
-    <IntDir>NACL\build\</IntDir>
-    <BaseIntermediateOutputPath>NACL\build\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f NACL/ZillaLibNACL.mk BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk BUILD=RELEASE clean</NMakeCleanCommandLine>
@@ -142,8 +157,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Android-Debug'">
     <OutDir>Android\build-debug\</OutDir>
-    <IntDir>Android\build-debug\</IntDir>
-    <BaseIntermediateOutputPath>Android\build-debug\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=1</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=1 -B</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=1 clean</NMakeCleanCommandLine>
@@ -151,14 +164,15 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Android-Release'">
     <OutDir>Android\build\</OutDir>
-    <IntDir>Android\build\</IntDir>
-    <BaseIntermediateOutputPath>Android\build\</BaseIntermediateOutputPath>
     <NMakeBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=0</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=0 -B</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=0 clean</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup>
+    <IntDir>$(OutDir)</IntDir>
+    <TLogLocation>$(OutDir)</TLogLocation>
+    <IntermediateOutputPath>$(OutDir)</IntermediateOutputPath>
     <LocalDebuggerCommand>This is the library, you can't run it. Make sure to set your game project as StartUp Project by right clicking it in the Solution Explorer</LocalDebuggerCommand>
   </PropertyGroup>
   <ItemDefinitionGroup><BuildLog><Path>nul:</Path></BuildLog></ItemDefinitionGroup>

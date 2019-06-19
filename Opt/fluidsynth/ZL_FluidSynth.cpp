@@ -1725,6 +1725,13 @@ typedef HMTX fluid_mutex_t;
 #define fluid_mutex_lock(_m)      DosRequestMutexSem(_m, -1L)
 #define fluid_mutex_unlock(_m)    DosReleaseMutexSem(_m)
 
+#elif defined(__wasm__) || defined(__EMSCRIPTEN__)
+typedef pthread_mutex_t fluid_mutex_t;
+#define fluid_mutex_init(_m)
+#define fluid_mutex_destroy(_m)
+#define fluid_mutex_lock(_m)
+#define fluid_mutex_unlock(_m)
+
 #else
 typedef pthread_mutex_t fluid_mutex_t;
 #define fluid_mutex_init(_m)      pthread_mutex_init(&(_m), NULL)

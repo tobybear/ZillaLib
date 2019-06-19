@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -19,13 +19,13 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifdef __EMSCRIPTEN__
+#if defined(__wasm__) || defined(__EMSCRIPTEN__)
 
 #include "ZL_Platform.h"
 #include "ZL_Display.h"
 #include "ZL_Display_Impl.h"
 #include "ZL_Impl.h"
-#include <emscripten.h>
+#include "ZL_File.h"
 #include <GL/glut.h>
 #include <math.h>
 #include <stdlib.h>
@@ -54,7 +54,7 @@ extern void ZLJS_Websocket(struct ZL_WebSocketConnection_Impl* impl, int cmd, co
 };
 
 static void ZL_WindowEvent(unsigned char event, int data1 = 0, int data2 = 0);
-static unsigned int Emscripten_WindowFlags = ZL_WINDOW_INPUT_FOCUS | ZL_WINDOW_MOUSE_FOCUS;
+static unsigned int WEB_WindowFlags = ZL_WINDOW_INPUT_FOCUS | ZL_WINDOW_MOUSE_FOCUS;
 static int mouse_state = 0;
 
 extern "C" void ZLFNDraw()
@@ -158,40 +158,43 @@ extern "C" void ZLFNWindow(int event_type, int canvas_width, int canvas_height)
 	switch (event_type)
 	{
 		case 1: //mousein
-			if ((Emscripten_WindowFlags & ZL_WINDOW_MOUSE_FOCUS) == 0)
-				ZL_WindowEvent(ZL_WINDOWEVENT_FOCUS, (Emscripten_WindowFlags |= ZL_WINDOW_MOUSE_FOCUS));
+			if ((WEB_WindowFlags & ZL_WINDOW_MOUSE_FOCUS) == 0)
+				ZL_WindowEvent(ZL_WINDOWEVENT_FOCUS, (WEB_WindowFlags |= ZL_WINDOW_MOUSE_FOCUS));
 			break;
 		case 2: //mouseout
-			if (Emscripten_WindowFlags & ZL_WINDOW_MOUSE_FOCUS)
-				ZL_WindowEvent(ZL_WINDOWEVENT_FOCUS, (Emscripten_WindowFlags &= ~ZL_WINDOW_MOUSE_FOCUS));
+			if (WEB_WindowFlags & ZL_WINDOW_MOUSE_FOCUS)
+				ZL_WindowEvent(ZL_WINDOWEVENT_FOCUS, (WEB_WindowFlags &= ~ZL_WINDOW_MOUSE_FOCUS));
 			break;
 		case 3: //window focus
-			if (((Emscripten_WindowFlags & ZL_WINDOW_INPUT_FOCUS) == 0) || (Emscripten_WindowFlags & ZL_WINDOW_MINIMIZED))
-				ZL_WindowEvent(ZL_WINDOWEVENT_FOCUS, (Emscripten_WindowFlags = (Emscripten_WindowFlags | ZL_WINDOW_INPUT_FOCUS) & ~ZL_WINDOW_MINIMIZED));
+			if (((WEB_WindowFlags & ZL_WINDOW_INPUT_FOCUS) == 0) || (WEB_WindowFlags & ZL_WINDOW_MINIMIZED))
+				ZL_WindowEvent(ZL_WINDOWEVENT_FOCUS, (WEB_WindowFlags = (WEB_WindowFlags | ZL_WINDOW_INPUT_FOCUS) & ~ZL_WINDOW_MINIMIZED));
 			break;
 		case 4: //window blur
-			if ((Emscripten_WindowFlags & ZL_WINDOW_INPUT_FOCUS) || ((Emscripten_WindowFlags & ZL_WINDOW_MINIMIZED) == 0))
-				ZL_WindowEvent(ZL_WINDOWEVENT_FOCUS, (Emscripten_WindowFlags = (Emscripten_WindowFlags & ~ZL_WINDOW_INPUT_FOCUS) | ZL_WINDOW_MINIMIZED));
+			if ((WEB_WindowFlags & ZL_WINDOW_INPUT_FOCUS) || ((WEB_WindowFlags & ZL_WINDOW_MINIMIZED) == 0))
+				ZL_WindowEvent(ZL_WINDOWEVENT_FOCUS, (WEB_WindowFlags = (WEB_WindowFlags & ~ZL_WINDOW_INPUT_FOCUS) | ZL_WINDOW_MINIMIZED));
 			break;
 		case 5: //fullscreen activated
-			Emscripten_WindowFlags |= ZL_WINDOW_FULLSCREEN;
+			WEB_WindowFlags |= ZL_WINDOW_FULLSCREEN;
 			ZL_WindowEvent(ZL_WINDOWEVENT_RESIZED, canvas_width, canvas_height);
 			break;
 		case 6: //fullscreen deactivated
-			Emscripten_WindowFlags &= ~ZL_WINDOW_FULLSCREEN;
+			WEB_WindowFlags &= ~ZL_WINDOW_FULLSCREEN;
 			ZL_WindowEvent(ZL_WINDOWEVENT_RESIZED, canvas_width, canvas_height);
 			break;
 		case 7: //pointerlock activated
-			Emscripten_WindowFlags |= ZL_WINDOW_POINTERLOCK;
+			WEB_WindowFlags |= ZL_WINDOW_POINTERLOCK;
 			break;
 		case 8: //pointerlock deactivated
-			Emscripten_WindowFlags &= ~ZL_WINDOW_POINTERLOCK;
+			WEB_WindowFlags &= ~ZL_WINDOW_POINTERLOCK;
 			break;
 	}
 }
 
-int main(int argc, char *argv[])
+extern "C" int main(int argc, char *argv[])
 {
+	#if defined(__wasm__)
+	ZL_File::DefaultReadFileContainer = ZL_FileContainer_ZIP("DATA");
+	#endif
 	ZillaLibInit(0, NULL);
 	return 0;
 }
@@ -276,7 +279,7 @@ bool ZL_SettingsHas(const char* Key)
 void ZL_SettingsSynchronize() { }
 
 #ifdef ZL_DOUBLE_PRECISCION
-#error The emscripten WebGL wrapper for memory buffers to GPU buffers only works with float preciscion
+#error The WebGL wrapper for memory buffers to GPU buffers only works with float preciscion
 #endif
 
 static GLuint ATTR_vbo[ZLGLSL::_ATTR_MAX];
@@ -295,7 +298,7 @@ bool ZL_CreateWindow(const char*, int w, int h, int displayflags)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	//WindowFlags
-	pZL_WindowFlags = &Emscripten_WindowFlags;
+	pZL_WindowFlags = &WEB_WindowFlags;
 	return true;
 }
 
@@ -394,8 +397,8 @@ extern "C" void ZLFNHTTP(ZL_HttpConnection_Impl* impl, int status, char* data, s
 void ZL_HttpConnection_Impl::Connect()
 {
 	if (!url.length()) return;
-	//ZL_LOG2("EMSCRIPTEN", "Loading URL: %s (Post data: %d bytes)", url.c_str(), post_data.size());
-	if (dostream) { ZL_LOG0("EMSCRIPTEN", "WARNING: Unsupported option dostream is activated for this http request. It will be received as one big packet with an additional terminating zero length packet."); }
+	//ZL_LOG2("HTTP", "Loading URL: %s (Post data: %d bytes)", url.c_str(), post_data.size());
+	if (dostream) { ZL_LOG0("HTTP", "WARNING: Unsupported option dostream is activated for this http request. It will be received as one big packet with an additional terminating zero length packet."); }
 	AddRef();
 	ZLJS_AsyncLoad(url.c_str(), this, &post_data[0], post_data.size());
 }
@@ -414,4 +417,4 @@ void ZL_WebSocketConnection_Impl::SendText(const char* buf, size_t len) { ZLJS_W
 void ZL_WebSocketConnection_Impl::SendBinary(const void* buf, size_t len) { ZLJS_Websocket(this, 2, buf, len); }
 void ZL_WebSocketConnection_Impl::Disconnect(unsigned short code, const char* buf, size_t len) { ZLFNWebSocket(this, 0, NULL, 0); ZLJS_Websocket(this, 3+code, buf, len); }
 
-#endif //__EMSCRIPTEN__
+#endif //defined(__wasm__) || defined(__EMSCRIPTEN__)

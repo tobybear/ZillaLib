@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -19,9 +19,9 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifdef __EMSCRIPTEN__
-#ifndef __ZL_PLATFORM_EMSCRIPTEN__
-#define __ZL_PLATFORM_EMSCRIPTEN__
+#if defined(__wasm__) || defined(__EMSCRIPTEN__)
+#ifndef __ZL_PLATFORM_WEB__
+#define __ZL_PLATFORM_WEB__
 
 #include "ZL_PlatformPosix.h"
 #define GL_GLEXT_PROTOTYPES
@@ -57,5 +57,5 @@ void ZL_SetPointerLock(bool doLockPointer);
 #define ZL_MutexIsNone(m) false
 
 #endif //__cplusplus
-#endif //__ZL_PLATFORM_EMSCRIPTEN__
-#endif //__EMSCRIPTEN__
+#endif //__ZL_PLATFORM_WEB__
+#endif //defined(__wasm__) || defined(__EMSCRIPTEN__)
