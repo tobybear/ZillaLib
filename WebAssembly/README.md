@@ -77,7 +77,9 @@ make wasm-help
 On Windows you can use make.exe that is distributed with ZillaLib, you can find it under the "Tools" sub-directory.
 
 With the various make targets you can build debug and release targets and run the output directly.  
-For example, running "make wasm" builds the release JS file and a sample HTML page under Release-wasm. Running "make wasm-run" builds and opens the game in the browser.
+For example, running `make wasm` builds the release JS file and a sample HTML page under Release-wasm. Running `make wasm-run` builds and opens the game in the browser.
+
+To speed up compilation, the -j parameter can be passed to specify the number of parallel processes to use for building. For example `make wasm -j 4` uses a maximum of 4 processes.
 
 # Deploying
 Depending on the project option 'Embed Assets in Binary', your release build will consist of either one or two files.

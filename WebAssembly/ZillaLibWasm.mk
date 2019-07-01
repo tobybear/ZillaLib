@@ -20,7 +20,7 @@
 #
 
 sp := $(*NOTEXIST*) $(*NOTEXIST*)
-THIS_MAKEFILE := $(subst \,/,$(lastword $(MAKEFILE_LIST)))
+THIS_MAKEFILE := $(patsubst ./%,%,$(subst \,/,$(lastword $(MAKEFILE_LIST))))
 ISWIN := $(findstring :,$(firstword $(subst \, ,$(subst /, ,$(abspath .)))))
 ZILLALIB_DIR = $(or $(subst |,/,$(subst <,,$(subst <.|,,<$(subst /,|,$(dir $(subst $(sp),/,$(strip $(subst /,$(sp),$(dir $(THIS_MAKEFILE)))))))))),$(if $(subst ./,,$(dir $(THIS_MAKEFILE))),,../))
 sub_checkexe_run = $(if $(1),$(if $(shell "$(1)" $(2) 2>$(if $(ISWIN),nul,/dev/null)),$(1),),)
@@ -107,11 +107,11 @@ WASMOPT := $(if $(WASMOPT),"$(WASMOPT)")
 # Python one liner to delete all .o files when the dependency files were created empty due to compile error
 CMD_DEL_OLD_OBJ := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.path.getsize(a)==0 and os.path.exists(a.rstrip('d')+'o') and os.remove(a.rstrip('d')+'o') for a in sys.argv[1:]]"
 CMD_DEL_FILES   := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.remove(a) for a in sys.argv[1:]]"
-CMD_MAKE_DIRS   := $(PYTHON) -c "import sys,os;os.makedirs(sys.argv[1])"
+CMD_MAKE_DIRS   := $(PYTHON) -c "import sys,os;os.path.exists(sys.argv[1]) or os.makedirs(sys.argv[1])"
 CMD_MAKE_ZIP    := $(PYTHON) -c "import sys,zipfile;z=zipfile.ZipFile(sys.argv[1],'w');[z.write(f) for f in sys.argv[2:]]"
 CMD_APP_JS      := $(PYTHON) -c "import sys,os,base64;open(sys.argv[1],'wb').write(''.join([os.path.exists(a) and 'ZL.'+(i==0 and 'wasm' or 'files')+'='+chr(39)+base64.b64encode(open(a,'rb').read())+chr(39)+';'+chr(10) for i, a in enumerate(sys.argv[3:])])+open(sys.argv[2],'r').read())"
 CMD_ASSET_JS    := $(PYTHON) -c "import sys,os,base64;open(sys.argv[1],'wb').write('ZL.files='+chr(39)+base64.b64encode(open(sys.argv[2],'rb').read())+chr(39)+';'+chr(10))"
-CMD_MAKE_GZ     := $(PYTHON) -c "import sys,gzip;gzip.GzipFile('','wb',9,open(sys.argv[1],'wb'),0).write(open(sys.argv[2],'r'))"
+CMD_MAKE_GZ     := $(PYTHON) -c "import sys,gzip;gzip.GzipFile('','wb',9,open(sys.argv[1],'wb'),0).write(open(sys.argv[2],'r').read())"
 
 # Disable DOS PATH warning when using Cygwin based tools Windows
 CYGWIN ?= nodosfilewarning
@@ -119,7 +119,7 @@ export CYGWIN
 
 ifeq ($(MSVC),1)
 CMD_MSVC_FILTER := $(PYTHON) -u -c "import re,sys,subprocess;r1=re.compile(':(\\d+):');p=subprocess.Popen(sys.argv[1:],shell=False,stdout=subprocess.PIPE,stderr=subprocess.STDOUT); [sys.stderr.write(r1.sub('(\\1) :',l).rstrip()+chr(10)) for l in iter(p.stdout.readline, b'')]; sys.stderr.write(chr(10));sys.exit(p.wait())"
-all:;+@$(CMD_MSVC_FILTER) "$(MAKE)" --no-print-directory -f "$(THIS_MAKEFILE)" -j 1 "MSVC=0"
+all:;+@$(CMD_MSVC_FILTER) "$(MAKE)" --no-print-directory -f "$(THIS_MAKEFILE)" -j 4 "MSVC=0"
 else #!MSVC
 
 #------------------------------------------------------------------------------------------------------
@@ -248,8 +248,8 @@ SYS_IGNORE += syscall.c wordexp.c initgroups.c getgrouplist.c popen.c _exit.c al
 SYSSOURCES := $(filter-out $(SYS_IGNORE:%=\%/%),$(wildcard $(addprefix $(SYSTEM_ROOT)/lib/,$(SYS_ADDS) $(SYS_MUSL:%=libc/musl/src/%/*.c))))
 SYSSOURCES := $(subst $(SYSTEM_ROOT)/lib/,,$(SYSSOURCES))
 
-ifeq ($(findstring $,$(SYSSOURCES)),$)
-  $(error SYSSOURCES contains a filename with a $$ character in it - Unable to continue)
+ifeq ($(findstring !,$(SYSSOURCES)),!)
+  $(error SYSSOURCES contains a filename with a ! character in it - Unable to continue)
 endif
 
 SYS_MISSING := $(filter-out $(SYSSOURCES) $(dir $(SYSSOURCES)),$(subst *.c,,$(subst *.cpp,,$(SYS_ADDS))) $(SYS_MUSL:%=libc/musl/src/%/))
@@ -257,7 +257,7 @@ ifeq ($(if $(SYS_MISSING),1,0),1)
   $(error SYSSOURCES missing the following files in $(SYSTEM_ROOT)/lib: $(SYS_MISSING))
 endif
 
-SYS_OLDFILES := $(filter-out $(subst /,$,$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SYSSOURCES)))),$(notdir $(wildcard $(SYSOUTDIR)/temp/*.o)))
+SYS_OLDFILES := $(filter-out $(subst /,!,$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SYSSOURCES)))),$(notdir $(wildcard $(SYSOUTDIR)/temp/*.o)))
 ifeq ($(if $(SYS_OLDFILES),1,0),1)
   $(shell $(CMD_DEL_FILES) $(addprefix $(SYSOUTDIR)/temp/,$(SYS_OLDFILES)) $(SYSOUTDIR)/System.bc)
 endif
@@ -270,14 +270,15 @@ SYSCCFLAGS += -DNDEBUG -Dunix -D__unix -D__unix__
 SYSCCFLAGS += -isystem$(SYSTEM_ROOT)/lib/libc/musl/src/internal
 SYSCCFLAGS += -Wno-dangling-else -Wno-ignored-attributes -Wno-bitwise-op-parentheses -Wno-logical-op-parentheses -Wno-shift-op-parentheses -Wno-string-plus-int -Wno-unknown-pragmas -Wno-shift-count-overflow -Wno-return-type -Wno-macro-redefined
 
-WASM_CPP_SYSOBJS := $(addprefix $(SYSOUTDIR)/temp/,$(subst /,$,$(patsubst %.cpp,%.o,$(filter %.cpp,$(SYSSOURCES)))))
-WASM_CC_SYSOBJS  := $(addprefix $(SYSOUTDIR)/temp/,$(subst /,$,$(patsubst   %.c,%.o,$(filter   %.c,$(SYSSOURCES)))))
-$(WASM_CPP_SYSOBJS) : ; $(call COMPILE,$@,$(patsubst $(SYSOUTDIR)/temp/%.o,$(SYSTEM_ROOT)/lib/%.cpp,$(subst $,/,$@)),$(CXX),$(SYSCXXFLAGS))
-$(WASM_CC_SYSOBJS)  : ; $(call COMPILE,$@,$(patsubst $(SYSOUTDIR)/temp/%.o,$(SYSTEM_ROOT)/lib/%.c,$(subst $,/,$@)),$(CC),$(SYSCCFLAGS))
+WASM_CPP_SYSOBJS := $(addprefix $(SYSOUTDIR)/temp/,$(subst /,!,$(patsubst %.cpp,%.o,$(filter %.cpp,$(SYSSOURCES)))))
+WASM_CC_SYSOBJS  := $(addprefix $(SYSOUTDIR)/temp/,$(subst /,!,$(patsubst   %.c,%.o,$(filter   %.c,$(SYSSOURCES)))))
+$(WASM_CPP_SYSOBJS) : ; $(call COMPILE,$@,$(subst !,/,$(patsubst $(SYSOUTDIR)/temp/%.o,$(SYSTEM_ROOT)/lib/%.cpp,$@)),$(CXX),$(SYSCXXFLAGS))
+$(WASM_CC_SYSOBJS)  : ; $(call COMPILE,$@,$(subst !,/,$(patsubst $(SYSOUTDIR)/temp/%.o,$(SYSTEM_ROOT)/lib/%.c,$@)),$(CC),$(SYSCCFLAGS))
 
 $(SYSOUTDIR)/System.bc : $(WASM_CPP_SYSOBJS) $(WASM_CC_SYSOBJS)
 	$(info Creating archive $@ ...)
-	@$(LD) "$(SYSOUTDIR)/temp/*.o" -r -o $@
+	@$(if $(wildcard $(dir $@)),,$(shell $(CMD_MAKE_DIRS) $(dir $@)))
+	@$(LD) $(if $(ISWIN),"$(SYSOUTDIR)/temp/*.o",$(SYSOUTDIR)/temp/*.o) -r -o $@
 	@$(if $(ISWIN),rmdir /S /Q,rm -rf) "$(SYSOUTDIR)/temp"
 endif #need System.bc
 
