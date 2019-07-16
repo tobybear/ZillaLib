@@ -77,7 +77,7 @@
 <div><label for="for_vs">Visual Studio:</label><input type="checkbox" name="for_vs" id="for_vs" value="1" checked><span class="chk">(2012 - 2017)</span></div>
 <div><label for="for_vc9">Visual Studio 2010:</label><input type="checkbox" name="for_vc9" id="for_vc9" value="1"><span class="chk">(VC9)</span></div>
 <div><label for="for_vc6">Visual Studio 6.0:</label><input type="checkbox" name="for_vc6" id="for_vc6" value="1"><span class="chk">(VC6)</span></div>
-<div><label for="for_nacl">WebAssembly:</label><input type="checkbox" name="for_wasm" id="for_wasm" value="1" checked><span class="chk">(LLVM)</span></div>
+<div><label for="for_wasm">WebAssembly:</label><input type="checkbox" name="for_wasm" id="for_wasm" value="1" checked><span class="chk">(LLVM)</span></div>
 </td><td style="padding-left:20px;border-left:1px dotted #888">
 <div><label for="for_linux">Linux:</label><input type="checkbox" name="for_linux" id="for_linux" value="1" checked><span class="chk">(Makefile)</span></div>
 <div><label for="for_osx">Mac OS X:</label><input type="checkbox" name="for_osx" id="for_osx" value="1" checked><span class="chk">(Xcode)</span></div>
@@ -195,7 +195,7 @@ window.addEventListener('DOMContentLoaded',function()
 <script type="text/javascript">
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -1238,7 +1238,35 @@ function generate_project_zip(form)
 
 	if (for_vc6 || for_vc9 || for_vs)
 	{
-		var rc = 'ZL ICON DISCARDABLE "'+proj+'.ico"'+nl;
+		var rc = '#include <windows.h>'+nl;
+		rc += 'LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US'+nl;
+		rc += 'ZL ICON "'+proj+'.ico"'+nl;
+		rc += '1 VERSIONINFO'+nl;
+		rc += '	FILEVERSION     1,0,0,0'+nl;
+		rc += '	PRODUCTVERSION  1,0,0,0'+nl;
+		rc += '	FILEOS          VOS_NT_WINDOWS32'+nl;
+		rc += '	FILETYPE        VFT_APP'+nl;
+		rc += '{'+nl;
+		rc += '	BLOCK "StringFileInfo"'+nl;
+		rc += '	{'+nl;
+		rc += '		BLOCK "040904b0"'+nl;
+		rc += '		{'+nl;
+		rc += '			VALUE "FileDescription", "'+proj+'"'+nl;
+		rc += '			VALUE "FileVersion", "1.0"'+nl;
+		rc += '			VALUE "ProductName", "'+proj+'"'+nl;
+		rc += '			VALUE "ProductVersion", "1.0"'+nl;
+		rc += '			VALUE "InternalName", "'+proj+'"'+nl;
+		rc += '			VALUE "OriginalFilename", "'+proj+'.exe"'+nl;
+		rc += '			//VALUE "CompanyName", ""'+nl;
+		rc += '			//VALUE "LegalCopyright", "(C) '+(new Date().getYear()+1900)+'"'+nl;
+		rc += '		}'+nl;
+		rc += '	}'+nl;
+		rc += '	BLOCK "VarFileInfo"'+nl;
+		rc += '	{'+nl;
+		rc += '		VALUE "Translation", 0x409, 1252'+nl;
+		rc += '	}'+nl;
+		rc += '}'+nl;
+
 		zipAddTextFile(rc, ziproot+proj+'.rc');
 		rc = undefined;
 
