@@ -387,6 +387,7 @@ void ZL_Display::Transform(scalar x, scalar y, scalar rotx, scalar roty) { GLTRA
 void ZL_Display::TransformReverse(scalar x, scalar y, scalar rotx, scalar roty) { GLTRANSFORMREVXYROTXY(x, y, rotx, roty); }
 void ZL_Display::Scale(scalar scale) { GLSCALE(scale, scale); }
 void ZL_Display::Scale(scalar scalex, scalar scaley) { GLSCALE(scalex, scaley); }
+void ZL_Display::SetMatrix(const struct ZL_Matrix& mtx) { GLLOADMATRIX((const GLscalar*)&mtx); }
 
 void ZL_Display::PushOrtho(scalar left, scalar right, scalar bottom, scalar top)
 {

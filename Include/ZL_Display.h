@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -361,6 +361,7 @@ struct ZL_Display
 	static void TransformReverse(scalar x, scalar y, scalar rotx, scalar roty); //fast (precalculated cos/sin)
 	static void Scale(scalar scale);
 	static void Scale(scalar scalex, scalar scaley);
+	static void SetMatrix(const struct ZL_Matrix& mtx);
 
 	//Reset ortho matrix (define what left/right/up/down borders on the screen confirm to)
 	inline static void PushOrtho(const ZL_Rectf &o) { PushOrtho(o.left, o.right, o.low, o.high); }

@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -65,6 +65,7 @@ namespace ZLGLSL
 	void MatrixTransform(GLSLscalar tx, GLSLscalar ty, GLSLscalar rcos, GLSLscalar rsin);
 	void MatrixTransformReverse(GLSLscalar tx, GLSLscalar ty, GLSLscalar rcos, GLSLscalar rsin);
 	void MatrixOrtho(GLSLscalar left, GLSLscalar right, GLSLscalar bottom, GLSLscalar top);
+	void LoadMatrix(const GLSLscalar* mtx);
 
 	void Project(GLSLscalar& x, GLSLscalar& y);
 	void Unproject(GLSLscalar& x, GLSLscalar& y);

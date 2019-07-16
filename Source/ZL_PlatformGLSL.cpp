@@ -24,6 +24,7 @@
 #include <ZL_Application.h>
 #include "ZL_Texture_Impl.h"
 #include "ZL_Math.h"
+#include "ZL_Math3D.h"
 #include <assert.h>
 
 namespace ZLGLSL
@@ -154,6 +155,12 @@ namespace ZLGLSL
 		mvp_matrix_[13] = -(top + bottom) / deltaY;
 		mvp_matrix_[10] = -1.0f;
 		mvp_matrix_[15] = 1.0f;
+		MatrixApply();
+	}
+	
+	void LoadMatrix(const GLSLscalar* mtx)
+	{
+		memcpy(mvp_matrix_, mtx, 16*sizeof(GLSLscalar));
 		MatrixApply();
 	}
 

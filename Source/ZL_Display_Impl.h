@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -33,17 +33,20 @@
 	#define GLTRANSFORMXYROTXY(x,y,rx,ry) ZLGLSL::MatrixTransform(x,y,rx,ry)
 	#define GLTRANSFORMREVXYROTXY(x,y,rx,ry) ZLGLSL::MatrixTransformReverse(x,y,rx,ry)
 	#define GLSCALE(x,y) ZLGLSL::MatrixScale(x,y)
+	#define GLLOADMATRIX(mtx) ZLGLSL::LoadMatrix(mtx)
 #else
 	#if !defined(ZL_DOUBLE_PRECISCION)
 		#define GLTRANSLATE(x,y) glTranslatef(x,y,0)
 		#define GLROTATEDEG(a) glRotatef(a, 0, 0, 1)
 		#define GLROTATERAD(a) glRotatef(a*PIUNDER180, 0, 0, 1)
 		#define GLSCALE(x,y) glScalef(x,y,0)
+		#define GLLOADMATRIX(mtx) glLoadMatrixf(mtx)
 	#else
 		#define GLTRANSLATE(x,y) glTranslated(x,y,0)
 		#define GLROTATEDEG(a) glRotated(a, 0, 0, 1)
 		#define GLROTATERAD(a) glRotated(a*PIUNDER180, 0, 0, 1)
 		#define GLSCALE(x,y) glScaled(x,y,0)
+		#define GLLOADMATRIX(mtx) glLoadMatrixd(mtx)
 	#endif
 	#define GLROTATEXY(rx,ry) GLROTATERAD(satan2(ry,rx))
 	#define GLTRANSFORMXYROTXY(x,y,rx,ry) { GLTRANSLATE(x,y); GLROTATERAD(satan2(ry,rx)); }
