@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -617,7 +617,7 @@ void ZL_GetWindowSize(int *w, int *h)
 
 static void ZL_SdlAudioMix(void *udata, Uint8 *stream, int len)
 {
-	ZL_PlatformAudioMix((char*)stream, len);
+	ZL_PlatformAudioMix((short*)stream, (unsigned int)len);
 }
 
 bool ZL_AudioOpen()

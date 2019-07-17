@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -55,7 +55,7 @@ static jmethodID JavaSoftKeyboard, JavaVibrate, JavaSettingsGet, JavaSettingsSet
 // Audio stuff
 static SLObjectItf SLESEngine, SLESOutMix, SLESPlayer;
 static char* SLESBuffer[2];
-static int SLESBufferSize, SLESBufferNum;
+static unsigned int SLESBufferSize, SLESBufferNum;
 static bool SLESWasActivated;
 static jmethodID JavaAudioOpen, JavaAudioControl;
 static void SLESShutdown();
@@ -585,7 +585,7 @@ void ZL_JoystickHandleClose(ZL_JoystickData* joystick)
 static void SLESPlayerCallback(SLAndroidSimpleBufferQueueItf bufferQueue, void*)
 {
 	SLESBufferNum ^= 1; // = (SLESBufferNum == 3 ? 0 : SLESBufferNum+1);
-	ZL_PlatformAudioMix((char*)SLESBuffer[SLESBufferNum], SLESBufferSize);
+	ZL_PlatformAudioMix((short*)SLESBuffer[SLESBufferNum], SLESBufferSize);
 	(*bufferQueue)->Enqueue(bufferQueue, SLESBuffer[SLESBufferNum], SLESBufferSize);
 }
 
@@ -604,7 +604,7 @@ static bool SLESInit()
 	const SLInterfaceID ids[1] = { SL_IID_BUFFERQUEUE };
 	const SLboolean req[1] = { SL_BOOLEAN_TRUE };
 
-	SLESBufferSize = (int)jniEnv->CallIntMethod(JavaZillaActivity, jniEnv->GetMethodID(jniEnv->GetObjectClass(JavaZillaActivity), "getAudioFramesPerBuffer", "()I"))*2*2; //16 bit, stereo
+	SLESBufferSize = (unsigned int)jniEnv->CallIntMethod(JavaZillaActivity, jniEnv->GetMethodID(jniEnv->GetObjectClass(JavaZillaActivity), "getAudioFramesPerBuffer", "()I"))*2*2; //16 bit, stereo
 	if (SLESBufferSize < 4400) SLESBufferSize = SLESBufferSize * ((4399 + SLESBufferSize) / SLESBufferSize); //at least 25ms (4400 bytes) in steps of native bytes per buffer
 
 	SLESBuffer[0] = (char*)malloc(SLESBufferSize * 2);

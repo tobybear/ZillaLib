@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -1054,7 +1054,7 @@ bool ZL_AudioOpen()
 			{
 				pSourceVoice->SubmitSourceBuffer(&sAudioBuffer); // send buffer to queue
 				pAudioBuffersCur = pAudioBuffers + (pAudioBuffersCur == pAudioBuffers ? sAudioBuffer.AudioBytes : 0);
-				ZL_PlatformAudioMix((char*)pAudioBuffersCur, sAudioBuffer.AudioBytes);
+				ZL_PlatformAudioMix((short*)pAudioBuffersCur, (unsigned int)sAudioBuffer.AudioBytes);
 				sAudioBuffer.pAudioData = pAudioBuffersCur;
 			}
 		} v;

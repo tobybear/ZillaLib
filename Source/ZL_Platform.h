@@ -112,8 +112,7 @@ extern void ZL_Display_Process_Event(ZL_Event& event);
 extern void (*funcSceneManagerCalculate)(), (*funcSceneManagerDraw)();
 extern bool (*funcProcessEventsJoystick)(ZL_Event&);
 extern ZL_Sound_Impl* ZL_Sound_LoadPlatform(void* data);
-extern bool ZL_PlatformAudioMix(char *stream, int len);
-extern bool (*funcAudioMix)(char*, int);
+extern bool ZL_PlatformAudioMix(short *stream, unsigned int bytes);
 
 #endif //__cplusplus
 #endif //__ZL_PLATFORM__

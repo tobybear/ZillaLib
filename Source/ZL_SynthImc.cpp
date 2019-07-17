@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -32,7 +32,7 @@
 
 static ZL_MutexHandle ZL_ImcMutex = ZL_MutexNone;
 static std::vector<ZL_SynthImcTrack_Impl*> *ActiveTracks = NULL;
-static bool mix_music(char *stream, int len);
+static bool mix_music(short *stream, unsigned int samples, bool mix);
 
 struct ZL_SynthImcTrack_Impl : ZL_Impl
 {
@@ -69,7 +69,7 @@ struct ZL_SynthImcTrack_Impl : ZL_Impl
 
 		if (ZL_MutexIsNone(ZL_ImcMutex)) ZL_MutexInit(ZL_ImcMutex);
 		ZL_MutexLock(ZL_ImcMutex);
-		ZL_Audio::HookMusicMix(&mix_music);
+		ZL_Audio::HookAudioMix(&mix_music);
 		if (!ActiveTracks) ActiveTracks = new std::vector<ZL_SynthImcTrack_Impl*>();
 		ActiveTracks->push_back(this);
 		ZL_MutexUnlock(ZL_ImcMutex);
@@ -180,8 +180,8 @@ struct ZL_SynthImcTrack_Impl : ZL_Impl
 		size_t out_len = sizeof(short) * (data->IMCSONG_LEN*16*data->IMCSONG_ROWLENSAMPLES);
 		short *out = (short*)malloc(out_len), *outlast = NULL;
 		for (short *ps = out, *psEnd = out+(out_len/sizeof(short)); ps != psEnd; ps++) { *ps = RenderSample(); if (*ps) outlast = ps; Advance(); }
-		extern ZL_Sound ZL_SoundLoadFromBuffer(char* audiodata, size_t audiolen, int audiofixshift);
-		return ZL_SoundLoadFromBuffer((char*)out, (outlast ? 1 + outlast - out : 0)*sizeof(short), 1 /*stereo to mono*/);
+		extern ZL_Sound ZL_SoundLoadFromBuffer(short* audiodata, unsigned int totalsamples, unsigned int fixshift);
+		return ZL_SoundLoadFromBuffer(out, (outlast ? (unsigned int)(1 + outlast - out) : 0), 1 /*stereo to mono*/);
 	}
 };
 
@@ -192,7 +192,7 @@ ZL_Sound ZL_SynthImcTrack::LoadAsSample(TImcSongData *songdata)
 	return ZL_SynthImcTrack_Impl(songdata).LoadAsSample();
 }
 
-static bool mix_music(char *stream, int len)
+static bool mix_music(short *buffer, unsigned int samples, bool mix)
 {
 	if (ActiveTracks->size() == 0)
 	{
@@ -202,22 +202,26 @@ static bool mix_music(char *stream, int len)
 	ZL_MutexLock(ZL_ImcMutex);
 	std::vector<ZL_SynthImcTrack_Impl*>::iterator it = ActiveTracks->begin();
 	while (it != ActiveTracks->end() && ((*it)->ImcSongPaused || (!(*it)->ImcSongRepeat && (*it)->curOrderPos >= (*it)->data->IMCSONG_LEN))) ++it;
-	ZL_SynthImcTrack_Impl* t; short *ps = NULL; int tlen;
+	ZL_SynthImcTrack_Impl* t; short *ps = NULL, *psEnd = buffer + (samples << 1);
 	if (it != ActiveTracks->end())
 	{
-		for (t = *it, tlen = len, ps = (short*)stream; tlen; ps+=2, tlen -= 4)
+		if (!mix)
 		{
-			ps[1] = ps[0] = t->RenderSample();
-			t->Advance();
+			for (t = *it, ps = buffer; ps != psEnd; ps+=2)
+			{
+				ps[1] = ps[0] = t->RenderSample();
+				t->Advance();
+			}
+			++it;
 		}
-		++it;
 		while (it != ActiveTracks->end())
 		{
 			if ((*it)->ImcSongPaused || (!(*it)->ImcSongRepeat && (*it)->curOrderPos >= (*it)->data->IMCSONG_LEN)) { ++it; continue; }
-			for (t = *it, tlen = len, ps = (short*)stream; tlen; ps+=2, tlen -= 4)
+			for (t = *it, ps = buffer; ps != psEnd; ps+=2)
 			{
-				int tmp = ps[0] + t->RenderSample();
-				ps[1] = ps[0] = (tmp > 0x7FFF ? 0x7FFF : (tmp < -0x7FFF ? -0x7FFF : (short)tmp));
+				int tmp = t->RenderSample(), tmp0 = ps[0] + tmp, tmp1 = ps[1] + tmp;
+				ps[0] = (tmp0 > 0x7FFF ? 0x7FFF : (tmp0 < -0x8000 ? -0x8000 : (short)tmp0));
+				ps[1] = (tmp1 > 0x7FFF ? 0x7FFF : (tmp1 < -0x8000 ? -0x8000 : (short)tmp1));
 				t->Advance();
 			}
 			++it;

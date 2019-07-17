@@ -23,7 +23,7 @@
 
 var ABORT = false;
 var HEAP8, HEAPU8, HEAP16, HEAPU16, HEAP32, HEAPU32, HEAPF32;
-var WASM_MEMORY, WASM_HEAP, WASM_HEAP_MAX;
+var WASM_MEMORY, WASM_HEAP, WASM_HEAP_MAX = 256*1024*1024; //256mb;
 ZL.print = ZL.print || function (msg) { console.log(msg); };
 ZL.error = ZL.error || function (code, msg) { ZL.print('[ERROR] ' + code + ': ' + msg); };
 ZL.started = ZL.started || function () { };
@@ -1238,72 +1238,46 @@ function ZLJS_WASM_IMPORTS(env)
 
 	env.ZLJS_StartAudio = function()
 	{
-		var audiobuffersize = 10240<<2; //2 channels, 2 byte per short sized sample
-		var audiobuffer = ZL.asm.malloc(audiobuffersize);
 		var audioCtx;
-		try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
-		var canMutateBufferSource = (function(){try { audioCtx.createBufferSource().buffer = null; } catch (e) { return true; } return false; })();
-		if (canMutateBufferSource)
+		try { audioCtx = new (findAlias(window,'','','AudioContext'))(); } catch (e) { }
+		if (!audioCtx) { ZL.print('Warning: WebAudio not supported'); return; }
+		var encTime = 0, audioSamples = 882, audioSecs = audioSamples/44100;
+		var ptrTempBuf = 0, f32TempBuf = 0, audioBufs = [{'length':0}], audioBufIdx = 0;
+		setInterval(function()
 		{
-			var outputBuffer = audioCtx.createBuffer(2, 0x1000, 44100);
-			var outputSource = audioCtx.createBufferSource();
-			outputSource.connect(audioCtx.destination);
-			outputSource.buffer = outputBuffer;
-			outputSource.loop = true;
-			outputSource[outputSource.start ? 'start' : 'noteOn']();
-			var audioOutBufL = outputBuffer.getChannelData(0), audioOutBufR = outputBuffer.getChannelData(1);
-			var audioPrevSample = 0;
-			setInterval(function()
+			if (audioCtx.state == 'suspended') { audioCtx.resume(); if (audioCtx.state == 'suspended') return; }
+			var ctxTime = audioCtx.currentTime;
+			if (ctxTime == 0) encTime = 0;
+			if (encTime - ctxTime > audioSecs) return;
+			if (audioBufs[0].length != audioSamples)
 			{
-				var cursample = (audioCtx.currentTime * 44100)|0;
-				var numnewbytes = (cursample - audioPrevSample)<<2;
-				if (!numnewbytes) return;
-				if (numnewbytes > audiobuffersize) { numnewbytes = audiobuffersize; }
-				audioPrevSample = cursample;
-				ZL.asm.ZLFNAudio(audiobuffer, numnewbytes);
-				var sample_end = (cursample & 0x0fff);
-				var sample_start = sample_end - (numnewbytes>>2);
-				var i, ptr = audiobuffer >> 1;
-				if (sample_start < 0)
-				{
-					for (i = 0x1000+sample_start; i < 0x1000; ++i) { audioOutBufL[i] = HEAP16[ptr++] / 32768.0; audioOutBufR[i] = HEAP16[ptr++] / 32768.0; }
-					sample_start = 0;
-				}
-				for (i = sample_start; i < sample_end; ++i) { audioOutBufL[i] = HEAP16[ptr++] / 32768.0; audioOutBufR[i] = HEAP16[ptr++] / 32768.0; }
-			}, 5);
-		}
-		else
-		{
-			var audioCallSampleCount = 512;
-			var audioNextPlayTime = 0;
-			var audioCaller = function()
+				ZL.asm.free(ptrTempBuf);
+				f32TempBuf = ((ptrTempBuf = ZL.asm.malloc(audioSamples<<3))>>2); //2 channels, 4 byte per float sized sample
+				for (var i = 0; i != 4; i++) audioBufs[i] = audioCtx.createBuffer(2, audioSamples, 44100);
+			}
+			if (ZL.asm.ZLFNAudio(ptrTempBuf, audioSamples))
 			{
-				var curtime = audioCtx.currentTime;
-				var numnewbytes = audioCallSampleCount << 2;
-				ZL.asm.ZLFNAudio(audiobuffer, numnewbytes);
-				var soundBuffer = audioCtx.createBuffer(2, audioCallSampleCount, 44100);
-				var bufl = soundBuffer.getChannelData(0), bufr = soundBuffer.getChannelData(1);
-				for (var ptr = audiobuffer >> 1, i = 0; i < audioCallSampleCount; ++i) { bufl[i] = HEAP16[ptr++] / 32768.0; bufr[i] = HEAP16[ptr++] / 32768.0; }
-
-				var playtime = audioNextPlayTime / 44100;
+				var soundBuffer = audioBufs[audioBufIdx = ((audioBufIdx + 1) % 4)];
+				soundBuffer.getChannelData(0).set(HEAPF32.subarray(f32TempBuf, f32TempBuf + audioSamples));
+				soundBuffer.getChannelData(1).set(HEAPF32.subarray(f32TempBuf + audioSamples, f32TempBuf + (audioSamples<<1)));
 				var source = audioCtx.createBufferSource();
 				source.connect(audioCtx.destination);
 				source.buffer = soundBuffer;
-				source[source.start ? 'start' : 'noteOn'](0.005+playtime);
-				audioNextPlayTime += audioCallSampleCount;
-
-				if (curtime > playtime && playtime && audioCallSampleCount < 10240)
+				source[source.start ? 'start' : 'noteOn'](0.005+encTime);
+			}
+			if (ctxTime > encTime && ctxTime > .5)
+			{
+				//ZL.print('Warning: Audio starved once by ' + (ctxTime - encTime) + ' seconds (ctxTime = ' + ctxTime + ', encTime = ' + encTime + ', document.hasFocus = ' + document.hasFocus() + ')');
+				if (ctxTime - encTime < audioSecs * 10 && audioSamples < 11025 && document.hasFocus())
 				{
-					audioCallSampleCount += 256;
-					ZL.print('Warning: Audio callback had starved sending audio by ' + (curtime - playtime) + ' seconds. (extending samples to: ' + audioCallSampleCount + ')');
+					//only increase buffer when at least some time has passed (not directly after loading) and it's not a giant hickup
+					audioSecs = (audioSamples += 441)/44100;
+					ZL.print('Warning: Audio callback had starved sending audio by ' + (ctxTime - encTime) + ' seconds. (extending samples to: ' + audioSamples + ')');
 				}
-
-				var nexttimeMs = ((playtime - curtime - (audioCallSampleCount / 44100.0)) * 1000.0);
-				if (nexttimeMs < 4) audioCaller();
-				else setTimeout(audioCaller, nexttimeMs);
-			};
-			setTimeout(audioCaller, 1);
-		}
+				encTime = ctxTime + (document.hasFocus() ? 0 : 1.5);
+			}
+			encTime += audioSecs;
+		}, 10);
 	};
 
 	env.ZLJS_OpenExternalUrl = function(url)
@@ -1416,7 +1390,6 @@ if (wasmDataEnd <= 0 || wasmHeapBase <= wasmStackTop) abort('BOOT', 'Invalid mem
 //console.log('[WASM] STATIC DATA: [' + 0 + ' ~ ' + wasmDataEnd + '] - STACK: [' + wasmStackTop + ' ~ ' + (wasmHeapBase-1) + '] - HEAP: [' + wasmHeapBase + ' ~ ...]');
 
 var wasmMemInitial = 262144+((wasmHeapBase+65535)>>16<<16); //data + stack + 256kb
-WASM_HEAP_MAX = 256*1024*1024; //256mb
 WASM_HEAP = wasmHeapBase;
 WASM_MEMORY = env.memory = new WebAssembly.Memory({initial: wasmMemInitial>>16, maximum: WASM_HEAP_MAX>>16 });
 updateGlobalBufferViews();

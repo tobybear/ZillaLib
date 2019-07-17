@@ -16005,10 +16005,11 @@ static fluid_synth_t* mysynth;
 #define FLUID_ZL_CHANNELS 2
 #define FLUID_ZL_RATE 44100
 
-static bool mix_music(char *stream, int len)
+static bool mix_music(short *stream, unsigned int samples, bool mix)
 {
 	if (mysynth->state != FLUID_SYNTH_PLAYING) return false;
-	fluid_synth_write_s16(mysynth, len / (2 * FLUID_ZL_CHANNELS), stream, 0, FLUID_ZL_CHANNELS, stream, 1, FLUID_ZL_CHANNELS);
+	ZL_ASSERTMSG(!mix, "ZL_FluidSynth::InitSynth must be called before any other audio mix gets connected");
+	fluid_synth_write_s16(mysynth, samples, stream, 0, FLUID_ZL_CHANNELS, stream, 1, FLUID_ZL_CHANNELS);
 	return true;
 }
 
@@ -16019,7 +16020,7 @@ fluid_audio_driver_t* new_fluid_audio_driver(fluid_synth_t* synth)
 	synth->sample_rate = FLUID_ZL_RATE;
 	mysynth = synth;
 
-	ZL_Audio::HookMusicMix(&mix_music);
+	ZL_Audio::HookAudioMix(&mix_music);
 
 	return (fluid_audio_driver_t*)dev;
 }

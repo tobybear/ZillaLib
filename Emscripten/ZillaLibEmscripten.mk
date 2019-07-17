@@ -166,7 +166,7 @@ EMCCFLAGS += --memory-init-file 0
 EMCCFLAGS += -s "EXPORTED_FUNCTIONS=[$(LD_EXPORTED_FUNCTIONS)$(if $(ZLEMSCRIPTEN_ADD_EXPORTS),$(strip ,)'$(subst $(sp),$(strip ','),$(strip $(ZLEMSCRIPTEN_ADD_EXPORTS)))',)]"
 EMCCFLAGS += $(if $(ZLEMSCRIPTEN_TOTAL_MEMORY),-s "TOTAL_MEMORY=$(ZLEMSCRIPTEN_TOTAL_MEMORY)")
 EMCCFLAGS += $(if $(ZLEMSCRIPTEN_ALLOW_MEMORY_GROWTH),-s "ALLOW_MEMORY_GROWTH=1")
-EMCCFLAGS += -s WASM_BACKEND=0 -s WASM=0 -s STRICT=1 -lGL
+EMCCFLAGS += -s WASM=0 -s STRICT=1 -lGL
 EMCCFLAGS += --js-library $(ZILLALIB_DIR)Emscripten/ZillaLibEmscripten.js
 
 #as of Emscripten 1.38.12, closure function renaming breaks FS.createDataFile calls and other internal emscripten functions

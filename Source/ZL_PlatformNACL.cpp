@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -694,9 +694,9 @@ void ZL_JoystickHandleClose(ZL_JoystickData* joystick) { }
 
 //Audio
 #ifdef PPB_AUDIO_CONFIG_INTERFACE_1_1
-void nacl_audio_callback(void* sample_buffer, uint32_t buffer_size_in_bytes, PP_TimeDelta, void*) { ZL_PlatformAudioMix((char*)sample_buffer, buffer_size_in_bytes); }
+void nacl_audio_callback(void* sample_buffer, uint32_t buffer_size_in_bytes, PP_TimeDelta, void*) { ZL_PlatformAudioMix((short*)sample_buffer, buffer_size_in_bytes); }
 #else
-void nacl_audio_callback(void* sample_buffer, uint32_t buffer_size_in_bytes, void*) { ZL_PlatformAudioMix((char*)sample_buffer, buffer_size_in_bytes); }
+void nacl_audio_callback(void* sample_buffer, uint32_t buffer_size_in_bytes, void*) { ZL_PlatformAudioMix((short*)sample_buffer, buffer_size_in_bytes); }
 #endif
 
 bool ZL_AudioOpen()

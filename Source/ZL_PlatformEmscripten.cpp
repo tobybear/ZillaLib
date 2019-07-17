@@ -228,9 +228,21 @@ ZL_JoystickData* ZL_JoystickHandleOpen(int index) { return NULL; }
 void ZL_JoystickHandleClose(ZL_JoystickData* joystick) { }
 
 // AUDIO
-extern "C" void ZLFNAudio(char* sample_buffer, size_t buffer_size_in_bytes)
+extern "C" bool ZLFNAudio(float* sample_buffer, unsigned int samples)
 {
-	ZL_PlatformAudioMix(sample_buffer, buffer_size_in_bytes);
+	if (!ZL_PlatformAudioMix((short*)sample_buffer, samples<<2)) return false; //2 channels, 2 byte per short sized sample
+
+	//fill right channel samples forward because there is nothing being overwritten
+	const short *psr = ((short*)sample_buffer)+1;
+	for (float *pfr = sample_buffer + samples, *pfrEnd = pfr + samples; pfr != pfrEnd; psr += 2)
+		*(pfr++) = *psr / 32768.f;
+
+	//fill left channel samples backward since shorts are getting overwritten with the floats
+	const short *psl = ((short*)sample_buffer) + (samples<<1) - 2;
+	for (float *pfl = sample_buffer + samples - 1; pfl >= sample_buffer; psl -= 2)
+		*(pfl--) = *psl / 32768.f;
+
+	return true;
 }
 
 bool ZL_AudioOpen()

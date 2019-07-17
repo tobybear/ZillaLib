@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -627,7 +627,7 @@ static OSStatus ZL_AudioOutputCallback(void *inRefCon, AudioUnitRenderActionFlag
 {
 	if (ioDataList->mNumberBuffers != 1) return noErr;
 	AudioBuffer *ioData = &ioDataList->mBuffers[0];
-	ZL_PlatformAudioMix((char*)ioData->mData, ioData->mDataByteSize);
+	ZL_PlatformAudioMix((short*)ioData->mData, ioData->mDataByteSize);
 	return noErr;
 }
 

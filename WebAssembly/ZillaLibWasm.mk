@@ -135,6 +135,8 @@ ifeq ($(APPSOURCES),)
   $(error No source files found for $(ZillaApp))
 endif
 
+LDFLAGS += $(addprefix -export=,$(patsubst _%,%,$(strip $(ZLEMSCRIPTEN_ADD_EXPORTS))))
+
 -include assets.mk
 ASSET_ALL_PATHS := $(strip $(foreach F,$(ASSETS),$(wildcard ./$(F)) $(wildcard ./$(F)/*) $(wildcard ./$(F)/*/*) $(wildcard ./$(F)/*/*/*) $(wildcard ./$(F)/*/*/*/*) $(wildcard ./$(F)/*/*/*/*/*)))
 ASSET_ALL_STARS := $(if $(ASSET_ALL_PATHS),$(strip $(foreach F,$(subst *./, ,*$(subst $(sp),*,$(ASSET_ALL_PATHS))),$(if $(wildcard $(subst *,\ ,$(F))/.),,$(F)))))
