@@ -218,9 +218,10 @@ function SYSCALLS_WASM_IMPORTS(env)
 	};
 }
 
-var GLctx, GLsetupContext;
+var GLsetupContext;
 function GL_WASM_IMPORTS(env)
 {
+	var GLctx;
 	var GLcounter = 1;
 	var GLbuffers = [];
 	var GLprograms = [];
@@ -234,18 +235,12 @@ function GL_WASM_IMPORTS(env)
 	var GLMINI_TEMP_BUFFER_SIZE = 256;
 	var GLminiTempBuffer = null;
 	var GLminiTempBufferViews = [0];
-
 	GLminiTempBuffer = new Float32Array(GLMINI_TEMP_BUFFER_SIZE);
 	for (var i = 0; i < GLMINI_TEMP_BUFFER_SIZE; i++) GLminiTempBufferViews[i] = GLminiTempBuffer.subarray(0, i+1);
 
 	GLsetupContext = function(canvas, attr)
 	{
-		if (typeof attr.majorVersion === 'undefined' && typeof attr.minorVersion === 'undefined')
-		{
-			attr.majorVersion = 1;
-			attr.minorVersion = 0;
-		}
-		var ctx;
+		var attr = { majorVersion: 1, minorVersion: 0, antialias: true, alpha: false };
 		var errorInfo = '';
 		try
 		{
@@ -253,95 +248,84 @@ function GL_WASM_IMPORTS(env)
 			canvas.addEventListener('webglcontextcreationerror', onContextCreationError, false);
 			try
 			{
-				if (attr.majorVersion == 1 && attr.minorVersion == 0)
-					ctx = canvas.getContext('webgl', attr) || canvas.getContext('experimental-webgl', attr);
-				else if (attr.majorVersion == 2 && attr.minorVersion == 0)
-					ctx = canvas.getContext('webgl2', attr);
-				else
-					throw 'Unsupported WebGL context version ' + majorVersion + '.' + minorVersion;
+				//if (attr.majorVersion == 1 && attr.minorVersion == 0)
+					GLctx = canvas.getContext('webgl', attr) || canvas.getContext('experimental-webgl', attr);
+				//else if (attr.majorVersion == 2 && attr.minorVersion == 0)
+				//	GLctx = canvas.getContext('webgl2', attr);
+				//else
+				//	throw 'Unsupported WebGL context version ' + majorVersion + '.' + minorVersion;
 			}
 			finally { canvas.removeEventListener('webglcontextcreationerror', onContextCreationError, false); }
-			if (!ctx) throw 'Could not create canvas';
+			if (!GLctx) throw 'Could not create context';
 		}
 		catch (e)
 		{
 			abort('WEBGL', e + (errorInfo ? ' (' + errorInfo + ')' : ''));
 		}
 
-		if (typeof attr.enableExtensionsByDefault === 'undefined' || attr.enableExtensionsByDefault)
+		/*
+		// Detect the presence of a few extensions manually, this GL interop layer itself will need to know if they exist.
+		if (attr.majorVersion < 2)
 		{
-			// Detect the presence of a few extensions manually, this GL interop layer itself will need to know if they exist.
-			if (attr.majorVersion < 2)
+			// Extension available from Firefox 26 and Google Chrome 30
+			var instancedArraysExt = GLctx.getExtension('ANGLE_instanced_arrays');
+			if (instancedArraysExt)
 			{
-				// Extension available from Firefox 26 and Google Chrome 30
-				var instancedArraysExt = ctx.getExtension('ANGLE_instanced_arrays');
-				if (instancedArraysExt)
-				{
-					ctx.vertexAttribDivisor = function(index, divisor) { instancedArraysExt.vertexAttribDivisorANGLE(index, divisor); };
-					ctx.drawArraysInstanced = function(mode, first, count, primcount) { instancedArraysExt.drawArraysInstancedANGLE(mode, first, count, primcount); };
-					ctx.drawElementsInstanced = function(mode, count, type, indices, primcount) { instancedArraysExt.drawElementsInstancedANGLE(mode, count, type, indices, primcount); };
-				}
-
-				// Extension available from Firefox 25 and WebKit
-				var vaoExt = ctx.getExtension('OES_vertex_array_object');
-				if (vaoExt)
-				{
-					ctx.createVertexArray = function() { return vaoExt.createVertexArrayOES(); };
-					ctx.deleteVertexArray = function(vao) { vaoExt.deleteVertexArrayOES(vao); };
-					ctx.bindVertexArray = function(vao) { vaoExt.bindVertexArrayOES(vao); };
-					ctx.isVertexArray = function(vao) { return vaoExt.isVertexArrayOES(vao); };
-				}
-
-				var drawBuffersExt = ctx.getExtension('WEBGL_draw_buffers');
-				if (drawBuffersExt)
-				{
-					ctx.drawBuffers = function(n, bufs) { drawBuffersExt.drawBuffersWEBGL(n, bufs); };
-				}
+				GLctx.vertexAttribDivisor = function(index, divisor) { instancedArraysExt.vertexAttribDivisorANGLE(index, divisor); };
+				GLctx.drawArraysInstanced = function(mode, first, count, primcount) { instancedArraysExt.drawArraysInstancedANGLE(mode, first, count, primcount); };
+				GLctx.drawElementsInstanced = function(mode, count, type, indices, primcount) { instancedArraysExt.drawElementsInstancedANGLE(mode, count, type, indices, primcount); };
 			}
 
-			ctx.disjointTimerQueryExt = ctx.getExtension('EXT_disjoint_timer_query');
+			// Extension available from Firefox 25 and WebKit
+			var vaoExt = GLctx.getExtension('OES_vertex_array_object');
+			if (vaoExt)
+			{
+				GLctx.createVertexArray = function() { return vaoExt.createVertexArrayOES(); };
+				GLctx.deleteVertexArray = function(vao) { vaoExt.deleteVertexArrayOES(vao); };
+				GLctx.bindVertexArray = function(vao) { vaoExt.bindVertexArrayOES(vao); };
+				GLctx.isVertexArray = function(vao) { return vaoExt.isVertexArrayOES(vao); };
+			}
 
+			var drawBuffersExt = GLctx.getExtension('WEBGL_draw_buffers');
+			if (drawBuffersExt)
+			{
+				GLctx.drawBuffers = function(n, bufs) { drawBuffersExt.drawBuffersWEBGL(n, bufs); };
+			}
+		}
+
+		GLctx.disjointTimerQueryExt = GLctx.getExtension('EXT_disjoint_timer_query');
+		*/
+
+		var exts = GLctx.getSupportedExtensions();
+		if (exts && exts.length > 0)
+		{
 			// These are the 'safe' feature-enabling extensions that don't add any performance impact related to e.g. debugging, and
 			// should be enabled by default so that client GLES2/GL code will not need to go through extra hoops to get its stuff working.
 			// As new extensions are ratified at http://www.khronos.org/registry/webgl/extensions/ , feel free to add your new extensions
 			// here, as long as they don't produce a performance impact for users that might not be using those extensions.
 			// E.g. debugging-related extensions should probably be off by default.
+			var W = 'WEBGL_', O = 'OES_', E = 'EXT_', T = 'texture_', C = 'compressed_'+T;
 			var automaticallyEnabledExtensions = [ // Khronos ratified WebGL extensions ordered by number (no debug extensions):
-				'OES_texture_float', 'OES_texture_half_float', 'OES_standard_derivatives',
-				'OES_vertex_array_object', 'WEBGL_compressed_texture_s3tc', 'WEBGL_depth_texture',
-				'OES_element_index_uint', 'EXT_texture_filter_anisotropic', 'EXT_frag_depth',
-				'WEBGL_draw_buffers', 'ANGLE_instanced_arrays', 'OES_texture_float_linear',
-				'OES_texture_half_float_linear', 'EXT_blend_minmax', 'EXT_shader_texture_lod',
+				O+T+'float', O+T+'half_float', O+'standard_derivatives',
+				O+'vertex_array_object', W+C+'s3tc', W+'depth_texture',
+				O+'element_index_uint', E+T+'filter_anisotropic', E+'frag_depth',
+				W+'draw_buffers', 'ANGLE_instanced_arrays', O+T+'float_linear',
+				O+T+'half_float_linear', E+'blend_minmax', E+'shader_texture_lod',
 				// Community approved WebGL extensions ordered by number:
-				'WEBGL_compressed_texture_pvrtc', 'EXT_color_buffer_half_float', 'WEBGL_color_buffer_float',
-				'EXT_sRGB', 'WEBGL_compressed_texture_etc1', 'EXT_disjoint_timer_query',
-				'WEBGL_compressed_texture_etc', 'WEBGL_compressed_texture_astc', 'EXT_color_buffer_float',
-				'WEBGL_compressed_texture_s3tc_srgb', 'EXT_disjoint_timer_query_webgl2'];
-
-			function shouldEnableAutomatically(extension)
+				W+C+'pvrtc', E+'color_buffer_half_float', W+'color_buffer_float',
+				E+'sRGB', W+C+'etc1', E+'disjoint_timer_query',
+				W+C+'etc', W+C+'astc', E+'color_buffer_float',
+				W+C+'s3tc_srgb', E+'disjoint_timer_query_webgl2'];
+			exts.forEach(function(ext)
 			{
-				var ret = false;
-				automaticallyEnabledExtensions.forEach(function(include)
+				if (automaticallyEnabledExtensions.indexOf(ext) != -1)
 				{
-					if (extension.indexOf(include) != -1) ret = true;
-				});
-				return ret;
-			}
-
-			var exts = ctx.getSupportedExtensions();
-			if (exts && exts.length > 0)
-			{
-				ctx.getSupportedExtensions().forEach(function(ext)
-				{
-					if (automaticallyEnabledExtensions.indexOf(ext) != -1)
-					{
-						ctx.getExtension(ext); // Calling .getExtension enables that extension permanently, no need to store the return value to be enabled.
-					}
-				});
-			}
+					// Calling .getExtension enables that extension permanently, no need to store the return value to be enabled.
+					GLctx.getExtension(ext);
+				}
+			});
 		}
 
-		GLctx = ctx; // Active WebGL context object.
 		return true;
 	};
 	function getNewId(table)
@@ -500,7 +484,7 @@ function GL_WASM_IMPORTS(env)
 		if (!program) 
 		{
 			// glDeleteProgram actually signals an error when deleting a nonexisting object, unlike some other GL delete functions.
-			GLrecordError(0x0501 /* GL_INVALID_VALUE */);
+			GLrecordError(0x0501); // GL_INVALID_VALUE
 			return;
 		}
 		GLctx.deleteProgram(program);
@@ -516,7 +500,7 @@ function GL_WASM_IMPORTS(env)
 		if (!shader)
 		{
 			// glDeleteShader actually signals an error when deleting a nonexisting object, unlike some other GL delete functions.
-			GLrecordError(0x0501 /* GL_INVALID_VALUE */);
+			GLrecordError(0x0501); // GL_INVALID_VALUE
 			return;
 		}
 		GLctx.deleteShader(shader);
@@ -555,7 +539,7 @@ function GL_WASM_IMPORTS(env)
 			var buffer = GLctx.createBuffer();
 			if (!buffer)
 			{
-				GLrecordError(0x0502 /* GL_INVALID_OPERATION */);
+				GLrecordError(0x0502); // GL_INVALID_OPERATION
 				while(i < n) HEAP32[(((buffers)+(i++*4))>>2)]=0;
 				return;
 			}
@@ -573,7 +557,7 @@ function GL_WASM_IMPORTS(env)
 			var framebuffer = GLctx.createFramebuffer();
 			if (!framebuffer)
 			{
-				GLrecordError(0x0502 /* GL_INVALID_OPERATION */);
+				GLrecordError(0x0502); // GL_INVALID_OPERATION
 				while(i < n) HEAP32[(((ids)+(i++*4))>>2)]=0;
 				return;
 			}
@@ -591,7 +575,8 @@ function GL_WASM_IMPORTS(env)
 			var texture = GLctx.createTexture();
 			if (!texture)
 			{
-				GLrecordError(0x0502 /* GL_INVALID_OPERATION */); // GLES + EGL specs don't specify what should happen here, so best to issue an error and create IDs with 0.
+				// GLES + EGL specs don't specify what should happen here, so best to issue an error and create IDs with 0.
+				GLrecordError(0x0502); // GL_INVALID_OPERATION
 				while(i < n) HEAP32[(((textures)+(i++*4))>>2)]=0;
 				return;
 			}
@@ -633,7 +618,7 @@ function GL_WASM_IMPORTS(env)
 		// Note that GLES2 spec does not say anything about how passing a null pointer should be treated.
 		// Testing on desktop core GL 3, the application crashes on glGetIntegerv to a null pointer, but
 		// better to report an error instead of doing anything random.
-		if (!p) { GLrecordError(0x0501 /* GL_INVALID_VALUE */); return; }
+		if (!p) { GLrecordError(0x0501); return; } // GL_INVALID_VALUE
 
 		var ret = undefined;
 		switch(name_)
@@ -647,7 +632,7 @@ function GL_WASM_IMPORTS(env)
 			case 0x86A2: // GL_NUM_COMPRESSED_TEXTURE_FORMATS
 				// WebGL doesn't have GL_NUM_COMPRESSED_TEXTURE_FORMATS (it's obsolete since GL_COMPRESSED_TEXTURE_FORMATS returns a JS array that can be queried for length),
 				// so implement it ourselves to allow C++ GLES2 code get the length.
-				var formats = GLctx.getParameter(0x86A3 /*GL_COMPRESSED_TEXTURE_FORMATS*/);
+				var formats = GLctx.getParameter(0x86A3); // GL_COMPRESSED_TEXTURE_FORMATS
 				ret = formats.length;
 				break;
 		}
@@ -760,20 +745,20 @@ function GL_WASM_IMPORTS(env)
 		{
 			// GLES2 specification does not specify how to behave if p is a null pointer. Since calling this function does not make sense
 			// if p == null, issue a GL error to notify user about it.
-			GLrecordError(0x0501 /* GL_INVALID_VALUE */);
+			GLrecordError(0x0501); // GL_INVALID_VALUE
 			return;
 		}
 
 		if (program >= GLcounter)
 		{
-			GLrecordError(0x0501 /* GL_INVALID_VALUE */);
+			GLrecordError(0x0501); // GL_INVALID_VALUE
 			return;
 		}
 
 		var ptable = GLprogramInfos[program];
 		if (!ptable)
 		{
-			GLrecordError(0x0502 /* GL_INVALID_OPERATION */);
+			GLrecordError(0x0502); //GL_INVALID_OPERATION
 			return;
 		}
 
@@ -841,7 +826,7 @@ function GL_WASM_IMPORTS(env)
 		{
 			// GLES2 specification does not specify how to behave if p is a null pointer. Since calling this function does not make sense
 			// if p == null, issue a GL error to notify user about it.
-			GLrecordError(0x0501 /* GL_INVALID_VALUE */);
+			GLrecordError(0x0501); // GL_INVALID_VALUE
 			return;
 		}
 		if (pname == 0x8B84) // GL_INFO_LOG_LENGTH
@@ -945,7 +930,7 @@ function GL_WASM_IMPORTS(env)
 	env.glReadPixels = function(x, y, width, height, format, type, pixels)
 	{
 		var pixelData = webGLGetTexPixelData(type, format, width, height, pixels, format);
-		if (!pixelData) return GLrecordError(0x0500/*GL_INVALID_ENUM*/);
+		if (!pixelData) return GLrecordError(0x0500); // GL_INVALID_ENUM
 		GLctx.readPixels(x, y, width, height, format, type, pixelData);
 	};
 
@@ -988,17 +973,12 @@ function GL_WASM_IMPORTS(env)
 		{
 			// avoid allocation when uploading few enough uniforms
 			view = GLminiTempBufferViews[3*count-1];
-			for (var i = 0; i < 3*count; i += 3)
+			for (var ptr = value>>2, i = 0; i != 3*count; i++)
 			{
-				view[i] = HEAPF32[(((value)+(4*i))>>2)];
-				view[i+1] = HEAPF32[(((value)+(4*i+4))>>2)];
-				view[i+2] = HEAPF32[(((value)+(4*i+8))>>2)];
+				view[i] = HEAPF32[ptr+i];
 			}
 		}
-		else
-		{
-			view = HEAPF32.subarray((value)>>2,(value+count*12)>>2);
-		}
+		else view = HEAPF32.subarray((value)>>2,(value+count*12)>>2);
 		GLctx.uniform3fv(GLuniforms[loc], view);
 	};
 
@@ -1006,32 +986,21 @@ function GL_WASM_IMPORTS(env)
 
 	env.glUniformMatrix4fv = function(loc, count, transpose, value)
 	{
+		count<<=4;
 		var view;
-		if (16*count <= GLMINI_TEMP_BUFFER_SIZE)
+		if (count <= GLMINI_TEMP_BUFFER_SIZE)
 		{
 			// avoid allocation when uploading few enough uniforms
-			view = GLminiTempBufferViews[16*count-1];
-			for (var i = 0; i < 16*count; i += 16)
+			view = GLminiTempBufferViews[count-1];
+			for (var ptr = value>>2, i = 0; i != count; i += 4)
 			{
-				view[i] = HEAPF32[(((value)+(4*i))>>2)];
-				view[i+1] = HEAPF32[(((value)+(4*i+4))>>2)];
-				view[i+2] = HEAPF32[(((value)+(4*i+8))>>2)];
-				view[i+3] = HEAPF32[(((value)+(4*i+12))>>2)];
-				view[i+4] = HEAPF32[(((value)+(4*i+16))>>2)];
-				view[i+5] = HEAPF32[(((value)+(4*i+20))>>2)];
-				view[i+6] = HEAPF32[(((value)+(4*i+24))>>2)];
-				view[i+7] = HEAPF32[(((value)+(4*i+28))>>2)];
-				view[i+8] = HEAPF32[(((value)+(4*i+32))>>2)];
-				view[i+9] = HEAPF32[(((value)+(4*i+36))>>2)];
-				view[i+10] = HEAPF32[(((value)+(4*i+40))>>2)];
-				view[i+11] = HEAPF32[(((value)+(4*i+44))>>2)];
-				view[i+12] = HEAPF32[(((value)+(4*i+48))>>2)];
-				view[i+13] = HEAPF32[(((value)+(4*i+52))>>2)];
-				view[i+14] = HEAPF32[(((value)+(4*i+56))>>2)];
-				view[i+15] = HEAPF32[(((value)+(4*i+60))>>2)];
+				view[i  ] = HEAPF32[ptr+i  ];
+				view[i+1] = HEAPF32[ptr+i+1];
+				view[i+2] = HEAPF32[ptr+i+2];
+				view[i+3] = HEAPF32[ptr+i+3];
 			}
 		}
-		else view = HEAPF32.subarray((value)>>2,(value+count*64)>>2);
+		else view = HEAPF32.subarray((value)>>2,(value+count*4)>>2);
 		GLctx.uniformMatrix4fv(GLuniforms[loc], !!transpose, view);
 	};
 
@@ -1073,7 +1042,7 @@ function ZLJS_WASM_IMPORTS(env)
 		var cnvsResetSize = function() { cnvs.width = width; cnvs.height = height; cnvs.height = cnvs.clientHeight; cnvs.width = cnvs.clientWidth; }
 		cnvsResetSize();
 
-		if (!GLsetupContext(cnvs, { antialias: true, alpha: false })) return;
+		if (!GLsetupContext(cnvs)) return;
 
 		var mousfocs = true, pointerlock = null, fullscreen = null, mouse_lastx = -1, mouse_lasty = -1;
 		var cancelEvent = function(e) { if (e.preventDefault) e.preventDefault(true); else if (e.stopPropagation) e.stopPropagation(true); else e.stopped = true; };
