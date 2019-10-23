@@ -140,7 +140,6 @@
     <TLogLocation>$(OutDir)</TLogLocation>
     <IntermediateOutputPath>$(OutDir)</IntermediateOutputPath>
   </PropertyGroup>
-  <ItemDefinitionGroup><BuildLog><Path>nul:</Path></BuildLog></ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>

@@ -175,7 +175,6 @@
     <IntermediateOutputPath>$(OutDir)</IntermediateOutputPath>
     <LocalDebuggerCommand>This is the library, you can't run it. Make sure to set your game project as StartUp Project by right clicking it in the Solution Explorer</LocalDebuggerCommand>
   </PropertyGroup>
-  <ItemDefinitionGroup><BuildLog><Path>nul:</Path></BuildLog></ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
