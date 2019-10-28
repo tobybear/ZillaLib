@@ -300,6 +300,10 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
+	#if defined(__WIN32__) && defined(ZILLALIB_TRANSPARENTONWINDOWSDESKTOP)
+	windowflags |= SDL_WINDOW_BORDERLESS;
+	#endif
+
 	ZL_SDL_Window = SDL_CreateWindow(windowtitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, windowflags);
 	if (!ZL_SDL_Window)
 	{
@@ -308,6 +312,25 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 		ZL_SDL_Window = SDL_CreateWindow(windowtitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, windowflags);
 		if (!ZL_SDL_Window) { ZL_SDL_ShowError("Could not create OpenGL window"); return false; }
 	}
+
+	#if defined(__WIN32__) && defined(ZILLALIB_TRANSPARENTONWINDOWSDESKTOP)
+	HMODULE libDwm = LoadLibraryA("Dwmapi.dll");
+	if (libDwm)
+	{
+		typedef struct { DWORD dwFlags; BOOL fEnable; HRGN hRgnBlur; BOOL fTransitionOnMaximized; } DWM_BLURBEHIND;
+		BOOL(__stdcall *procDwmEnableBlurBehindWindow)(HWND, const DWM_BLURBEHIND*)  = (BOOL(__stdcall *)(HWND, const DWM_BLURBEHIND*)) GetProcAddress(libDwm, "DwmEnableBlurBehindWindow");
+		if (procDwmEnableBlurBehindWindow)
+		{
+			DWM_BLURBEHIND bb = {0};
+			bb.dwFlags = 3;
+			bb.fEnable = TRUE;
+			bb.fTransitionOnMaximized = 1;
+			bb.hRgnBlur = CreateRectRgn(0, 0, -1, -1);
+			procDwmEnableBlurBehindWindow(*(((HWND*)(ZL_SDL_Window->driverdata))+1), &bb);
+		}
+		FreeLibrary(libDwm);
+	}
+	#endif
 
 	if (!SDL_GL_CreateContext(ZL_SDL_Window)) { ZL_SDL_ShowError("Could not initialize OpenGL context"); return false; }
 
