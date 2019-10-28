@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -63,10 +63,10 @@ static void _ZL_ApplicationUpdateTimingFps()
 		ZL_LastFPSTicks += 1000;
 		if (ZL_TPF_Limit && (ZL_Application::FPS > (1000/ZL_TPF_Limit)+5 || ZL_Application::FPS < (1000/(ZL_TPF_Limit+1))-5)) ZL_MainApplicationFlags |= ZL_APPLICATION_VSYNCFAILED;
 		else ZL_MainApplicationFlags &= ~ZL_APPLICATION_VSYNCFAILED;
-		//ZL_LOG3("FPS", "FPS: %d - AVGFPS: %d - VSYNC: %d", ZL_Application::FPS, ZL_Application::FrameCount / (ZL_Application::Ticks/1000), !(ZL_MainApplicationFlags & (ZL_APPLICATION_NOVSYNC|ZL_APPLICATION_VSYNCFAILED)));
+		//ZL_LOG3("FPS", "FPS: %d - AVGFPS: %d - VSYNC: %d", ZL_Application::FPS, ZL_Application::FrameCount / (ZL_Application::Ticks/1000), (ZL_MainApplicationFlags & (ZL_APPLICATION_HASVSYNC|ZL_APPLICATION_VSYNCFAILED)) == ZL_APPLICATION_HASVSYNC);
 	}
 
-	if (!ZL_TPF_Limit || (ZL_MainApplicationFlags & (ZL_APPLICATION_NOVSYNC|ZL_APPLICATION_VSYNCFAILED)))
+	if (!ZL_TPF_Limit || (ZL_MainApplicationFlags & (ZL_APPLICATION_HASVSYNC|ZL_APPLICATION_VSYNCFAILED)) != ZL_APPLICATION_HASVSYNC)
 	{
 		ZL_Application::ElapsedTicks = ZL_Application::Ticks - last;
 		if (ZL_Application::ElapsedTicks < ZL_TPF_Limit)

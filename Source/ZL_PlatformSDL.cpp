@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 		ZL_MainApplication->Frame();
 		SDL_GL_SwapWindow(ZL_SDL_Window);
 		//#ifdef __WIN32__
-		//if ((ZL_MainApplicationFlags & (ZL_APPLICATION_NOVSYNC|ZL_APPLICATION_VSYNCFAILED|ZL_APPLICATION_VSYNCHACK)) == (ZL_APPLICATION_VSYNCFAILED|ZL_APPLICATION_VSYNCHACK))
+		//if ((ZL_MainApplicationFlags & (ZL_APPLICATION_HASVSYNC|ZL_APPLICATION_VSYNCFAILED|ZL_APPLICATION_VSYNCHACK)) == (ZL_APPLICATION_HASVSYNC|ZL_APPLICATION_VSYNCFAILED|ZL_APPLICATION_VSYNCHACK))
 		//{
 		//	//hack to fix vsync issue on ATI cards on windows (Maybe other platforms/cards affected?)
 		//	//see http://www.gamedev.net/topic/544239-jerky-movement-when-vsync-turned-on-wglswapintervalext/page-2
@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
 		//}
 		//#endif
 		//avoid any "input lag" (see: http://www.opengl.org/wiki/Swap_Interval#GPU_vs_CPU_synchronization)
-		if (!(ZL_MainApplicationFlags & ZL_APPLICATION_NOVSYNC)) glFinish();
+		if (ZL_MainApplicationFlags & ZL_APPLICATION_HASVSYNC) glFinish();
 	}
 	ZL_MainApplication->OnQuit();
 	//_exit(ZL_DoneReturn); //faster exit without freeing each object, let OS free all memory and resources
@@ -270,8 +270,8 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	enum { __asrt = 1/(int)(ZL_WINDOW_FULLSCREEN==SDL_WINDOW_FULLSCREEN&&ZL_WINDOW_MINIMIZED==SDL_WINDOW_MINIMIZED&&ZL_WINDOW_RESIZABLE==SDL_WINDOW_RESIZABLE) };
 	#endif
 
-	Uint32 windowflags = SDL_WINDOW_OPENGL; // | SDL_WINDOW_SHOWN;
-	if (displayflags & ZL_DISPLAY_FULLSCREEN) windowflags |= SDL_WINDOW_FULLSCREEN;
+	Uint32 windowflags = SDL_WINDOW_OPENGL;
+	if (displayflags & ZL_DISPLAY_FULLSCREEN) windowflags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 	if (displayflags & ZL_DISPLAY_RESIZABLE) windowflags |= SDL_WINDOW_RESIZABLE;
 
 	if (SDL_VideoInit(NULL) < 0) { ZL_SDL_ShowError("Could not initialize video display"); return false; }
@@ -394,7 +394,7 @@ void ZL_UpdateTPFLimit()
 	if (!DisplayMode.refresh_rate) return;
 	bool UseVSync = (ZL_TPF_Limit && ZL_TPF_Limit == (unsigned int)((1000.0f / (float)DisplayMode.refresh_rate)-0.0495f));
 	SDL_GL_SetSwapInterval(UseVSync ? 1 : 0);
-	ZL_MainApplicationFlags = (UseVSync ? ZL_MainApplicationFlags & ~ZL_APPLICATION_NOVSYNC : ZL_MainApplicationFlags | ZL_APPLICATION_NOVSYNC);
+	ZL_MainApplicationFlags = (UseVSync ? ZL_MainApplicationFlags | ZL_APPLICATION_HASVSYNC : ZL_MainApplicationFlags & ~ZL_APPLICATION_HASVSYNC);
 }
 
 static unsigned char ZL_SDL_FingerIDGetIndex(SDL_FingerID FingerID, unsigned char MinIndex = 0)
@@ -596,7 +596,7 @@ void ZL_SetFullscreen(bool toFullscreen)
 	SDL_VideoDisplay *display = SDL_GetDisplayForWindow(ZL_SDL_Window);
 	if (toFullscreen)
 	{
-		ZL_SDL_Window->flags |= SDL_WINDOW_FULLSCREEN;
+		ZL_SDL_Window->flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 		ZL_SDL_Window->x = 0;
 		ZL_SDL_Window->y = 0;
 		ZL_SDL_Window->w = display->desktop_mode.w;
@@ -605,7 +605,7 @@ void ZL_SetFullscreen(bool toFullscreen)
 	}
 	else
 	{
-		ZL_SDL_Window->flags &= ~SDL_WINDOW_FULLSCREEN;
+		ZL_SDL_Window->flags &= ~SDL_WINDOW_FULLSCREEN_DESKTOP;
 		ZL_SDL_Window->x = ZL_SDL_Window->windowed.x;
 		ZL_SDL_Window->y = ZL_SDL_Window->windowed.y;
 		ZL_SDL_Window->w = ZL_SDL_Window->windowed.w;

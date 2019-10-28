@@ -98,7 +98,7 @@ struct ZL_Sound_Impl;
 struct ZL_Event;
 extern struct ZL_Application* ZL_MainApplication;
 extern int ZL_DoneReturn;
-enum ZL_ApplicationFlagsInternal { ZL_APPLICATION_DONE = 0x0800, ZL_APPLICATION_NOVSYNC = 0x1000, ZL_APPLICATION_VSYNCFAILED = 0x2000, ZL_APPLICATION_VSYNCHACK = 0x4000 };
+enum ZL_ApplicationFlagsInternal { ZL_APPLICATION_DONE = 0x0800, ZL_APPLICATION_HASVSYNC = 0x1000, ZL_APPLICATION_VSYNCFAILED = 0x2000, ZL_APPLICATION_VSYNCHACK = 0x4000 };
 extern short ZL_Requested_FPS;
 extern unsigned int ZL_LastFPSTicks, ZL_TPF_Limit, ZL_MainApplicationFlags;
 extern unsigned int *pZL_WindowFlags;
