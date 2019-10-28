@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2016 Bernhard Schelling
+#  Copyright (C) 2010-2019 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -37,18 +37,27 @@ LOCAL_SRC_FILES := $(subst ZL_Audio.cpp,ZL_Audio.cpp.arm,$(LOCAL_SRC_FILES))
 LOCAL_SRC_FILES := $(subst ZL_SynthImc.cpp,ZL_SynthImc.cpp.arm,$(LOCAL_SRC_FILES))
 LOCAL_SRC_FILES := $(subst ZL_Display3D.cpp,ZL_Display3D.cpp.arm,$(LOCAL_SRC_FILES))
 
-LOCAL_CPP_EXTENSION := .cpp
-LOCAL_C_INCLUDES    := $(ZILLALIB_ANDROID)/stlport/stlport $(ZILLALIB_ROOT)Include
-LOCAL_CFLAGS        := -ffunction-sections -fdata-sections -fno-exceptions -fno-non-call-exceptions -fno-rtti
+LOCAL_C_INCLUDES    := $(ZILLALIB_ROOT)Include
+LOCAL_CFLAGS        := -fno-exceptions -fno-non-call-exceptions -fno-rtti
 LOCAL_CPPFLAGS      := -std=gnu++11
+LOCAL_CPP_EXTENSION := .cpp
 
 NDK_APP_OPTIM := $(if $(filter true,$(APP_DEBUGGABLE)),debug,$(NDK_APP_OPTIM))
 ifeq ($(NDK_APP_OPTIM),debug)
-	LOCAL_CFLAGS += -g -funwind-tables -DZILLALOG
 	ZILLALIB_OUT := $(ZILLALIB_ANDROID)/build-debug/$(TARGET_ARCH_ABI)
+	LOCAL_CFLAGS += -g -funwind-tables -DZILLALOG
+	LOCAL_CFLAGS += -ffunction-sections -fdata-sections -fvisibility=hidden
 else
-	LOCAL_CFLAGS += -fvisibility=hidden
 	ZILLALIB_OUT := $(ZILLALIB_ANDROID)/build/$(TARGET_ARCH_ABI)
+	LOCAL_CFLAGS += -O$(RELEASE_OPTIMIZATION)
+	LOCAL_CFLAGS += -ffunction-sections -fdata-sections -fvisibility=hidden
+	LOCAL_CFLAGS += -fno-stack-protector
+	LOCAL_CFLAGS += -fomit-frame-pointer
+	LOCAL_CFLAGS += -fno-unwind-tables
+	LOCAL_CFLAGS += -fno-asynchronous-unwind-tables
+	LOCAL_CFLAGS += -fno-math-errno
+	LOCAL_CFLAGS += -fmerge-all-constants
+	LOCAL_CFLAGS += -fno-ident
 endif
 
 TARGET_OUT.temp  := $(TARGET_OUT)

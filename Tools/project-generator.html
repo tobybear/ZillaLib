@@ -18,7 +18,7 @@
 	td.inactivetab { background-color: #888; }
 	form#zip { width: 780px; margin: 0 auto; background: #DDD; padding: 8px; margin-bottom: 20px; border: 2px solid black; border-top-width: 0; font-size: 1em; }
 	form#zip a { color: #666; }
-	form#zip h2 { font-size: 14pt; text-align: center; background: #333; color: #FFF; margin-top: 10px; }
+	form#zip h2 { font-size: 14pt; text-align: center; background: #333; color: #FFF; margin: 15px 0 5px }
 	form#zip div { clear: both; margin: 3px 0; }
 	form#zip label { float: left; width: 180px; margin-right: 10px; }
 	form#zip span.txt { display: block; padding-left: 190px; font-size: 80%; color: #666; }
@@ -74,7 +74,7 @@
 
 <h2>Target Projects</h2>
 <table width="100%"><tbody><tr valign="top"><td>
-<div><label for="for_vs">Visual Studio:</label><input type="checkbox" name="for_vs" id="for_vs" value="1" checked><span class="chk">(2012 - 2017)</span></div>
+<div><label for="for_vs">Visual Studio:</label><input type="checkbox" name="for_vs" id="for_vs" value="1" checked><span class="chk">(2012 - 2019)</span></div>
 <div><label for="for_vc9">Visual Studio 2010:</label><input type="checkbox" name="for_vc9" id="for_vc9" value="1"><span class="chk">(VC9)</span></div>
 <div><label for="for_vc6">Visual Studio 6.0:</label><input type="checkbox" name="for_vc6" id="for_vc6" value="1"><span class="chk">(VC6)</span></div>
 <div><label for="for_wasm">WebAssembly:</label><input type="checkbox" name="for_wasm" id="for_wasm" value="1" checked><span class="chk">(LLVM)</span></div>
@@ -89,17 +89,7 @@
 <div>
 <label for="assets_embed">Generate Makefile:</label>
 <input type="checkbox" name="gen_makefile" id="gen_makefile" value="1">
-<span class="chk">Always on for Linux, but can also be used for all non Windows builds</span>
-</div>
-<div>
-<label for="smp_internet">Internet Permission:</label>
-<input type="checkbox" name="smp_internet" id="smp_internet" value="1">
-<span class="chk">If planning to use network sockets on Android</span>
-</div>
-<div>
-<label for="android_vibrate">Vibrate Permission:</label>
-<input type="checkbox" name="android_vibrate" id="android_vibrate" value="1">
-<span class="chk">If planning to use the smartphone vibration on Android</span>
+<span class="chk">Always on for Linux, but can also be used for all non-Windows builds</span>
 </div>
 <div>
 <label for="sc_gitignore">.gitignore Files:</label>
@@ -119,6 +109,47 @@
 <label for="assets_embed">Embed Assets in Binary:</label>
 <input type="checkbox" name="assets_embed" id="assets_embed" value="1" checked>
 <span class="chk">For PC & Web release builds, embed assets into executable file</span>
+</div>
+</div>
+
+<h2>Android</h2>
+<div>
+<label for="android_targetsdk">Use Target SDK:</label>
+<select name="android_targetsdk" id="android_targetsdk">
+<option value="29" selected>API level 29: Q (Android 10)
+<option value="28">API level 28: Pie (Android 9)
+<option value="27">API level 27: Oreo (Android 8.1.0)
+<option value="26">API level 26: Oreo (Android 8.0.0)
+<option value="25">API level 25: Nougat (Android 7.1)
+<option value="24">API level 24: Nougat (Android 7.0)
+<option value="23">API level 23: Marshmallow (Android 6.0)
+<option value="22">API level 22: Lollipop (Android 5.1)
+<option value="21">API level 21: Lollipop (Android 5.0)
+<option value="19">API level 19: KitKat (Android 4.4.x)
+<option value="18">API level 18: Jelly Bean (Android 4.3.x)
+<option value="17">API level 17: Jelly Bean (Android 4.2.x)
+<option value="16">API level 16: Jelly Bean (Android 4.1.x)
+</select>
+<div>
+<label for="android_abis">Build for ABIs:</label>
+<select name="android_abis" id="android_abis">
+<option value="armeabi-v7a arm64-v8a" selected>ARM 32bit | ARM 64 bit (most common devices)
+<option value="armeabi-v7a arm64-v8a x86 x86_64">ARM 32bit | ARM 64 bit | x86 32bit | x86 64bit (all)
+<option value="armeabi-v7a">ARM 32bit only (most common devices)
+<option value="arm64-v8a">ARM 64 bit only (newer devices)
+<option value="x86">x86 32bit (for 32bit Emulator)
+<option value="x86_64">x86 64bit (for 64bit Emulator)
+</select>
+</div>
+<div>
+<label for="smp_internet">Internet Permission:</label>
+<input type="checkbox" name="smp_internet" id="smp_internet" value="1">
+<span class="chk">If planning to use network sockets on Android</span>
+</div>
+<div>
+<label for="android_vibrate">Vibrate Permission:</label>
+<input type="checkbox" name="android_vibrate" id="android_vibrate" value="1">
+<span class="chk">If planning to use the smartphone vibration on Android</span>
 </div>
 </div>
 
@@ -361,7 +392,8 @@ function generate_project_zip(form)
 
 	var gen_makefile    = form['gen_makefile'].checked;
 	var package_identifier = (package_identifier_base+'.'+proj.toLowerCase());
-	var android_targetsdk = (form['android_targetsdk'] && form['android_targetsdk'].value && (form['android_targetsdk'].value|0) ? (form['android_targetsdk'].value|0) : 15);
+	var android_targetsdk = (form['android_targetsdk'] && form['android_targetsdk'].value && (form['android_targetsdk'].value|0) ? (form['android_targetsdk'].value|0) : 29);
+	var android_abis = (form['android_abis'] && form['android_abis'].value ? form['android_abis'].value : 'armeabi-v7a arm64-v8a');
 	var smp_internet    = form['smp_internet'].checked;
 	var android_vibrate = form['android_vibrate'].checked;
 	var android_ads     = false;
@@ -1313,7 +1345,7 @@ function generate_project_zip(form)
 		and_mani += '	<'+(android_vibrate  ? '' : '!-- ')+'uses-permission android:name="android.permission.VIBRATE" /'+(android_vibrate  ? '' : ' --')+'>'+nl;
 		and_mani += '	<uses-feature android:glEsVersion="0x00020000" />'+nl;
 		and_mani += '	<uses-feature android:name="android.hardware.touchscreen" />'+nl;
-		and_mani += '	<uses-sdk android:minSdkVersion="9" android:targetSdkVersion="'+android_targetsdk+'" />'+nl;
+		and_mani += '	<uses-sdk android:minSdkVersion="16" android:targetSdkVersion="'+android_targetsdk+'" />'+nl;
 		and_mani += '	<supports-screens android:anyDensity="true" android:resizeable="true" android:largeScreens="true" android:normalScreens="true" android:smallScreens="true"></supports-screens>'+nl;
 		and_mani += '	<application android:label="'+appname+'" android:icon="@drawable/icon"'+nl;
 		and_mani += '			android:debuggable="false" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">'+nl;
@@ -1333,17 +1365,12 @@ function generate_project_zip(form)
 		and_mani = undefined;
 
 		/**********************************************************************************************************************
-		* Android/project.properties
-		**********************************************************************************************************************/
-		var and_projprop = 'target=android-'+android_targetsdk+nl;
-		zipAddTextFile(and_projprop, ziproot+'Android/project.properties');
-		and_projprop = undefined;
-
-		/**********************************************************************************************************************
 		* Android/jni/Application.mk
 		**********************************************************************************************************************/
-		var and_appmk = '# APP_ABI := armeabi armeabi-v7a #enable on performance issues'+nl;
-		and_appmk += '# APP_OPTIM := debug # better set android:debuggable in manifest'+nl;
+		var and_appmk = '# This selects build targets for release builds'+nl;
+		and_appmk += '# Debug builds only build the first listed target'+nl;
+		and_appmk += '# Choose from armeabi-v7a arm64-v8a x86 x86_64 '+nl;
+		and_appmk += 'APP_ABI := '+android_abis+nl;
 		zipAddTextFile(and_appmk, ziproot+'Android/jni/Application.mk');
 		and_appmk = undefined;
 
@@ -2121,7 +2148,7 @@ function generate_project_zip(form)
 		zipAddTextFile(ignores.join('\n'), ziproot+'.gitignore');
 		ignores = undefined;
 		if (for_osx) zipAddTextFile('project.xcworkspace/\nxcuserdata/\nDebug/\nRelease/\n', ziproot+proj+'-OSX.xcodeproj/.gitignore');
-		if (for_android) zipAddTextFile('obj/\nlibs/\nbin/\n', ziproot+'Android/.gitignore');
+		if (for_android) zipAddTextFile('obj/\nbin/\n', ziproot+'Android/.gitignore');
 		if (for_ios) zipAddTextFile('project.xcworkspace/\nxcuserdata/\nDebug/\nRelease/\n', ziproot+proj+'-iOS.xcodeproj/.gitignore');
 		if (for_wp8) zipAddTextFile('*.suo\n*.user\n*.sdf\n*.opensdf\nRelease-Win32/\nRelease-ARM/\nDebug-Win32/\nDebug-ARM/\n', ziproot+'WP8/.gitignore');
 	}

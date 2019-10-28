@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2016 Bernhard Schelling
+#  Copyright (C) 2010-2019 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -36,22 +36,39 @@ LOCAL_SRC_FILES := $(wildcard *.cpp *.c)
 -include sources.mk
 LOCAL_SRC_FILES += $(foreach F, $(ZL_ADD_SRC_FILES), $(wildcard $(F)))
 
-LOCAL_C_INCLUDES       := $(ZILLALIB_DIR)Android/stlport/stlport $(ZILLALIB_DIR)Include
+LOCAL_C_INCLUDES       := $(ZILLALIB_DIR)Include
+LOCAL_CFLAGS           := -fno-exceptions -fno-non-call-exceptions -fno-rtti
+LOCAL_CPPFLAGS         := -std=gnu++11
 LOCAL_CPP_EXTENSION    := .cpp
 LOCAL_LDLIBS           := -lGLESv2 -lz -lOpenSLES -lEGL -landroid
-LOCAL_STATIC_LIBRARIES := ZillaLib stlport
-LOCAL_CPPFLAGS         := -std=gnu++11
-LOCAL_LDFLAGS          := -Wl,--gc-sections
-LOCAL_CFLAGS           := -ffunction-sections -fdata-sections -fno-exceptions -fno-non-call-exceptions -fno-rtti
 
 NDK_APP_OPTIM := $(if $(filter true,$(APP_DEBUGGABLE)),debug,$(NDK_APP_OPTIM))
 ifeq ($(NDK_APP_OPTIM),debug)
-	LOCAL_LDLIBS += -llog
-	LOCAL_CFLAGS += -g -funwind-tables -DZILLALOG
-	ZILLALIB_OUT := $(ZILLALIB_DIR)Android/build-debug/$(TARGET_ARCH_ABI)
+	ZILLALIB_OUT  := $(ZILLALIB_DIR)Android/build-debug/$(TARGET_ARCH_ABI)
+	LOCAL_CFLAGS  += -g -funwind-tables -DZILLALOG
+	LOCAL_CFLAGS  += -ffunction-sections -fdata-sections -fvisibility=hidden
+	LOCAL_LDLIBS  += -llog
 else
-	LOCAL_CFLAGS += -fvisibility=hidden
-	ZILLALIB_OUT := $(ZILLALIB_DIR)Android/build/$(TARGET_ARCH_ABI)
+	ZILLALIB_OUT  := $(ZILLALIB_DIR)Android/build/$(TARGET_ARCH_ABI)
+	LOCAL_CFLAGS  += -O$(RELEASE_OPTIMIZATION)
+	LOCAL_CFLAGS  += -ffunction-sections -fdata-sections -fvisibility=hidden
+	LOCAL_CFLAGS  += -fno-stack-protector
+	LOCAL_CFLAGS  += -fomit-frame-pointer
+	LOCAL_CFLAGS  += -fno-unwind-tables
+	LOCAL_CFLAGS  += -fno-asynchronous-unwind-tables
+	LOCAL_CFLAGS  += -fno-math-errno
+	LOCAL_CFLAGS  += -fmerge-all-constants
+	LOCAL_CFLAGS  += -fno-ident
+	LOCAL_LDFLAGS := -Wl,--gc-sections
+	LOCAL_LDFLAGS += -Wl,-z,norelro
+	LOCAL_LDFLAGS += -Wl,-z,lazy
+	LOCAL_LDFLAGS += -Wl,--hash-style=sysv
+	LOCAL_LDFLAGS += -Wl,--build-id=none
+	LOCAL_LDFLAGS += -Wl,--spare-dynamic-tags=0
+	LOCAL_LDFLAGS += -Wl,--sort-section=name
+	LOCAL_LDFLAGS += -Wl,-O,3
+	LOCAL_LDFLAGS += -fuse-ld=gold -Wl,--icf=safe -Wl,--icf-iterations=5
+	#LOCAL_LDFLAGS += -Wl,-Map,$(TARGET_OUT)/lib$(ZillaApp).map -Wl,--cref -Wl,--demangle
 endif
 
 #add defines from the make command line (e.g. D=MACRO=VALUE)
@@ -60,14 +77,14 @@ LOCAL_CFLAGS += $(subst \\\, ,$(foreach F,$(subst \ ,\\\,$(D)),"-D$(F)"))
 #if we're being called with B flag (always-make), build the libraries only if they don't exist at all, otherwise just link the existing files
 AUTO_REBUILD_LIBS := $(if $(filter -B,$(MAKEFLAGS)),$(if $(wildcard $(ZILLALIB_OUT)/libZillaLib.a),NO,YES),YES)
 
-ifeq ($(AUTO_REBUILD_LIBS),NO)
-	NDK_APP_LDFLAGS += $(ZILLALIB_OUT)/libZillaLib.a
-	NDK_APP_LDFLAGS += $(ZILLALIB_OUT)/libstlport.a
+ifeq ($(AUTO_REBUILD_LIBS),YES)
+	LOCAL_STATIC_LIBRARIES := ZillaLib
+else
+	link-whole-archives += $(ZILLALIB_OUT)/libZillaLib.a
 endif
 
 include $(BUILD_SHARED_LIBRARY)
 
 ifeq ($(AUTO_REBUILD_LIBS),YES)
-	include $(ZILLALIB_DIR)Android/stlport/Android.mk
 	include $(ZILLALIB_DIR)Android/Android.mk
 endif

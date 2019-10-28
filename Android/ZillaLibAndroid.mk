@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2016 Bernhard Schelling
+#  Copyright (C) 2010-2019 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -21,9 +21,9 @@
 
 sp := $(*NOTEXIST*) $(*NOTEXIST*)
 THIS_MAKEFILE := $(subst \,/,$(lastword $(MAKEFILE_LIST)))
-ZILLALIB_DIR := $(dir $(subst / *,,$(subst \,/,$(dir $(THIS_MAKEFILE))) *))
+ZILLALIB_DIR := $(patsubst ./%,%,$(dir $(subst / *,,$(subst \,/,$(dir $(THIS_MAKEFILE))) *)))
 
-ifneq ($(words $(ZILLALIB_DIR)),1)
+ifneq ($(words $(ZILLALIB_DIR)/),1)
   $(info )
   $(info ZILLALIB_DIR is set to "$(ZILLALIB_DIR)" which contains spaces. Paths with spaces are not supported for Android builds at the moment.)
   $(info )
@@ -75,16 +75,16 @@ ifeq ($(HOST_OS),windows)
   ifeq ($(subst bash,sh,$(SHELL)),/bin/sh)
     $(error Unable to use make compiled for cygwin, use a native make)
   endif
+  ISWIN := 1
+  RMDIR = rmdir /S /Q $(subst /,\,"$1") >NUL 2>NUL || rem
+else
+  RMDIR = rm -rf "$1"
 endif
 
-APP_PLATFORM := $(firstword $(NDK_ALL_PLATFORMS))
-
-NDK_BUILD_OPTS := $(strip $(if $(filter 1,$(V)),V=1,-j 4) $(if $(filter 1,$(ZLDEBUG)),NDK_DEBUG=1,) $(if $(filter B,$(MAKEFLAGS)),-B,))
-
-ifeq ($(HOST_OS),windows)
+ifdef ISWIN
 	DEVNUL := nul
-	OSJAVA := $(if $(OSJAVA),$(OSJAVA),$(strip $(shell "$(HOST_ECHO)" $(wildcard $(subst $(sp),\ ,$(subst \,/,$(ProgramW6432)))/Java/*/bin/java.exe) | "$(HOST_AWK)" "END{L=$$ 0;while(i=match(L,/ .:/)){L=substr(L,i+1)}print}")))
-	OSJAVA := $(if $(OSJAVA),$(OSJAVA),$(strip $(shell "$(HOST_ECHO)" $(wildcard $(subst $(sp),\ ,$(subst \,/,$(ProgramFiles)))/Java/*/bin/java.exe) | "$(HOST_AWK)" "END{L=$$ 0;while(i=match(L,/ .:/)){L=substr(L,i+1)}print}")))
+	OSJAVA := $(if $(OSJAVA),$(OSJAVA),$(subst *, ,$(lastword $(subst *$(subst \,/,$(ProgramW6432)), $(subst \,/,$(ProgramW6432)),$(subst $(sp),*,$(wildcard $(subst $(sp),\ ,$(subst \,/,$(ProgramW6432)))/Java/*/bin/java.exe))))))
+	OSJAVA := $(if $(OSJAVA),$(OSJAVA),$(subst *, ,$(lastword $(subst *$(subst \,/,$(ProgramFiles)), $(subst \,/,$(ProgramFiles)),$(subst $(sp),*,$(wildcard $(subst $(sp),\ ,$(subst \,/,$(ProgramFiles)))/Java/*/bin/java.exe))))))
 	OSJAVA := $(if $(OSJAVA),$(OSJAVA),java.exe)
 else
 	DEVNUL := /dev/null
@@ -92,7 +92,7 @@ else
 endif
 
 sub_checkexe_run = $(if $($(1)),$($(1)),$(if $(2),$(if $(shell "$(2)" $(3) 2>$(DEVNUL)),$(2),),))
-sub_checkexe_find = $(if $($(1)),$($(1)),$(call sub_checkexe_run,$(1),$(wildcard $(subst $(sp),\ ,$(subst \,/,$(2)$(if $(filter windows,$(HOST_OS_BASE)),.exe,)))),$(3)))
+sub_checkexe_find = $(if $($(1)),$($(1)),$(call sub_checkexe_run,$(1),$(wildcard $(subst $(sp),\ ,$(subst \,/,$(2)$(if $(ISWIN),.exe)))),$(3)))
 JAVA_EXE := $(call sub_checkexe_run,JAVA_EXE,$(subst \,/,$(JAVA_HOME))/bin/java,-verbose -version)
 JAVA_EXE := $(call sub_checkexe_run,JAVA_EXE,$(OSJAVA),-verbose -version)
 JAVA_EXE := $(call sub_checkexe_find,JAVA_EXE,$(dir $(ANDROID_SDK))jdk/bin/java,-verbose -version)
@@ -105,18 +105,41 @@ ifeq ($(JAVA_EXE),)
   $(info Java development kit needs to be installed with environment variable or Makefile variable JAVA_HOME set, somewhere in the PATH or placed under the Android SDK directory at $(dir $(ANDROID_SDK))jdk - JAVA_HOME can also be set in $(ZILLALIB_DIR)Android/ZillaAppLocalConfig.mk)
   $(error Aborting)
 endif
-ifeq ($(wildcard $(subst $(sp),\ ,$(subst \,/,$(JDK_BIN)javac$(if $(filter windows,$(HOST_OS_BASE)),.exe,)))),)
+ifeq ($(wildcard $(subst $(sp),\ ,$(subst \,/,$(JDK_BIN)javac$(if $(ISWIN),.exe)))),)
   $(info Could not find the Java compiler javac$(if $(JDK_BIN), in the directory $(JDK_BIN)))
   $(info Java development kit needs to be installed with environment variable or Makefile variable JAVA_HOME set, somewhere in the PATH or placed under the Android SDK directory at $(dir $(ANDROID_SDK))jdk - JAVA_HOME can also be set in $(ZILLALIB_DIR)Android/ZillaAppLocalConfig.mk)
   $(error Aborting)
 endif
 
-ifeq ($(wildcard $(ZILLALIB_DIR)Android/stlport),)
-  $(info $(shell cd "$(ZILLALIB_DIR)Android" && "$(JDK_BIN)jar" xf stlport.zip))
-  $(if $(wildcard $(ZILLALIB_DIR)Android/stlport),,$(error Could not extract "stlport.zip" with the JDK tool jar. Please extract it manually inside "$(ZILLALIB_DIR)Android"))
-endif
+# Find the earliest possible platforms available for each abi
+ZL_PLATFORM.armeabi     := $(firstword $(patsubst $(subst \,/,$(NDK_PLATFORMS_ROOT))/%/arch-arm,%,$(sort $(filter %/arch-arm,$(wildcard $(subst $(sp),\ ,$(subst \,/,$(NDK_PLATFORMS_ROOT)))/*/*)))))
+ZL_PLATFORM.armeabi-v7a := $(firstword $(patsubst $(subst \,/,$(NDK_PLATFORMS_ROOT))/%/arch-arm,%,$(sort $(filter %/arch-arm,$(wildcard $(subst $(sp),\ ,$(subst \,/,$(NDK_PLATFORMS_ROOT)))/*/*)))))
+ZL_PLATFORM.arm64-v8a   := $(firstword $(patsubst $(subst \,/,$(NDK_PLATFORMS_ROOT))/%/arch-arm64,%,$(sort $(filter %/arch-arm64,$(wildcard $(subst $(sp),\ ,$(subst \,/,$(NDK_PLATFORMS_ROOT)))/*/*)))))
+ZL_PLATFORM.x86         := $(firstword $(patsubst $(subst \,/,$(NDK_PLATFORMS_ROOT))/%/arch-x86,%,$(sort $(filter %/arch-x86,$(wildcard $(subst $(sp),\ ,$(subst \,/,$(NDK_PLATFORMS_ROOT)))/*/*)))))
+ZL_PLATFORM.x86_64      := $(firstword $(patsubst $(subst \,/,$(NDK_PLATFORMS_ROOT))/%/arch-x86_64,%,$(sort $(filter %/arch-x86_64,$(wildcard $(subst $(sp),\ ,$(subst \,/,$(NDK_PLATFORMS_ROOT)))/*/*)))))
+
+# Numbers used as the last digit of deployed version code in AndroidManifest.xml depending on built ABI
+ZL_VERSIONCODE.armeabi     := 0
+ZL_VERSIONCODE.armeabi-v7a := 1
+ZL_VERSIONCODE.arm64-v8a   := 2
+ZL_VERSIONCODE.x86         := 3
+ZL_VERSIONCODE.x86_64      := 4
+
+NDK_BUILD_OPTS := $(strip $(if $(filter 1,$(V)),V=1,-j 4) $(if $(filter 1,$(ZLDEBUG)),NDK_DEBUG=1,) $(if $(filter B,$(MAKEFLAGS)),-B,))
+NDK_BUILD_OPTS += --no-print-directory NDK_NO_INFO=1# Don't print repeated info we already output here
+NDK_BUILD_OPTS += "NDK_APP_GDBSERVER=" "NDK_APP_GDBSETUP="# This disables output of gdb files in builds
+NDK_BUILD_OPTS += "APP_STL=c++_static"# Build against static libc++
+NDK_BUILD_OPTS += "RELEASE_OPTIMIZATION=$(if $(RELEASE_OPTIMIZATION),$(RELEASE_OPTIMIZATION),s)"# (s = optimize size, z = smaller size, lower performance, 2 = larger size, better performance)
 
 ZILLALIB_OUTBASE := $(ZILLALIB_DIR)Android/$(if $(filter 1,$(ZLDEBUG)),build-debug,build)
+PTN_ZILLALIB_LIB := $(ZILLALIB_OUTBASE)/%/libZillaLib.a
+
+# default ABIs, can be overridden by Application.mk
+BUILD_ABIS := $(strip $(filter $(NDK_ALL_ABIS),armeabi-v7a arm64-v8a))
+ifeq ($(BUILD_ABIS),)
+  $(error No ABI was selected for building (NDK_ALL_ABIS = $(NDK_ALL_ABIS)))
+endif
+BUILD_ABIS := $(if $(filter 1,$(ZLDEBUG)),$(firstword $(BUILD_ABIS)),$(BUILD_ABIS))
 
 #------------------------------------------------------------------------------------------------------
 ifdef ZillaApp
@@ -125,52 +148,22 @@ ifdef ZillaApp
 NDK_BUILD_OPTS += $(if $(D), "D=$(D)",)
 NDK_BUILD_OPTS += $(subst \\\,$(sp),$(foreach F,$(subst \$(sp),\\\,$(W)),-W "$(F)"))
 
-ANDROIDPROJ_DIR := Android
+ANDROID_BUILDTOOLS := $(subst *, ,$(lastword $(sort $(subst *$(subst \,/,$(subst $(sp),*,$(ANDROID_SDK))), $(subst \,/,$(subst $(sp),*,$(ANDROID_SDK))),$(subst $(sp),*,$(wildcard $(subst $(sp),\ ,$(subst \,/,$(ANDROID_SDK)))/build-tools/*))))))
+ANDROID_ZIPALIGN   := "$(ANDROID_BUILDTOOLS)/zipalign"
+ANDROID_AAPT       := "$(ANDROID_BUILDTOOLS)/aapt"
+ANDROID_ADB        := "$(ANDROID_SDK)/platform-tools/adb"
+ANDROID_DX         := "$(JDK_BIN)java" -jar "$(ANDROID_BUILDTOOLS)/lib/dx.jar"
+ANDROID_JARSIGNER  := "$(JDK_BIN)java" -cp "$(ZILLALIB_DIR)Android/tools.jar" "sun.security.tools.JarSigner"
 
-ifeq ($(wildcard $(ANDROIDPROJ_DIR)/project.properties),)
-  $(error File $(ANDROIDPROJ_DIR)/project.properties not found. Make sure it exists and that the working directory is the project root)
-endif
-ifeq ($(wildcard $(ANDROIDPROJ_DIR)/jni/Android.mk),)
-  $(error File $(ANDROIDPROJ_DIR)/jni/Android.mk not found. Make sure it exists and that the working directory is the project root)
-endif
-ifeq ($(wildcard $(ANDROIDPROJ_DIR)/jni/Application.mk),)
-  $(error File $(ANDROIDPROJ_DIR)/jni/Application.mk not found. Make sure it exists and that the working directory is the project root)
-endif
-
-app.activity    := $(shell "$(HOST_AWK)" "match($$ 0,/<activity[^>]+android:name *= *\"\./){L=substr($$ 0,RSTART+RLENGTH-1);print substr(L,0,match(L,/\"/)-1);exit}" $(ANDROIDPROJ_DIR)/AndroidManifest.xml)
-app.package     := $(shell "$(HOST_AWK)" "match($$ 0,/package *= *\"/){L=substr($$ 0,RSTART+RLENGTH);print substr(L,0,match(L,/\"/)-1);exit}" $(ANDROIDPROJ_DIR)/AndroidManifest.xml)
-app.activity    := $(shell "$(HOST_AWK)" "match($$ 0,/<activity[^>]+android:name *= *\"\./){L=substr($$ 0,RSTART+RLENGTH-1);print substr(L,0,match(L,/\"/)-1);exit}" $(ANDROIDPROJ_DIR)/AndroidManifest.xml)
-app.versioncode := $(shell "$(HOST_AWK)" "match($$ 0,/android:versionCode *= *\"/){L=substr($$ 0,RSTART+RLENGTH);print substr(L,0,match(L,/\"/)-1);exit}" $(ANDROIDPROJ_DIR)/AndroidManifest.xml)
-app.minsdk      := $(shell "$(HOST_AWK)" "match($$ 0,/android:minSdkVersion *= *\"/){L=substr($$ 0,RSTART+RLENGTH);print substr(L,0,match(L,/\"/)-1);exit}" $(ANDROIDPROJ_DIR)/AndroidManifest.xml)
-ifneq ($(if $(app.package),,$(if $(app.activity),,$(if $(app.versioncode),,1))),)
-  $(info Could not read package name, activity name or version code from $(ANDROIDPROJ_DIR)/AndroidManifest.xml.)
-  $(info Make sure these values are correctly set.)
-  $(error Aborting)
-endif
-ifneq ($(app.minsdk),)
-	APP_PLATFORM := android-$(app.minsdk)
-endif
+CMD_GETXMLVAR  := "$(HOST_PYTHON)" -c "import sys,re;A=sys.argv;Q=chr(34);m=re.search('<'+A[2]+' [^>]*'+A[3]+'\s*=\s*'+Q+'([^'+Q+']+)',open(A[1],'rb').read(),re.S);[m and sys.stdout.write(m.group(1))]"
+CMD_MKMANIFEST := "$(HOST_PYTHON)" -c "import sys,re;A=sys.argv;Q=chr(34);B=chr(92);open(A[2],'wb').write(re.sub('(<manifest [^>]*android:versionCode'+B+'s*='+B+'s*'+Q+'[^'+Q+']*)'+Q,B+'g<1>'+A[3]+Q,open(A[1],'rb').read(),re.S))"
 
 -include assets.mk
 ASSET_ALL_PATHS := $(strip $(foreach F,$(ASSETS),$(wildcard ./$(F) ./$(F)/* ./$(F)/*/* ./$(F)/*/*/* ./$(F)/*/*/*/* ./$(F)/*/*/*/*/*)))
 ASSET_ALL_STARS := $(if $(ASSET_ALL_PATHS),$(strip $(foreach F,$(subst *./, ,*$(subst $(sp),*,$(ASSET_ALL_PATHS))),$(if $(wildcard $(subst *,\ ,$(F))/.),,$(F)))))
 ASSET_PREREQUIS := $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)))
 
-ANDROID_PROJECT_APK := $(ANDROIDPROJ_DIR)/bin/$(ZillaApp)-$(if $(filter 1,$(ZLDEBUG)),debug,release).apk
-ANDROID_PROJECT_TARGET := $(shell "$(HOST_AWK)" "/^[\t ]*target[\t ]*=/{gsub(/^[^=]+=[ \t]*/,null);print;exit} " $(ANDROIDPROJ_DIR)/project.properties)
-ANDROID_PROJECT_ABI := $(shell "$(HOST_AWK)" "/^[\t ]*APP_ABI/{gsub(/^[^=]+=[ \t]*/,null);gsub(/[ \t].*/,null);print;exit}" $(ANDROIDPROJ_DIR)/jni/Application.mk)
-ANDROID_PROJECT_ABI := $(if $(ANDROID_PROJECT_ABI),$(ANDROID_PROJECT_ABI),$(firstword $(NDK_ALL_ABIS)))
-ANDROID_PROJ_LIBOUT := $(ANDROIDPROJ_DIR)/libs/$(if $(filter 1,$(ZLDEBUG)),debug,release)
-ANDROID_PROJECT_LIB := $(ANDROID_PROJ_LIBOUT)/$(ANDROID_PROJECT_ABI)/lib$(ZillaApp).so
-ANDROID_RELEASE_APK := $(if $(SIGN_OUTAPK),$(if $(findstring .apk,$(SIGN_OUTAPK)),$(SIGN_OUTAPK),$(SIGN_OUTAPK)-$(app.versioncode).apk),$(ANDROIDPROJ_DIR)/$(ZillaApp)-$(app.versioncode).apk)
-
-ANDROID_BUILDTOOLS := $(subst *, ,$(lastword $(sort $(subst *$(subst \,/,$(subst $(sp),*,$(ANDROID_SDK))), $(subst \,/,$(subst $(sp),*,$(ANDROID_SDK))),$(subst $(sp),*,$(wildcard $(subst $(sp),\ ,$(subst \,/,$(ANDROID_SDK)))/build-tools/*))))))
-ANDROID_ZIPALIGN := $(ANDROID_BUILDTOOLS)/zipalign
-ANDROID_DX := $(ANDROID_BUILDTOOLS)/lib/dx.jar
-ANDROID_AAPT := $(ANDROID_BUILDTOOLS)/aapt
-ANDROID_ADB := $(ANDROID_SDK)/platform-tools/adb
-
-ifeq ($(HOST_OS_BASE),windows)
+ifdef ISWIN
 	ANDROID_DEBUG_KEYSTORE := $(subst \,/,$(USERPROFILE))/.android/debug.keystore
 else
 	ANDROID_DEBUG_KEYSTORE := ~/.android/debug.keystore
@@ -186,79 +179,137 @@ ifeq ($(wildcard $(subst $(sp),\ ,$(ANDROID_DEBUG_KEYSTORE))),)
   $(error Aborting)
 endif
 
-ZILLALIB_OUTBASE := $(ZILLALIB_DIR)Android/$(if $(filter 1,$(ZLDEBUG)),build-debug,build)
+ANDROIDPROJ_DIR := Android
 
-ZILLALIB_OUT := $(ZILLALIB_OUTBASE)/$(ANDROID_PROJECT_ABI)
+ifeq ($(wildcard $(ANDROIDPROJ_DIR)/jni/Android.mk),)
+  $(error File $(ANDROIDPROJ_DIR)/jni/Android.mk not found. Make sure it exists and that the working directory is the project root)
+endif
+ifeq ($(wildcard $(ANDROIDPROJ_DIR)/jni/Application.mk),)
+  $(error File $(ANDROIDPROJ_DIR)/jni/Application.mk not found. Make sure it exists and that the working directory is the project root)
+endif
+
+app.package     := $(shell $(CMD_GETXMLVAR) "$(ANDROIDPROJ_DIR)/AndroidManifest.xml" "manifest" "package")
+app.versioncode := $(shell $(CMD_GETXMLVAR) "$(ANDROIDPROJ_DIR)/AndroidManifest.xml" "manifest" "android:versionCode)
+app.minsdk      := $(shell $(CMD_GETXMLVAR) "$(ANDROIDPROJ_DIR)/AndroidManifest.xml" "uses-sdk" "android:minSdkVersion)
+app.targetsdk   := $(shell $(CMD_GETXMLVAR) "$(ANDROIDPROJ_DIR)/AndroidManifest.xml" "uses-sdk" "android:targetSdkVersion)
+app.activity    := $(shell $(CMD_GETXMLVAR) "$(ANDROIDPROJ_DIR)/AndroidManifest.xml" "activity" "android:name" ".")
+ifneq ($(if $(app.package),,$(if $(app.activity),,$(if $(app.versioncode),,$(if $(app.targetsdk),,1)))),)
+  $(info Could not read package name, version code, target sdk or activity name from $(ANDROIDPROJ_DIR)/AndroidManifest.xml.)
+  $(info Make sure these values are correctly set.)
+  $(error Aborting)
+endif
+ifneq ($(app.minsdk),)
+ifneq ($(call gt,$(lastword $(subst -, ,$(ZL_PLATFORM.armeabi))),$(app.minsdk)),)
+  $(warning App minSdkVersion defined in $(ANDROIDPROJ_DIR)/AndroidManifest.xml is $(app.minsdk) which is smaller than the earliest SDK ($(lastword $(subst -, ,$(ZL_PLATFORM.armeabi)))) supported by this NDK installation. Please update the manifest.)
+endif
+endif
+ifneq ($(call lt,$(app.targetsdk),26),)
+  $(info App targetSdkVersion defined in $(ANDROIDPROJ_DIR)/AndroidManifest.xml is $(app.targetsdk) which is smaller than the earliest required SDK (26). Highest available SDK is $(lastword $(sort $(subst $(ANDROID_SDK)/platforms/android-,,$(wildcard $(subst $(sp),\ ,$(ANDROID_SDK)/platforms/android-*))))). Please update the manifest.)
+  $(error Aborting)
+endif
+ifeq ($(wildcard $(subst $(sp),\ ,$(ANDROID_SDK)/platforms/android-$(app.targetsdk)/android.jar)),)
+  $(info Could not find platform support for selected target sdk $(app.targetsdk) in android sdk installation at $(ANDROID_SDK)/platforms/android-$(app.targetsdk)/android.jar)
+  $(error Aborting)
+endif
+
+ANDROID_PROJECT_APKBASE := $(ANDROIDPROJ_DIR)/bin/$(ZillaApp)-$(if $(filter 1,$(ZLDEBUG)),debug,release)
+ANDROID_PROJECT_OUTBASE := $(ANDROIDPROJ_DIR)/bin/$(if $(filter 1,$(ZLDEBUG)),debug,release)-
+ANDROID_SIGN_APKBASE    := $(if $(SIGN_OUTAPK),$(if $(findstring .apk,$(suffix $(SIGN_OUTAPK))),$(basename $(SIGN_OUTAPK)),$(SIGN_OUTAPK)-$(app.versioncode)),$(ANDROIDPROJ_DIR)/$(ZillaApp)-$(app.versioncode))
+
+-include $(ANDROIDPROJ_DIR)/jni/Application.mk
+ifneq ($(APP_ABI),)
+  BUILD_ABIS := $(filter $(NDK_ALL_ABIS),$(APP_ABI))
+  $(if $(filter-out $(NDK_ALL_ABIS),$(APP_ABI)),$(error The projects Application.mk requested to build for an invalid ABI - Requested: [$(APP_ABI)] - Supported by NDK: [$(NDK_ALL_ABIS)]))
+  BUILD_ABIS := $(if $(filter 1,$(ZLDEBUG)),$(firstword $(BUILD_ABIS)),$(BUILD_ABIS))
+endif
+
+PTN_ANDROID_PROJECT_LIB := $(ANDROID_PROJECT_OUTBASE)%/lib/%/lib$(ZillaApp).so
+PTN_ANDROID_PROJECT_APK := $(ANDROID_PROJECT_APKBASE)-%.apk
+PTN_ANDROID_SIGN_APK    := $(ANDROID_SIGN_APKBASE)-%.apk
+GET_PROJLIB_ABI = $(notdir $(patsubst $(ANDROID_PROJECT_OUTBASE)%/lib$(ZillaApp).so,%,$1))
+ANDROID_PROJECT_LIBS := $(foreach F,$(BUILD_ABIS),$(ANDROID_PROJECT_OUTBASE)$(F)/lib/$(F)/lib$(ZillaApp).so)
+ANDROID_PROJECT_APKS := $(BUILD_ABIS:%=$(PTN_ANDROID_PROJECT_APK))
+ANDROID_SIGN_APKS    := $(BUILD_ABIS:%=$(PTN_ANDROID_SIGN_APK))
+ZILLALIB_LIBS        := $(BUILD_ABIS:%=$(PTN_ZILLALIB_LIB))
 
 .PHONY: all sign install run uninstall clean pauseatend
-all: $(ANDROID_PROJECT_APK)
+all: $(ANDROID_PROJECT_APKS)
+
+define GENERATE_ABI_PREREQUIREMENT
+$(subst %,$1,$(PTN_ANDROID_PROJECT_LIB)): $(subst %,$1,$(PTN_ZILLALIB_LIB))
+$(subst %,$1,$(PTN_ANDROID_PROJECT_APK)): $(subst %,$1,$(PTN_ANDROID_PROJECT_LIB))
+$(subst %,$1,$(PTN_ANDROID_SIGN_APK)):    $(subst %,$1,$(PTN_ANDROID_PROJECT_LIB))
+endef
+$(foreach F,$(BUILD_ABIS),$(eval $(call GENERATE_ABI_PREREQUIREMENT,$(F))))
 
 CLASSES_DIR := $(ANDROIDPROJ_DIR)/bin/classes
-CLASSES_PREREQS := $(if $(filter B,$(MAKEFLAGS)),$(CLASSES_DIR),$(if $(wildcard $(CLASSES_DIR)),$(wildcard $(CLASSES_DIR)/*.class $(CLASSES_DIR)/*/*.class $(CLASSES_DIR)/*/*/*.class $(CLASSES_DIR)/*/*/*/*.class $(CLASSES_DIR)/*/*/*/*/*.class),$(CLASSES_DIR)))
+CLASSES_DEFAULT := $(CLASSES_DIR)/org/zillalib/ZillaActivity.class
+CLASSES_PREREQS := $(if $(filter B,$(MAKEFLAGS)),$(CLASSES_DEFAULT),$(if $(wildcard $(CLASSES_DEFAULT)),$(wildcard $(CLASSES_DIR)/*.class $(CLASSES_DIR)/*/*.class $(CLASSES_DIR)/*/*/*.class $(CLASSES_DIR)/*/*/*/*.class $(CLASSES_DIR)/*/*/*/*/*.class),$(CLASSES_DEFAULT)))
 
 $(CLASSES_PREREQS) : $(wildcard $(ZILLALIB_DIR)Android/*.java) $(or $(wildcard $(ANDROIDPROJ_DIR)/*.java),$(ANDROIDPROJ_DIR)/$(ZillaApp).java)
-	$(info Compiling Java classes ...)
-	@$(if $(wildcard $(ANDROIDPROJ_DIR)/bin/classes),,$(call host-mkdir,$(ANDROIDPROJ_DIR)/bin/classes))
-	@"$(JDK_BIN)javac.exe" -d $(ANDROIDPROJ_DIR)/bin/classes -classpath $(ANDROIDPROJ_DIR)/bin/classes -sourcepath $(ZILLALIB_DIR)Android;. -target 1.5 -bootclasspath "$(ANDROID_SDK)/platforms/$(ANDROID_PROJECT_TARGET)/android.jar" -encoding UTF-8 -g:none -Xlint:-options -source 1.5 $^
+	$(info Compiling Java classes)
+	@$(call RMDIR,$(ANDROIDPROJ_DIR)/bin/classes)
+	@$(call host-mkdir,$(ANDROIDPROJ_DIR)/bin/classes)
+	@"$(JDK_BIN)javac.exe" -d $(ANDROIDPROJ_DIR)/bin/classes -classpath $(ANDROIDPROJ_DIR)/bin/classes -sourcepath $(ZILLALIB_DIR)Android;. -target 1.5 -bootclasspath "$(ANDROID_SDK)/platforms/android-$(app.targetsdk)/android.jar" -encoding UTF-8 -g:none -Xlint:deprecation -Xlint:-options -source 1.5 $^
 
-$(ANDROIDPROJ_DIR)/bin/base/classes.dex: $(ANDROID_PROJECT_LIB) $(CLASSES_PREREQS)
-	$(info Creating classes.dex ...)
-	@$(call host-mkdir,$(ANDROIDPROJ_DIR)/bin/base)
-	@"$(JDK_BIN)java" -jar "$(ANDROID_DX)" "--dex" "--output=$@" "$(ANDROIDPROJ_DIR)/bin/classes"
+$(ANDROIDPROJ_DIR)/bin/dex/classes.dex: $(CLASSES_PREREQS)
+	$(info Creating classes.dex)
+	@$(call host-mkdir,$(ANDROIDPROJ_DIR)/bin/dex)
+	@$(ANDROID_DX) "--dex" "--output=$@" "$(ANDROIDPROJ_DIR)/bin/classes"
 
 $(ANDROIDPROJ_DIR)/bin/res.prepare: $(ANDROIDPROJ_DIR)/res
 	$(info Preparing Android resources for packaging...)
-	@"$(ANDROID_AAPT)" c -S "$(ANDROIDPROJ_DIR)/res" -C "$(ANDROIDPROJ_DIR)/bin/res" >$(DEVNUL)
+	@$(ANDROID_AAPT) c -S "$(ANDROIDPROJ_DIR)/res" -C "$(ANDROIDPROJ_DIR)/bin/res" >$(DEVNUL)
 	@"$(HOST_ECHO)" 1>"$@"
 
 define BUILD_APK_UNSIGNED
-	$(info Building APK Package...)
-	@$(if $(filter 1,$(ZLDEBUG)),,$(call host-rm,$(wildcard $(ANDROID_PROJ_LIBOUT)/*/gdb*)))
-	@$(if $(filter 1,$(ZLDEBUG)),,$(call host-rm,$(wildcard $(ANDROIDPROJ_DIR)/bin/base/lib/*/gdb*)))
-	@$(call host-mkdir,$(ANDROIDPROJ_DIR)/bin/base/lib)
-	@$(if $(filter windows,$(HOST_OS)),xcopy /Y /E /Q /I $(subst /,\,$(ANDROID_PROJ_LIBOUT))\* $(ANDROIDPROJ_DIR)\bin\base\lib\ >NUL,cp -rfp $(ANDROID_PROJ_LIBOUT)/* $(ANDROIDPROJ_DIR)/bin/base/lib/)
-	@"$(ANDROID_AAPT)" p -f -M "$(ANDROIDPROJ_DIR)/AndroidManifest.xml" -S "$(ANDROIDPROJ_DIR)/bin/res" \
-		-I "$(ANDROID_SDK)/platforms/$(ANDROID_PROJECT_TARGET)/android.jar" \
-		-F "$(ANDROID_PROJECT_APK).unsigned" $(ANDROIDPROJ_DIR)/bin/base
-	$(if $(ASSET_ALL_STARS),$(info    Packing in $(words $(ASSET_ALL_STARS)) binary assets into APK...))
-	@$(if $(ASSET_ALL_STARS),"$(ANDROID_AAPT)" add -0 "" "$(ANDROID_PROJECT_APK).unsigned" $(subst *, ,$(subst $(sp)," ","$(ASSET_ALL_STARS)")) >$(DEVNUL))
+	@"$(HOST_ECHO)" "    Building APK Package $(1)..."
+	@$(CMD_MKMANIFEST) "$(ANDROIDPROJ_DIR)/AndroidManifest.xml" "$(ANDROID_PROJECT_OUTBASE)$2/AndroidManifest.xml" "$(ZL_VERSIONCODE.$(2))"
+	@$(ANDROID_AAPT) p -f -S "$(ANDROIDPROJ_DIR)/bin/res" \
+		-I "$(ANDROID_SDK)/platforms/android-$(app.targetsdk)/android.jar" \
+		-F "$(1)" "$(ANDROID_PROJECT_OUTBASE)$2" "$(ANDROIDPROJ_DIR)/bin/dex"
+	@$(if $(ASSET_ALL_STARS),"$(HOST_ECHO)" "    Packing in $(words $(ASSET_ALL_STARS)) binary assets into APK...")
+	@$(if $(ASSET_ALL_STARS),$(ANDROID_AAPT) add -0 "" "$(1)" $(subst *, ,$(subst $(sp)," ","$(ASSET_ALL_STARS)")) >$(DEVNUL))
 endef
 
 define BUILD_ZIPALIGN
-	@$(if $(wildcard $2),$(if $(filter windows,$(HOST_OS)),del $(subst /,\,"$2"),rm "$2"),)
-	$(info    Zipaligning APK...)
-	@"$(ANDROID_ZIPALIGN)" 4 "$1" "$2"
-	@$(if $(filter windows,$(HOST_OS)),del $(subst /,\,"$(ANDROID_PROJECT_APK).unsigned" "$1"),rm "$(ANDROID_PROJECT_APK).unsigned" "$1")
-	$(info APK file $2 done!)
+	@$(if $(wildcard $2),$(if $(ISWIN),del $(subst /,\,"$2"),rm "$2"),)
+	@"$(HOST_ECHO)" "    Zipaligning APK..."
+	@$(ANDROID_ZIPALIGN) 4 "$1" "$2"
+	@$(if $(ISWIN),del $(subst /,\,"$(2).unsigned" "$1"),rm "$(2).unsigned" "$1") >$(DEVNUL)
+	@"$(HOST_ECHO)" "    APK file $2 done!"
 endef
 
-$(ANDROID_PROJECT_APK): $(ANDROIDPROJ_DIR)/bin/base/classes.dex $(ANDROIDPROJ_DIR)/bin/res.prepare $(ANDROIDPROJ_DIR)/AndroidManifest.xml $(ANDROID_PROJECT_LIB) $(ASSET_PREREQUIS)
-	$(BUILD_APK_UNSIGNED)
-	$(info    Signing APK with debug key $(strip $(notdir $(subst $(sp),_,$(subst \,/,$(ANDROID_DEBUG_KEYSTORE)))))...)
-	@"$(JDK_BIN)java" -cp "$(ZILLALIB_DIR)Android/tools.jar" "sun.security.tools.JarSigner" -keystore "$(ANDROID_DEBUG_KEYSTORE)" -storepass android -keypass android -signedjar "$(ANDROID_PROJECT_APK).debugkey" "$(ANDROID_PROJECT_APK).unsigned" androiddebugkey >$(DEVNUL)
-	$(call BUILD_ZIPALIGN,$(ANDROID_PROJECT_APK).debugkey,$(ANDROID_PROJECT_APK))
+$(ANDROID_PROJECT_APKS): $(ANDROIDPROJ_DIR)/bin/dex/classes.dex $(ANDROIDPROJ_DIR)/bin/res.prepare $(ANDROIDPROJ_DIR)/AndroidManifest.xml $(ASSET_PREREQUIS)
+	$(info Creating APK file $@ signed with debug key...)
+	$(call BUILD_APK_UNSIGNED,$(@).unsigned,$(patsubst $(PTN_ANDROID_PROJECT_APK),%,$@))
+	@"$(HOST_ECHO)" "    Signing APK with debug key $(strip $(notdir $(subst $(sp),_,$(subst \,/,$(ANDROID_DEBUG_KEYSTORE)))))..."
+	@$(ANDROID_JARSIGNER) -keystore "$(ANDROID_DEBUG_KEYSTORE)" -storepass android -keypass android -signedjar "$(@).debugkey" "$(@).unsigned" androiddebugkey >$(DEVNUL)
+	$(call BUILD_ZIPALIGN,$(@).debugkey,$(@))
 
-sign: $(ANDROIDPROJ_DIR)/bin/base/classes.dex $(ANDROIDPROJ_DIR)/bin/res.prepare $(ANDROIDPROJ_DIR)/AndroidManifest.xml $(ANDROID_PROJECT_LIB) $(ASSET_PREREQUIS)
+sign: $(ANDROID_SIGN_APKS)
+$(ANDROID_SIGN_APKS): $(ANDROIDPROJ_DIR)/bin/dex/classes.dex $(ANDROIDPROJ_DIR)/bin/res.prepare $(ANDROIDPROJ_DIR)/AndroidManifest.xml $(ASSET_PREREQUIS)
+	$(info Creating signed APK file $@ ...)
 	$(if $(SIGN_KEYSTORE),,$(error Please supply keystore file via SIGN_KEYSTORE=<...> make parameter))
 	$(if $(SIGN_STOREPASS),,$(error Please supply keystore file password via SIGN_STOREPASS=<...> make parameter))
 	$(if $(SIGN_KEYALIAS),,$(error Please supply key alias name via SIGN_KEYALIAS=<...> make parameter))
 	$(if $(SIGN_KEYPASS),,$(error Please supply key password file via SIGN_KEYPASS=<...> make parameter))
-	$(BUILD_APK_UNSIGNED)
-	$(info    Signing APK with distribution key $(SIGN_KEYSTORE)...)
-	@"$(JDK_BIN)java" -cp "$(ZILLALIB_DIR)Android/tools.jar" "sun.security.tools.JarSigner" -keystore "$(SIGN_KEYSTORE)" -storepass "$(SIGN_STOREPASS)" -keypass "$(SIGN_KEYPASS)" -signedjar "$(ANDROID_PROJECT_APK).signed" "$(ANDROID_PROJECT_APK).unsigned" "$(SIGN_KEYALIAS)"
-	$(call BUILD_ZIPALIGN,$(ANDROID_PROJECT_APK).signed,$(ANDROID_RELEASE_APK))
+	@$(call BUILD_APK_UNSIGNED,$(@).unsigned,$(patsubst $(PTN_ANDROID_SIGN_APK),%,$@))
+	@"$(HOST_ECHO)" "    Signing APK with distribution key $(SIGN_KEYSTORE)..."
+	@$(ANDROID_JARSIGNER) -keystore "$(SIGN_KEYSTORE)" -storepass "$(SIGN_STOREPASS)" -keypass "$(SIGN_KEYPASS)" -signedjar "$(@).signed" "$(@).unsigned" "$(SIGN_KEYALIAS)"
+	$(call BUILD_ZIPALIGN,$(@).signed,$(@))
 
-install: $(ANDROID_PROJECT_APK)
+install: $(ANDROID_PROJECT_APKBASE)-$(firstword $(BUILD_ABIS)).apk
 	$(info Installing and running $(app.package) on the default emulator or device...)
-	@"$(ANDROID_ADB)" ${adb.device.arg} shell "if [ `cat /sys/class/backlight/*/brightness` = 0 ]; then input keyevent 26; fi 2>/dev/null" >$(DEVNUL)
-	@"$(ANDROID_ADB)" ${adb.device.arg} install -r $(ANDROID_PROJECT_APK)
-	@"$(ANDROID_ADB)" shell am start -n $(app.package)/$(app.package)$(app.activity)
-	$(info Done)
+	@$(ANDROID_ADB) ${adb.device.arg} install -r "$^"
+	@$(ANDROID_ADB) ${adb.device.arg} shell "if [ `cat /sys/class/backlight/*/brightness` = 0 ]; then input keyevent 26; else input keyevent -1; fi 2>/dev/null" >$(DEVNUL)
+	@$(ANDROID_ADB) shell am start -n $(app.package)/$(app.package)$(app.activity)
+	@"$(HOST_ECHO)" "Done"
 
 uninstall:
 	$(info Uninstalling $(app.package) from the default emulator or device...)
-	@"$(ANDROID_ADB)" ${adb.device.arg} uninstall $(app.package)
-	$(info Done)
+	@$(ANDROID_ADB) ${adb.device.arg} uninstall $(app.package)
+	@"$(HOST_ECHO)" "Done"
 
 pauseatend:
 	$(info )
@@ -266,39 +317,38 @@ pauseatend:
 
 clean:
 	$(info  Cleaning build files ...)
-	@$(if $(wildcard $(ANDROIDPROJ_DIR)/libs),$(if $(filter windows,$(HOST_OS)),rmdir /S /Q,rm -rf) "$(ANDROIDPROJ_DIR)/libs" >$(DEVNUL),)
-	@$(if $(wildcard $(ANDROIDPROJ_DIR)/obj),$(if $(filter windows,$(HOST_OS)),rmdir /S /Q,rm -rf) "$(ANDROIDPROJ_DIR)/obj" >$(DEVNUL),)
-	@$(if $(wildcard $(ANDROIDPROJ_DIR)/bin),$(if $(filter windows,$(HOST_OS)),rmdir /S /Q,rm -rf) "$(ANDROIDPROJ_DIR)/bin" >$(DEVNUL),)
-	$(info Done)
+	@$(if $(wildcard $(ANDROIDPROJ_DIR)/libs),$(call RMDIR,$(ANDROIDPROJ_DIR)/libs))
+	@$(if $(wildcard $(ANDROIDPROJ_DIR)/obj),$(call RMDIR,$(ANDROIDPROJ_DIR)/obj))
+	@$(if $(wildcard $(ANDROIDPROJ_DIR)/bin),$(call RMDIR,$(ANDROIDPROJ_DIR)/bin))
+	@"$(HOST_ECHO)" "Done"
 
 -include sources.mk
-$(ANDROID_PROJECT_LIB): $(wildcard *.cpp *.c) $(foreach F, $(ZL_ADD_SRC_FILES), $(wildcard $(F))) $(ZILLALIB_OUT)/libZillaLib.a $(ZILLALIB_OUT)/libstlport.a #$(NEEDREMOVEGDBSERVER)
-	$(info Building JNI Library $(ANDROID_PROJECT_LIB))
-	@"$(ANDROID_NDK)/ndk-build" --no-print-directory "NDK_PROJECT_PATH=$(ANDROIDPROJ_DIR)" "NDK_APP_LIBS_OUT=$(ANDROID_PROJ_LIBOUT)" $(NDK_BUILD_OPTS) NDK_APP.local.cleaned_binaries=1 "APP_PLATFORM=$(APP_PLATFORM)" "ZillaApp=$(ZillaApp)"
-	@$(if $(filter windows,$(HOST_OS)),dir "$(subst /,\,$(ANDROID_PROJECT_LIB))" 2>$(DEVNUL) >$(DEVNUL),)
+$(ANDROID_PROJECT_LIBS): $(wildcard *.cpp *.c) $(foreach F, $(ZL_ADD_SRC_FILES), $(wildcard $(F)))
+	$(info Building JNI Library $@ (platform: $(ZL_PLATFORM.$(call GET_PROJLIB_ABI,$@)), abi: $(call GET_PROJLIB_ABI,$@)))
+	@"$(ANDROID_NDK)/ndk-build" "NDK_PROJECT_PATH=$(ANDROIDPROJ_DIR)" "NDK_APP_LIBS_OUT=$(ANDROID_PROJECT_OUTBASE)$(call GET_PROJLIB_ABI,$@)/lib" $(NDK_BUILD_OPTS) "APP_PLATFORM=$(ZL_PLATFORM.$(call GET_PROJLIB_ABI,$@))" "APP_ABI=$(call GET_PROJLIB_ABI,$@)" NDK_APP.local.cleaned_binaries=1 "ZillaApp=$(ZillaApp)"
+	@$(if $(ISWIN),dir "$(subst /,\,$@)" 2>$(DEVNUL) >$(DEVNUL),)
 
 #if we're being called with B flag (always-make), build the libraries only if they don't exist at all
-ifeq ($(if $(filter B,$(MAKEFLAGS)),$(wildcard $(ZILLALIB_OUT)/libZillaLib.a)),)
-$(ZILLALIB_OUT)/libZillaLib.a: $(wildcard $(ZILLALIB_DIR)Include/*.h $(ZILLALIB_DIR)Source/*.cpp $(ZILLALIB_DIR)Source/enet/*.c $(ZILLALIB_DIR)Source/libtess2/*.c $(ZILLALIB_DIR)Source/stb/*.cpp)
-	@$(ANDROID_NDK)/ndk-build --no-print-directory "NDK_PROJECT_PATH=$(ZILLALIB_DIR)Android" "APP_BUILD_SCRIPT=$(ZILLALIB_DIR)Android/Android.mk" $(NDK_BUILD_OPTS) TARGET_SONAME_EXTENSION=.a APP_PLATFORM=$(APP_PLATFORM)
-$(ZILLALIB_OUT)/libstlport.a:
-	@$(ANDROID_NDK)/ndk-build --no-print-directory "NDK_PROJECT_PATH=$(ZILLALIB_DIR)Android/stlport" "APP_BUILD_SCRIPT=$(ZILLALIB_DIR)Android/stlport/Android.mk" -s $(NDK_BUILD_OPTS) TARGET_SONAME_EXTENSION=.a APP_PLATFORM=$(APP_PLATFORM)
+ifeq ($(if $(filter B,$(MAKEFLAGS)),$(wildcard $(firstword $(ZILLALIB_LIBS)))),)
+$(ZILLALIB_LIBS): $(wildcard $(ZILLALIB_DIR)Include/*.h $(ZILLALIB_DIR)Source/*.cpp $(ZILLALIB_DIR)Source/enet/*.c $(ZILLALIB_DIR)Source/libtess2/*.c $(ZILLALIB_DIR)Source/stb/*.cpp)
+	@"$(ANDROID_NDK)/ndk-build" "NDK_PROJECT_PATH=$(ZILLALIB_DIR)Android" "APP_BUILD_SCRIPT=$(ZILLALIB_DIR)Android/Android.mk" $(NDK_BUILD_OPTS) "APP_PLATFORM=$(ZL_PLATFORM.$(patsubst $(PTN_ZILLALIB_LIB),%,$@))" "APP_ABI=$(patsubst $(PTN_ZILLALIB_LIB),%,$@)"
 endif
 
 #------------------------------------------------------------------------------------------------------
 else
 #------------------------------------------------------------------------------------------------------
 
-.PHONY: ZillaLibBaseLibs
-all: ZillaLibBaseLibs
+ZILLALIB_LIBS := $(BUILD_ABIS:%=$(PTN_ZILLALIB_LIB))
+
+.PHONY: $(ZILLALIB_LIBS)
+all: $(ZILLALIB_LIBS)
 
 clean:
 	$(info Cleaning everything in $(ZILLALIB_OUTBASE) ...)
-	@$(if $(wildcard $(subst $(sp),\ ,$(subst \,/,$(ZILLALIB_OUTBASE)))),$(if $(filter windows,$(HOST_OS)),rmdir /S /Q,rm -rf) "$(ZILLALIB_OUTBASE)" >$(DEVNUL))
+	@$(if $(wildcard $(subst $(sp),\ ,$(subst \,/,$(ZILLALIB_OUTBASE)))),$(call RMDIR,$(ZILLALIB_OUTBASE)))
 
-ZillaLibBaseLibs:
-	@"$(ANDROID_NDK)/ndk-build" --no-print-directory "NDK_PROJECT_PATH=$(ZILLALIB_DIR)Android" "APP_BUILD_SCRIPT=$(ZILLALIB_DIR)Android/Android.mk" $(NDK_BUILD_OPTS) TARGET_SONAME_EXTENSION=.a APP_PLATFORM=$(APP_PLATFORM)
-	@"$(ANDROID_NDK)/ndk-build" --no-print-directory "NDK_PROJECT_PATH=$(ZILLALIB_DIR)Android/stlport" "APP_BUILD_SCRIPT=$(ZILLALIB_DIR)Android/stlport/Android.mk" -s $(NDK_BUILD_OPTS) TARGET_SONAME_EXTENSION=.a APP_PLATFORM=$(APP_PLATFORM)
+$(ZILLALIB_LIBS):
+	@"$(ANDROID_NDK)/ndk-build" "NDK_PROJECT_PATH=$(ZILLALIB_DIR)Android" "APP_BUILD_SCRIPT=$(ZILLALIB_DIR)Android/Android.mk" $(NDK_BUILD_OPTS) "APP_PLATFORM=$(ZL_PLATFORM.$(patsubst $(PTN_ZILLALIB_LIB),%,$@))" "APP_ABI=$(patsubst $(PTN_ZILLALIB_LIB),%,$@)"
 
 #------------------------------------------------------------------------------------------------------
 endif

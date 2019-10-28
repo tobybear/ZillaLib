@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -49,9 +49,11 @@ public class ZillaActivity extends android.app.Activity implements SurfaceHolder
 	ZillaAudio mAudio = null;
 	ZillaAccelerometer mAccelerometer = null;
 	boolean OverridesVolumeKeys = false;
+	int UIVisibilityFlags = android.view.View.SYSTEM_UI_FLAG_LOW_PROFILE;
 
-	@Override protected void onCreate(android.os.Bundle savedInstanceState)
+	@SuppressWarnings("deprecation") @Override protected void onCreate(android.os.Bundle savedInstanceState)
 	{
+		android.util.Log.v("ZILLALIB", "Started onCreate function");
 		super.onCreate(savedInstanceState);
 
 		android.content.pm.ApplicationInfo appInfo;
@@ -65,16 +67,18 @@ public class ZillaActivity extends android.app.Activity implements SurfaceHolder
 		mView.getHolder().addCallback(this);
 		mView.setFocusable(true);
 		mView.setFocusableInTouchMode(true);
+		mView.setContentDescription("game");
 
-		mView.setOnKeyListener(new android.view.View.OnKeyListener() { @Override public boolean onKey(android.view.View v, int keyCode, android.view.KeyEvent event)
+		mView.setOnKeyListener(new android.view.View.OnKeyListener() { @Override public boolean onKey(android.view.View v, int keyCode, KeyEvent event)
 		{
 			if ((keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP) && !OverridesVolumeKeys)
 				return false;
 			int action = event.getAction();
+			//android.util.Log.v("ZILLALIB", "keyCode: " + keyCode + " - action: " + action + " - unicode: " + event.getUnicodeChar());
 			if (keyCode == KeyEvent.KEYCODE_UNKNOWN && action == KeyEvent.ACTION_MULTIPLE)
 				{ NativeText(event.getCharacters()); return true; }
-			int state = (action == KeyEvent.ACTION_DOWN ? 1 : 0);
-			NativeKey(keyCode, state);
+			if (keyCode != KeyEvent.KEYCODE_UNKNOWN)
+				NativeKey(keyCode, (action == KeyEvent.ACTION_DOWN ? 1 : 0));
 			if (action == KeyEvent.ACTION_DOWN)
 			{
 				if (keyCode == KeyEvent.KEYCODE_DEL) NativeText("\b");
@@ -123,14 +127,14 @@ public class ZillaActivity extends android.app.Activity implements SurfaceHolder
 		frame.addView(mView);
 		if (android.os.Build.VERSION.SDK_INT >= 14)
 		{
-			final Runnable r = new Runnable() { public void run() { getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LOW_PROFILE); } };
+			final Runnable r = new Runnable() { public void run() { getWindow().getDecorView().setSystemUiVisibility(UIVisibilityFlags); } };
 			r.run();
 			frame.setOnSystemUiVisibilityChangeListener(new android.view.View.OnSystemUiVisibilityChangeListener()
 			{
 				private android.os.Handler h = new android.os.Handler();
 				@Override public void onSystemUiVisibilityChange(int visibility)
 				{
-					if (visibility == android.view.View.SYSTEM_UI_FLAG_LOW_PROFILE) return;
+					if (visibility == UIVisibilityFlags) return;
 					h.removeCallbacks(r);
 					h.postDelayed(r, 2000);
 				}
@@ -162,11 +166,17 @@ public class ZillaActivity extends android.app.Activity implements SurfaceHolder
 		super.onDestroy();
 	}
 
+	@Override public void onBackPressed()
+	{
+		NativeKey(4, 1);
+		NativeKey(4, 0);
+	}
+
 	@Override public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) { NativeSetSurface(holder.getSurface(), w, h); }
 	@Override public void surfaceCreated(SurfaceHolder holder) { }
 	@Override public void surfaceDestroyed(SurfaceHolder holder) { NativeSetSurface(null, 0, 0); }
 
-	public void setFlags(boolean AllowAnyOrientation, boolean WantsLandscape, boolean OverridesVolumeKeys)
+	public void setFlags(boolean AllowAnyOrientation, boolean WantsLandscape, boolean OverridesVolumeKeys, boolean Immersive)
 	{
 		this.OverridesVolumeKeys = OverridesVolumeKeys;
 		if (AllowAnyOrientation)
@@ -177,6 +187,8 @@ public class ZillaActivity extends android.app.Activity implements SurfaceHolder
 		else
 			//sensorPortait 7 Would like to have the screen in portrait orientation, but can use the sensor to change which direction the screen is facing.
 			setRequestedOrientation(android.os.Build.VERSION.SDK_INT >= 9 ? 7 : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+		if (Immersive && android.os.Build.VERSION.SDK_INT >= 19)
+			UIVisibilityFlags = android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
 	}
 
 	public void doFinish()
@@ -256,9 +268,11 @@ public class ZillaActivity extends android.app.Activity implements SurfaceHolder
 		return 0;
 	}
 
-	public void vibrate(int durationMs)
+	@SuppressWarnings("deprecation") public void vibrate(int durationMs)
 	{
-		((android.os.Vibrator)getSystemService(Context.VIBRATOR_SERVICE)).vibrate(durationMs);
+		android.os.Vibrator v = ((android.os.Vibrator)getSystemService(VIBRATOR_SERVICE));
+		if (android.os.Build.VERSION.SDK_INT < 26) v.vibrate(durationMs);
+		else v.vibrate(android.os.VibrationEffect.createOneShot(durationMs,10));
 	}
 
 	public void joystickStatus(int deviceIndex, boolean open)
@@ -344,7 +358,7 @@ public class ZillaActivity extends android.app.Activity implements SurfaceHolder
 		@Override public void onAccuracyChanged(Sensor s, int a) { }
 	}
 
-	public class ZillaAudio
+	private class ZillaAudio
 	{
 		private ZillaActivity mContext;
 		private class Stream { java.io.FileInputStream apkFileStream; android.media.MediaPlayer player; boolean paused; }
@@ -388,4 +402,27 @@ public class ZillaActivity extends android.app.Activity implements SurfaceHolder
 			}
 		}
 	}
+
+	//private class ZillaSurfaceView extends android.view.SurfaceView
+	//{
+	//	public ZillaSurfaceView(Context context) { super(context); }
+	//	@Override public android.view.inputmethod.InputConnection onCreateInputConnection(android.view.inputmethod.EditorInfo ei)
+	//	{
+	//		ei.inputType = android.text.InputType.TYPE_NULL;
+	//		return new ZillaInputConnection(this, false);
+	//	}
+	//}
+	//private class ZillaInputConnection extends android.view.inputmethod.BaseInputConnection
+	//{
+	//	public ZillaInputConnection(android.view.View targetView, boolean fullEditor) { super(targetView, fullEditor); }
+	//	@Override public boolean sendKeyEvent(KeyEvent event)
+	//	{
+	//		return false;
+	//	}
+	//	@Override public boolean commitText(CharSequence text, int newCursorPosition)
+	//	{
+	//		NativeText(text.toString());
+	//		return false;
+	//	}
+	//}
 }

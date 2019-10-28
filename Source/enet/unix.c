@@ -53,7 +53,11 @@
 #endif
 
 #ifndef HAS_SOCKLEN_T
-typedef int socklen_t;
+#if !defined(__LP64__)
+typedef int __socklen_t;
+#else
+typedef unsigned int __socklen_t;
+#endif
 #endif
 
 #ifndef MSG_NOSIGNAL

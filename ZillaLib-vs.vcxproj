@@ -82,16 +82,20 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='WebAssembly-Debug' Or '$(Configuration)'=='WebAssembly-Release'" Label="Configuration">
-    <ConfigurationType>Makefile</ConfigurationType>
+    <ConfigurationType Condition="'$(SolutionFileName)'=='ZillaLib-vs.sln'">Makefile</ConfigurationType>
+    <ConfigurationType Condition="'$(SolutionFileName)'!='ZillaLib-vs.sln'">Utility</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Debug' Or '$(Configuration)'=='Emscripten-Release'" Label="Configuration">
-    <ConfigurationType>Makefile</ConfigurationType>
+    <ConfigurationType Condition="'$(SolutionFileName)'=='ZillaLib-vs.sln'">Makefile</ConfigurationType>
+    <ConfigurationType Condition="'$(SolutionFileName)'!='ZillaLib-vs.sln'">Utility</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='NACL-Debug' Or '$(Configuration)'=='NACL-Release'" Label="Configuration">
-    <ConfigurationType>Makefile</ConfigurationType>
+    <ConfigurationType Condition="'$(SolutionFileName)'=='ZillaLib-vs.sln'">Makefile</ConfigurationType>
+    <ConfigurationType Condition="'$(SolutionFileName)'!='ZillaLib-vs.sln'">Utility</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Android-Debug' Or '$(Configuration)'=='Android-Release'" Label="Configuration">
-    <ConfigurationType>Makefile</ConfigurationType>
+    <ConfigurationType Condition="'$(SolutionFileName)'=='ZillaLib-vs.sln'">Makefile</ConfigurationType>
+    <ConfigurationType Condition="'$(SolutionFileName)'!='ZillaLib-vs.sln'">Utility</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets">

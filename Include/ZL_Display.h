@@ -216,16 +216,17 @@ struct ZL_Color
 
 enum ZL_DisplayInitFlags
 {
-	ZL_DISPLAY_DEFAULT                   = 0x00, //no special flag
-	ZL_DISPLAY_FULLSCREEN                = 0x01, //Window will be fullscreen (only related to desktop platforms)
-	ZL_DISPLAY_RESIZABLE                 = 0x06, //freely resizable viewport, application must accompany for variable width & height, incompatible with following two settings
-	ZL_DISPLAY_ALLOWRESIZEHORIZONTAL     = 0x02, //allow widening of viewport to accompany various native screen aspect ratio and scale vertical to native aspect ratio
-	ZL_DISPLAY_ALLOWRESIZEVERTICAL       = 0x04, //allow vertical resize of viewport to accompany various native screen aspect ratio and scale horizontal to native aspect ratio
-	ZL_DISPLAY_ALLOWANYORIENTATION       = 0x08, //allow both portrait and landscape screen orientation, otherwise fixed based on window aspect ratio (currently only on mobile)
-	ZL_DISPLAY_OVERRIDEANDROIDVOLUMEKEYS = 0x10, //when set the volume cannot be changed with the hardware buttons but are available to sigKeyDown/sigKeyUp
-	ZL_DISPLAY_PREVENTALTENTER           = 0x20, //when set ALT+ENTER won't toggle fullscreen (on platforms that have full screen switching)
-	ZL_DISPLAY_PREVENTALTF4              = 0x40, //when set ALT+F4 won't quit
-	ZL_DISPLAY_DEPTHBUFFER               = 0x80  //use for 3d rendering with depth buffer
+	ZL_DISPLAY_DEFAULT                    = 0x000, //no special flag
+	ZL_DISPLAY_FULLSCREEN                 = 0x001, //window will be fullscreen (only related to desktop platforms)
+	ZL_DISPLAY_RESIZABLE                  = 0x006, //freely resizable viewport, application must accompany for variable width & height, incompatible with following two settings
+	ZL_DISPLAY_ALLOWRESIZEHORIZONTAL      = 0x002, //allow widening of viewport to accompany various native screen aspect ratio and scale vertical to native aspect ratio
+	ZL_DISPLAY_ALLOWRESIZEVERTICAL        = 0x004, //allow vertical resize of viewport to accompany various native screen aspect ratio and scale horizontal to native aspect ratio
+	ZL_DISPLAY_ALLOWANYORIENTATION        = 0x008, //allow both portrait and landscape screen orientation, otherwise fixed based on window aspect ratio (currently only on mobile)
+	ZL_DISPLAY_PREVENTALTENTER            = 0x010, //when set ALT+ENTER won't toggle fullscreen (on platforms that have full screen switching)
+	ZL_DISPLAY_PREVENTALTF4               = 0x020, //when set ALT+F4 won't quit
+	ZL_DISPLAY_DEPTHBUFFER                = 0x040, //use for 3d rendering with depth buffer
+	ZL_DISPLAY_ANDROID_OVERRIDEVOLUMEKEYS = 0x100, //[Android only] when set the volume cannot be changed with the hardware buttons but are available to sigKeyDown/sigKeyUp
+	ZL_DISPLAY_ANDROID_IMMERSIVEMODE      = 0x200, //[Android only] will hide the navigation bar and get more screen space available to the application
 };
 
 //Polygon consisting of arbitrary number of points, can be filled or outlined with color or texture. Handles intersections and multiple contours.

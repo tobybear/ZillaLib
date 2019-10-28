@@ -108,24 +108,9 @@ void ZL_Display_Process_Event(ZL_Event& event)
 				if (native_width == event.window.data1 && native_height == event.window.data2) break;
 				native_width = event.window.data1;
 				native_height = event.window.data2;
-				if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_ALLOWRESIZEHORIZONTAL))
-				{
-					event.window.data1 = (int)(ZL_Display::Height * native_width / native_height);
-					event.window.data2 = (int)(ZL_Display::Height);
-				}
-				else if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_ALLOWRESIZEVERTICAL))
-				{
-					event.window.data1 = (int)(ZL_Display::Width);
-					event.window.data2 = (int)(ZL_Display::Width * native_height / native_width);
-				}
-				else if (!ZL_WINDOWFLAGS_HAS(ZL_WINDOW_RESIZABLE))
-				{
-					event.window.data1 = (int)(ZL_Display::Width);
-					event.window.data2 = (int)(ZL_Display::Height);
-				}
-				ZL_LOG4("DISPLAY", "Resized to: %d x %d [%d x %d]", event.window.data1, event.window.data2, native_width, native_height);
 				ZL_WindowResizeEvent resizeEvent = { ZL_Display::Width, ZL_Display::Height };
 				InitGL(event.window.data1, event.window.data2);
+				ZL_LOG4("DISPLAY", "Resized to: %d x %d [%d x %d]", (int)ZL_Display::Width, (int)ZL_Display::Height, native_width, native_height);
 				ZL_Display::sigResized.call(resizeEvent);
 			}
 			else
@@ -170,29 +155,18 @@ bool ZL_Display::Init(const char* title, int width, int height, int displayflags
 
 	ZL_LOG2("DISPLAY", "Requested width: %d - height: %d", width, height);
 	ZL_GetWindowSize(&native_width, &native_height); //read back what we actually got at window creation
-	if ((displayflags & ZL_DISPLAY_RESIZABLE) == ZL_DISPLAY_RESIZABLE)
-	{
-		width = native_width;
-		height = native_height;
-		*pZL_WindowFlags |= ZL_WINDOW_RESIZABLE;
-	}
-	else if (displayflags & ZL_DISPLAY_ALLOWRESIZEHORIZONTAL)
-	{
-		width = height * native_width / native_height;
-		*pZL_WindowFlags |= ZL_WINDOW_ALLOWRESIZEHORIZONTAL;
-	}
-	else if (displayflags & ZL_DISPLAY_ALLOWRESIZEVERTICAL)
-	{
-		height = width * native_height / native_width;
-		*pZL_WindowFlags |= ZL_WINDOW_ALLOWRESIZEVERTICAL;
-	}
+	if ((displayflags & ZL_DISPLAY_RESIZABLE) == ZL_DISPLAY_RESIZABLE) *pZL_WindowFlags |= ZL_WINDOW_RESIZABLE;
+	else if (displayflags & ZL_DISPLAY_ALLOWRESIZEHORIZONTAL) *pZL_WindowFlags |= ZL_WINDOW_ALLOWRESIZEHORIZONTAL;
+	else if (displayflags & ZL_DISPLAY_ALLOWRESIZEVERTICAL) *pZL_WindowFlags |= ZL_WINDOW_ALLOWRESIZEVERTICAL;
 	if (displayflags & ZL_DISPLAY_ALLOWANYORIENTATION) *pZL_WindowFlags |= ZL_WINDOW_ALLOWANYORIENTATION;
 	if (displayflags & ZL_DISPLAY_PREVENTALTENTER) *pZL_WindowFlags |= ZL_WINDOW_PREVENTALTENTER;
 	if (displayflags & ZL_DISPLAY_PREVENTALTF4) *pZL_WindowFlags |= ZL_WINDOW_PREVENTALTF4;
 
 	ZL_LOG2("DISPLAY", "Actually got width: %d - height: %d", native_width, native_height);
 
-	InitGL(width, height);
+	ZL_Display::Width = s(width);
+	ZL_Display::Height = s(height);
+	InitGL(native_width, native_height);
 
 	memset(KeyDown, 0, sizeof(KeyDown));
 	memset(MouseDown, 0, sizeof(MouseDown));
@@ -243,6 +217,22 @@ void ZL_Display::ResetClip()
 
 void InitGL(int width, int height)
 {
+	if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_ALLOWRESIZEHORIZONTAL))
+	{
+		width  = (int)(ZL_Display::Height * native_width / native_height);
+		height = (int)(ZL_Display::Height);
+	}
+	else if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_ALLOWRESIZEVERTICAL))
+	{
+		width  = (int)(ZL_Display::Width);
+		height = (int)(ZL_Display::Width * native_height / native_width);
+	}
+	else if (!ZL_WINDOWFLAGS_HAS(ZL_WINDOW_RESIZABLE))
+	{
+		width  = (int)(ZL_Display::Width);
+		height = (int)(ZL_Display::Height);
+	}
+
 	window_viewport[2] = (native_width * height / width > native_height ? native_height * width / height : native_width);
 	window_viewport[3] = (native_width * height / width > native_height ? native_height : (native_width * height + (width - 1)) / width);
 	window_viewport[0] = (native_width-window_viewport[2])>>1;
@@ -253,6 +243,7 @@ void InitGL(int width, int height)
 	glGetIntegerv(GL_FRAMEBUFFER_BINDING, (GLint*)&window_framebuffer);
 	active_framebuffer = window_framebuffer;
 	ZL_LOG4("DISPLAY", "Setting viewport to pos: %d , %d - size: %d , %d", window_viewport[0], window_viewport[1], window_viewport[2], window_viewport[3]);
+	//ZL_LOG4("DISPLAY", "Native Width: %d - Native Height: %d - Display Width: %d - Display Height: %d", native_width, native_height, width, height);
 
 	ZL_Display::Width = s(width);
 	ZL_Display::Height = s(height);

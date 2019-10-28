@@ -105,7 +105,7 @@ static void QueueEvent(const ZL_Event& e)
 
 static void RendererDestroy()
 {
-	__ANDROID_LOG_PRINT_INFO("Renderer", "Destroying context");
+	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Renderer: Destroying context");
 	if (!RenderDisplay) return;
 	eglMakeCurrent(RenderDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	if (RenderContext) { eglDestroyContext(RenderDisplay, RenderContext); RenderContext = EGL_NO_CONTEXT; }
@@ -118,7 +118,7 @@ static bool RendererInitialize()
 	EGLConfig config;
 	EGLint numConfigs, format, width, height;
 
-	ZL_LOG("Renderer", "Initializing context");
+	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Renderer: Initializing context");
 
 	const EGLint configattribs[] = { EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
 		EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_ALPHA_SIZE, 8,
@@ -128,7 +128,7 @@ static bool RendererInitialize()
 	     || !eglChooseConfig(RenderDisplay, configattribs, &config, 1, &numConfigs)
 	     || !eglGetConfigAttrib(RenderDisplay, config, EGL_NATIVE_VISUAL_ID, &format))
 	{
-		__ANDROID_LOG_PRINT_INFO("Renderer", "egl display initialization error %d", eglGetError());
+		//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Renderer: egl display initialization error %d", eglGetError());
 		RendererDestroy();
 		return false;
 	}
@@ -142,11 +142,12 @@ static bool RendererInitialize()
 	     || !eglQuerySurface(RenderDisplay, RenderSurface, EGL_WIDTH, &width)
 	     || !eglQuerySurface(RenderDisplay, RenderSurface, EGL_HEIGHT, &height))
 	{
-		__ANDROID_LOG_PRINT_INFO("Renderer", "egl context initialization error %d", eglGetError());
+		//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Renderer: egl context initialization error %d", eglGetError());
 		RendererDestroy();
 		return false;
 	}
 
+	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Renderer: egl context received size - width: %d - height: %d", width, height);
 	if (!(ZL_ANDROID_WindowFlags & ZL_WINDOW_ALLOWANYORIENTATION) && (ZL_ANDROID_sWantsLandscape != (width > height))) { jint tmp = height; height = width; width = tmp; }
 	ZL_ANDROID_sWindowWidth = width;
 	ZL_ANDROID_sWindowHeight = height;
@@ -156,6 +157,7 @@ static bool RendererInitialize()
 static void* RenderThreadFunc(void*)
 {
 	javaVM->AttachCurrentThread(&jniEnv, NULL);
+	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Renderer: Start Thread - Window: %d - Display: %d - Surface: %d", RenderWindow!=0, RenderDisplay!=0, RenderSurface!=0);
 
 	for (bool loopActive = true;;)
 	{
@@ -167,33 +169,41 @@ static void* RenderThreadFunc(void*)
 			{
 				if (!RenderDisplay)
 				{
-					//Only ZL_EVENT_ANDROID_SURFACECHANGE can be processed without a render display initialized
-					if (it->type != ZL_EVENT_ANDROID_SURFACECHANGE) continue;
-
-					if (pZL_WindowFlags != &ZL_ANDROID_WindowFlags)
+					//Only ZL_EVENT_ANDROID_* events can be processed without a render display initialized
+					if (it->type == ZL_EVENT_ANDROID_SURFACECHANGE)
 					{
-						//first time getting a surface, start ZillaLib up, will call RendererInitialize in ZL_CreateWindow
-						ZillaLibInit(0, NULL);
+						if (pZL_WindowFlags != &ZL_ANDROID_WindowFlags)
+						{
+							//first time getting a surface, start ZillaLib up, will call RendererInitialize in ZL_CreateWindow
+							ZillaLibInit(0, NULL);
+						}
+						else
+						{
+							int oldw = ZL_ANDROID_sWindowWidth, oldh = ZL_ANDROID_sWindowHeight;
+							RendererInitialize();
+							if (oldw == ZL_ANDROID_sWindowWidth && oldh == ZL_ANDROID_sWindowHeight) InitGL(oldw, oldh);
+							else ZL_WindowEvent(ZL_WINDOWEVENT_RESIZED, ZL_ANDROID_sWindowWidth, ZL_ANDROID_sWindowHeight);
+							ZL_LastFPSTicks = ZL_Application::Ticks = ZL_GetTicks();
+							ZL_ANDROID_WindowFlags &= ~ZL_WINDOW_MINIMIZED;
+							ZL_WindowEvent(ZL_WINDOWEVENT_RESTORED);
+							if (SLESWasActivated) SLESInit();
+						}
+						//with the RenderDisplay now initialized, restart the event loop to forward other events
+						QueuedEvents.erase(it);
+						goto RestartEventProcessing;
 					}
-					else
+					else if (it->type == ZL_EVENT_ANDROID_ACTIVITYPAUSES || it->type == ZL_EVENT_ANDROID_ACTIVITYFINISHES)
 					{
-						int oldw = ZL_ANDROID_sWindowWidth, oldh = ZL_ANDROID_sWindowHeight;
-						RendererInitialize();
-						if (oldw == ZL_ANDROID_sWindowWidth && oldh == ZL_ANDROID_sWindowHeight) InitGL(oldw, oldh);
-						else ZL_WindowEvent(ZL_WINDOWEVENT_RESIZED, ZL_ANDROID_sWindowWidth, ZL_ANDROID_sWindowHeight);
-						ZL_LastFPSTicks = ZL_Application::Ticks = ZL_GetTicks();
-						ZL_ANDROID_WindowFlags &= ~ZL_WINDOW_MINIMIZED;
-						ZL_WindowEvent(ZL_WINDOWEVENT_RESTORED);
-						if (SLESWasActivated) SLESInit();
+						loopActive = false;
+						QueuedEvents.erase(it);
+						goto RestartEventProcessing;
 					}
-					//with the RenderDisplay now initialized, restart the event loop to forward other events
-					QueuedEvents.erase(it);
-					goto RestartEventProcessing;
+					else continue;
 				}
 
 				if (it->type == ZL_EVENT_ANDROID_SURFACECHANGE)
 				{
-					ZL_LOG("ZillaSurfaceChange", "W: %d - H: %d - OldW: %d - OldH: %d", it->window.data1, it->window.data2, ZL_ANDROID_sWindowWidth, ZL_ANDROID_sWindowHeight);
+					//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Renderer: SurfaceChange W: %d - H: %d - OldW: %d - OldH: %d", it->window.data1, it->window.data2, ZL_ANDROID_sWindowWidth, ZL_ANDROID_sWindowHeight);
 					if (it->window.data1 != ZL_ANDROID_sWindowWidth || it->window.data2 != ZL_ANDROID_sWindowHeight)
 					{
 						ZL_ANDROID_sWindowWidth = it->window.data1;
@@ -239,7 +249,7 @@ static void* RenderThreadFunc(void*)
 		}
 		if (!eglSwapBuffers(RenderDisplay, RenderSurface))
 		{
-			__ANDROID_LOG_PRINT_INFO("Renderer", "eglSwapBuffers() returned error %d", eglGetError());
+			__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Renderer: eglSwapBuffers() returned error %d", eglGetError());
 		}
 	}
 
@@ -251,7 +261,7 @@ static void* RenderThreadFunc(void*)
 
 extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeOnCreate(JNIEnv* env, jobject objactivity, jstring apkPath)
 {
-	__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "NativeOnCreate");
+	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "NativeOnCreate");
 
 	memset(ZL_ANDROID_touch, 0, sizeof(ZL_ANDROID_touch));
 	for (int i = 0; i < MAX_SIMULTANEOUS_TOUCHES; i++) ZL_ANDROID_touch[i].lastx = ZL_ANDROID_touch[i].lasty = -1;
@@ -272,7 +282,7 @@ extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeOnCreate
 
 	const char* pcApkPath, *pcUID;
 	pcApkPath = env->GetStringUTFChars(apkPath, NULL);
-	ZL_LOG1("INIT", "Got apkPath: %s - Load APK as ZIP file", pcApkPath);
+	ZL_LOG1("ANDROID", "Got apkPath: %s - Load APK as ZIP file", pcApkPath);
 	ZL_File::DefaultReadFileContainer = ZL_FileContainer_ZIP(pcApkPath);
 	env->ReleaseStringUTFChars(apkPath, pcApkPath);
 
@@ -281,16 +291,25 @@ extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeOnCreate
 
 extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeOnResume(JNIEnv*, jobject)
 {
-	__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "NativeOnResume - Creating renderer thread");
+	if (RenderWindow)
+	{
+		ZL_Event e = ZL_Event::Make(ZL_EVENT_ANDROID_SURFACECHANGE);
+		e.window.data1 = ZL_ANDROID_sWindowWidth;
+		e.window.data2 = ZL_ANDROID_sWindowHeight;
+		QueueEvent(e);
+	}
+	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "NativeOnResume - Creating renderer thread (active thread: #%ld) - Window: %d - Display: %d - Surface: %d", RenderThreadId, RenderWindow!=0, RenderDisplay!=0, RenderSurface!=0);
 	pthread_create(&RenderThreadId, 0, RenderThreadFunc, NULL);
+	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "NativeOnResume - Created renderer thread #%ld - Window: %d - Display: %d - Surface: %d", RenderThreadId, RenderWindow!=0, RenderDisplay!=0, RenderSurface!=0);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeOnPause(JNIEnv*, jobject, jboolean isFinishing)
 {
-	__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "NativeOnPause - Stopping renderer thread");
+	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "NativeOnPause - Stopping renderer thread #%ld - Window: %d - Display: %d - Surface: %d", RenderThreadId, RenderWindow!=0, RenderDisplay!=0, RenderSurface!=0);
 	QueueEvent(ZL_Event::Make(isFinishing ? ZL_EVENT_ANDROID_ACTIVITYFINISHES : ZL_EVENT_ANDROID_ACTIVITYPAUSES));
 	pthread_join(RenderThreadId, 0);
-	__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Renderer thread stopped");
+	RenderThreadId = 0;
+	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "NativeOnPause - Renderer thread stopped - Window: %d - Display: %d - Surface: %d", RenderWindow!=0, RenderDisplay!=0, RenderSurface!=0);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeOnDestroy(JNIEnv* jenv, jobject)
@@ -310,7 +329,7 @@ extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeSetSurfa
 	if (surface)
 	{
 		RenderWindow = ANativeWindow_fromSurface(jenv, surface);
-		__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Got window %p - w: %d - h: %d - HadWindowBefore: %d", RenderWindow, w, h, RenderDisplay!=0);
+		//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Got window %p - w: %d - h: %d - HadWindowBefore: %d", RenderWindow, w, h, RenderDisplay!=0);
 		ZL_Event e = ZL_Event::Make(ZL_EVENT_ANDROID_SURFACECHANGE);
 		e.window.data1 = w;
 		e.window.data2 = h;
@@ -318,7 +337,7 @@ extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeSetSurfa
 	}
 	else
 	{
-		__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Releasing window");
+		//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "Releasing window");
 		ANativeWindow_release(RenderWindow);
 		RenderWindow = NULL;
 	}
@@ -334,8 +353,9 @@ bool ZL_CreateWindow(const char*, int width, int height, int displayflags)
 
 	jboolean AllowAnyOrientation = (jboolean)((ZL_ANDROID_WindowFlags & ZL_WINDOW_ALLOWANYORIENTATION)!=0);
 	jboolean WantsLandscape      = (jboolean)ZL_ANDROID_sWantsLandscape;
-	jboolean OverridesVolumeKeys = (jboolean)((displayflags & ZL_DISPLAY_OVERRIDEANDROIDVOLUMEKEYS)!=0);
-	jniEnv->CallVoidMethod(JavaZillaActivity, jniEnv->GetMethodID(jniEnv->GetObjectClass(JavaZillaActivity), "setFlags", "(ZZZ)V"), AllowAnyOrientation, WantsLandscape, OverridesVolumeKeys);
+	jboolean OverridesVolumeKeys = (jboolean)((displayflags & ZL_DISPLAY_ANDROID_OVERRIDEVOLUMEKEYS)!=0);
+	jboolean Immersive           = (jboolean)((displayflags & ZL_DISPLAY_ANDROID_IMMERSIVEMODE)!=0);
+	jniEnv->CallVoidMethod(JavaZillaActivity, jniEnv->GetMethodID(jniEnv->GetObjectClass(JavaZillaActivity), "setFlags", "(ZZZZ)V"), AllowAnyOrientation, WantsLandscape, OverridesVolumeKeys, Immersive);
 
 	RendererInitialize();
 
@@ -377,6 +397,7 @@ extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeKey(JNIE
 		case ZLK_RSHIFT: (action ? ZL_Android_KeyModState |= ZLKMOD_RSHIFT : ZL_Android_KeyModState &= ~ZLKMOD_RSHIFT); break;
 		case ZLK_LGUI:
 		case ZLK_RGUI:   (action ? ZL_Android_KeyModState |= ZLKMOD_META   : ZL_Android_KeyModState &= ~ZLKMOD_META  ); break;
+		default: break;
 	}
 	ZL_Event e;
 	e.type = (action ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
@@ -639,7 +660,7 @@ static void SLESShutdown()
 
 bool ZL_AudioOpen()
 {
-	ZL_LOG("AUDIO", "ZL_AudioOpen");
+	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "ZL_AudioOpen");
 	return SLESInit();
 }
 
@@ -650,13 +671,12 @@ void* ZL_AudioAndroidLoad(ZL_File_Impl* file_impl)
 	if (!rwopszip->is_stored_raw()) { return NULL; }
 	if (JavaAudio == NULL)
 	{
-		ZL_LOG("AUDIO", "ZL_AudioAndroidLoad - Call startAudio");
+		//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "ZL_AudioAndroidLoad - Call startAudio");
 		JavaAudio = jniEnv->NewGlobalRef(jniEnv->CallObjectMethod(JavaZillaActivity, jniEnv->GetMethodID(jniEnv->GetObjectClass(JavaZillaActivity), "startAudio", "()Ljava/lang/Object;")));
 		jclass JavaAudioClass = jniEnv->GetObjectClass(JavaAudio);
 		JavaAudioOpen = jniEnv->GetMethodID(JavaAudioClass, "open", "(II)Ljava/lang/Object;");
 		JavaAudioControl = jniEnv->GetMethodID(JavaAudioClass, "control", "(Ljava/lang/Object;II)V");
 	}
-	ZL_LOG("JNI", "Call: JavaAudioOpen");
 	return jniEnv->NewGlobalRef(jniEnv->CallObjectMethod(JavaAudio, JavaAudioOpen, (jint)rwopszip->get_data_offset(), (jint)rwopszip->size()));
 }
 
@@ -665,5 +685,8 @@ void ZL_AudioAndroidPlay(void* stream, bool looped) { jniEnv->CallVoidMethod(Jav
 void ZL_AudioAndroidStop(void* stream)              { jniEnv->CallVoidMethod(JavaAudio, JavaAudioControl, (jobject)stream, (jint)1, (jint)0); }
 void ZL_AudioAndroidPause(void* stream)             { jniEnv->CallVoidMethod(JavaAudio, JavaAudioControl, (jobject)stream, (jint)2, (jint)0); }
 void ZL_AudioAndroidResume(void* stream)            { jniEnv->CallVoidMethod(JavaAudio, JavaAudioControl, (jobject)stream, (jint)3, (jint)0); }
+
+// Customizing this unused C++ exception related function saves 48064 bytes in the output file!
+extern "C" void* __cxa_demangle() {return 0;}
 
 #endif
