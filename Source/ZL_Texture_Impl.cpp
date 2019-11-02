@@ -508,8 +508,8 @@ void StoreAllFrameBufferTexturesOnDeactivate()
 		if ((*it)->format == GL_RGB)
 		{
 			//realign RGBA to RGB
-			unsigned char *p = ((unsigned char*)((*it)->pFrameBuffer->pStorePixelData)) + 3, *pr = ((unsigned char*)((*it)->pFrameBuffer->pStorePixelData)) + 4;
-			for (int i = (*it)->wRep * (*it)->hRep; i > 0; i--, p+=3, pr+=4) { p[0] = pr[0]; p[1] = pr[1]; p[2] = pr[2]; }
+			unsigned char *pd = ((unsigned char*)((*it)->pFrameBuffer->pStorePixelData)), *p3End = pd + (*it)->wRep * (*it)->hRep * 3;
+			for (unsigned char *p3 = pd + 3, *p4 = pd + 4; p3 != p3End; p3 += 3, p4 += 4) { p3[0] = p4[0]; p3[1] = p4[1]; p3[2] = p4[2]; }
 		}
 	}
 }
