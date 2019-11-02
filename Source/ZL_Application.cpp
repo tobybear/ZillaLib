@@ -118,6 +118,7 @@ void ZL_Application::Frame()
 {
 	_ZL_ApplicationUpdateTimingFps();
 	sigKeepAlive.call();
+	BeforeFrame();
 	if (funcSceneManagerCalculate)
 	{
 		funcSceneManagerCalculate();
@@ -126,9 +127,8 @@ void ZL_Application::Frame()
 	else
 	{
 		if (native_aspectcorrection) { glClearColor(0.0f, 0.0f, 0.0f, 1.0f); glClear(GL_COLOR_BUFFER_BIT); }
-		BeforeFrame();
-		AfterFrame();
 	}
+	AfterFrame();
 }
 
 void ZL_Application::Quit(int Return)
@@ -227,9 +227,12 @@ void ZL_ApplicationConstantTicks::Frame()
 	_ZL_ApplicationUpdateTimingFps();
 	ticks_t now = Ticks;
 	ZL_TickExcess += (double)ElapsedTicks;
+	bool calledBeforeFrame = false;
 	if (ZL_TickDuration == 0)
 	{
 		sigKeepAlive.call();
+		BeforeFrame();
+		calledBeforeFrame = true;
 		funcSceneManagerCalculate();
 		AfterCalculate();
 		ZL_TickSum = (double)now;
@@ -249,6 +252,7 @@ void ZL_ApplicationConstantTicks::Frame()
 			Ticks = (ticks_t)ZL_TickSum;
 			ElapsedTicks = Ticks - OldTicks;
 			sigKeepAlive.call();
+			if (!calledBeforeFrame) { BeforeFrame(); calledBeforeFrame = true; }
 			funcSceneManagerCalculate();
 			AfterCalculate();
 			//calcticks++;
@@ -259,7 +263,9 @@ void ZL_ApplicationConstantTicks::Frame()
 		ElapsedTicks = DrawElapsedTicks;
 	}
 	else Ticks = (ticks_t)ZL_TickSum;
+	if (!calledBeforeFrame) BeforeFrame();
 	funcSceneManagerDraw();
+	AfterFrame();
 	Ticks = now;
 }
 

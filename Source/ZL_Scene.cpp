@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -146,7 +146,6 @@ static void SceneManagerCalculate()
 static void SceneManagerDraw()
 {
 	if (native_aspectcorrection) { glClearColor(0.0f, 0.0f, 0.0f, 1.0f); glClear(GL_COLOR_BUFFER_BIT); }
-	ZL_MainApplication->BeforeFrame();
 	switch (TransitionStepCount)
 	{
 		case TRANSITION_WAIT_FADEOUT_LEAVE:   pSceneTransitionFrom->DrawTransition(s(1) - s(TransitionTicksLeft) / s(TransitionTicksTotal), true); break;
@@ -155,7 +154,6 @@ static void SceneManagerDraw()
 		case TRANSITION_WAIT_CROSSFADE_ENTER: pSceneTransitionTo->DrawCrossfade(s(TransitionTicksLeft) / s(TransitionTicksTotal), true, pSceneTransitionFrom); break;
 		default: if (pCurrentScene) pCurrentScene->Draw();
 	}
-	ZL_MainApplication->AfterFrame();
 }
 
 bool ZL_SceneManager::GoToScene(ZL_SceneType SceneType, void* data, bool SwitchImmediately)
