@@ -354,7 +354,7 @@ bool ZL_CreateWindow(const char*, int width, int height, int displayflags)
 	jboolean AllowAnyOrientation = (jboolean)((ZL_ANDROID_WindowFlags & ZL_WINDOW_ALLOWANYORIENTATION)!=0);
 	jboolean WantsLandscape      = (jboolean)ZL_ANDROID_sWantsLandscape;
 	jboolean OverridesVolumeKeys = (jboolean)((displayflags & ZL_DISPLAY_ANDROID_OVERRIDEVOLUMEKEYS)!=0);
-	jboolean Immersive           = (jboolean)((displayflags & ZL_DISPLAY_ANDROID_IMMERSIVEMODE)!=0);
+	jboolean Immersive           = (jboolean)((displayflags & ZL_DISPLAY_ANDROID_SHOWNAVIGATIONBAR)==0);
 	jniEnv->CallVoidMethod(JavaZillaActivity, jniEnv->GetMethodID(jniEnv->GetObjectClass(JavaZillaActivity), "setFlags", "(ZZZZ)V"), AllowAnyOrientation, WantsLandscape, OverridesVolumeKeys, Immersive);
 
 	RendererInitialize();

@@ -219,4 +219,5 @@ The Android back key will be sent as an ESC keyboard press event. Make sure to h
 
 To get events on presses on the volume up/down keys, you can set the flag `ZL_DISPLAY_ANDROID_OVERRIDEVOLUMEKEYS` when calling `ZL_Display::Init`. This prevents a user from changing the volume while in the game, but gives you more hardware buttons to use inside the game.
 
-To hide the navigation bar and get more screen space available you can set the flag `ZL_DISPLAY_ANDROID_IMMERSIVEMODE` when calling `ZL_Display::Init`.
+To always show the navigation bar and giving up some of the available screen space you can set the flag `ZL_DISPLAY_ANDROID_SHOWNAVIGATIONBAR` when calling `ZL_Display::Init`.
+Without it the user is required to do a swipe gesture from the edge to make it visible and being able to access the back button.

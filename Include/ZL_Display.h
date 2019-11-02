@@ -226,7 +226,7 @@ enum ZL_DisplayInitFlags
 	ZL_DISPLAY_PREVENTALTF4               = 0x020, //when set ALT+F4 won't quit
 	ZL_DISPLAY_DEPTHBUFFER                = 0x040, //use for 3d rendering with depth buffer
 	ZL_DISPLAY_ANDROID_OVERRIDEVOLUMEKEYS = 0x100, //[Android only] when set the volume cannot be changed with the hardware buttons but are available to sigKeyDown/sigKeyUp
-	ZL_DISPLAY_ANDROID_IMMERSIVEMODE      = 0x200, //[Android only] will hide the navigation bar and get more screen space available to the application
+	ZL_DISPLAY_ANDROID_SHOWNAVIGATIONBAR  = 0x200, //[Android only] will always show the system navigation bar without requiring a swipe from the edge to make it visible
 };
 
 //Polygon consisting of arbitrary number of points, can be filled or outlined with color or texture. Handles intersections and multiple contours.
