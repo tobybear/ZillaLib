@@ -214,7 +214,7 @@ endif
 
 ANDROID_PROJECT_APKBASE := $(ANDROIDPROJ_DIR)/bin/$(ZillaApp)-$(if $(filter 1,$(ZLDEBUG)),debug,release)
 ANDROID_PROJECT_OUTBASE := $(ANDROIDPROJ_DIR)/bin/$(if $(filter 1,$(ZLDEBUG)),debug,release)-
-ANDROID_SIGN_APKBASE    := $(if $(SIGN_OUTAPK),$(if $(findstring .apk,$(suffix $(SIGN_OUTAPK))),$(basename $(SIGN_OUTAPK)),$(SIGN_OUTAPK)-$(app.versioncode)),$(ANDROIDPROJ_DIR)/$(ZillaApp)-$(app.versioncode))
+ANDROID_SIGN_APKBASE    := $(if $(SIGN_OUTAPK),$(if $(filter .apk,$(suffix $(SIGN_OUTAPK))),$(basename $(SIGN_OUTAPK)),$(SIGN_OUTAPK)-$(app.versioncode)),$(ANDROIDPROJ_DIR)/$(ZillaApp)-$(app.versioncode))
 
 -include $(ANDROIDPROJ_DIR)/jni/Application.mk
 ifneq ($(APP_ABI),)
@@ -225,7 +225,7 @@ endif
 
 PTN_ANDROID_PROJECT_LIB := $(ANDROID_PROJECT_OUTBASE)%/lib/%/lib$(ZillaApp).so
 PTN_ANDROID_PROJECT_APK := $(ANDROID_PROJECT_APKBASE)-%.apk
-PTN_ANDROID_SIGN_APK    := $(ANDROID_SIGN_APKBASE)-%.apk
+PTN_ANDROID_SIGN_APK    := $(ANDROID_SIGN_APKBASE)$(if $(and $(filter .apk,$(suffix $(SIGN_OUTAPK))),$(filter 1,$(words $(BUILD_ABIS)))),,-%).apk
 GET_PROJLIB_ABI = $(notdir $(patsubst $(ANDROID_PROJECT_OUTBASE)%/lib$(ZillaApp).so,%,$1))
 ANDROID_PROJECT_LIBS := $(foreach F,$(BUILD_ABIS),$(ANDROID_PROJECT_OUTBASE)$(F)/lib/$(F)/lib$(ZillaApp).so)
 ANDROID_PROJECT_APKS := $(BUILD_ABIS:%=$(PTN_ANDROID_PROJECT_APK))
@@ -265,9 +265,7 @@ $(ANDROIDPROJ_DIR)/bin/res.prepare: $(ANDROIDPROJ_DIR)/res
 define BUILD_APK_UNSIGNED
 	@"$(HOST_ECHO)" "    Building APK Package $(1)..."
 	@$(CMD_MKMANIFEST) "$(ANDROIDPROJ_DIR)/AndroidManifest.xml" "$(ANDROID_PROJECT_OUTBASE)$2/AndroidManifest.xml" "$(ZL_VERSIONCODE.$(2))"
-	@$(ANDROID_AAPT) p -f -S "$(ANDROIDPROJ_DIR)/bin/res" \
-		-I "$(ANDROID_SDK)/platforms/android-$(app.targetsdk)/android.jar" \
-		-F "$(1)" "$(ANDROID_PROJECT_OUTBASE)$2" "$(ANDROIDPROJ_DIR)/bin/dex"
+	$(ANDROID_AAPT) p -f -S "$(ANDROIDPROJ_DIR)/bin/res" -I "$(ANDROID_SDK)/platforms/android-$(app.targetsdk)/android.jar" -F "$(1)" "$(ANDROID_PROJECT_OUTBASE)$2" "$(ANDROIDPROJ_DIR)/bin/dex"
 	@$(if $(ASSET_ALL_STARS),"$(HOST_ECHO)" "    Packing in $(words $(ASSET_ALL_STARS)) binary assets into APK...")
 	@$(if $(ASSET_ALL_STARS),$(ANDROID_AAPT) add -0 "" "$(1)" $(subst *, ,$(subst $(sp)," ","$(ASSET_ALL_STARS)")) >$(DEVNUL))
 endef
@@ -294,7 +292,7 @@ $(ANDROID_SIGN_APKS): $(ANDROIDPROJ_DIR)/bin/dex/classes.dex $(ANDROIDPROJ_DIR)/
 	$(if $(SIGN_STOREPASS),,$(error Please supply keystore file password via SIGN_STOREPASS=<...> make parameter))
 	$(if $(SIGN_KEYALIAS),,$(error Please supply key alias name via SIGN_KEYALIAS=<...> make parameter))
 	$(if $(SIGN_KEYPASS),,$(error Please supply key password file via SIGN_KEYPASS=<...> make parameter))
-	@$(call BUILD_APK_UNSIGNED,$(@).unsigned,$(patsubst $(PTN_ANDROID_SIGN_APK),%,$@))
+	$(call BUILD_APK_UNSIGNED,$(@).unsigned,$(if $(findstring %,$(PTN_ANDROID_SIGN_APK)),$(patsubst $(PTN_ANDROID_SIGN_APK),%,$@),$(BUILD_ABIS)))
 	@"$(HOST_ECHO)" "    Signing APK with distribution key $(SIGN_KEYSTORE)..."
 	@$(ANDROID_JARSIGNER) -keystore "$(SIGN_KEYSTORE)" -storepass "$(SIGN_STOREPASS)" -keypass "$(SIGN_KEYPASS)" -signedjar "$(@).signed" "$(@).unsigned" "$(SIGN_KEYALIAS)"
 	$(call BUILD_ZIPALIGN,$(@).signed,$(@))
