@@ -257,7 +257,7 @@ $(ANDROIDPROJ_DIR)/bin/dex/classes.dex: $(CLASSES_PREREQS)
 	@$(call host-mkdir,$(ANDROIDPROJ_DIR)/bin/dex)
 	@$(ANDROID_DX) "--dex" "--output=$@" "$(ANDROIDPROJ_DIR)/bin/classes"
 
-$(ANDROIDPROJ_DIR)/bin/res.prepare: $(ANDROIDPROJ_DIR)/res
+$(ANDROIDPROJ_DIR)/bin/res.prepare: $(ANDROIDPROJ_DIR)/res $(wildcard $(ANDROIDPROJ_DIR)/res/* $(ANDROIDPROJ_DIR)/res/*/* $(ANDROIDPROJ_DIR)/res/*/*/*)
 	$(info Preparing Android resources for packaging...)
 	@$(ANDROID_AAPT) c -S "$(ANDROIDPROJ_DIR)/res" -C "$(ANDROIDPROJ_DIR)/bin/res" >$(DEVNUL)
 	@"$(HOST_ECHO)" 1>"$@"
