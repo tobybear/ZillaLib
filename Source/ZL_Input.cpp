@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,10 +24,10 @@
 #include "ZL_Display_Impl.h"
 #include "ZL_Display.h"
 
-enum { ZLI_KEYMAP_SIZE = (ZLK_LAST)/8 };
+enum { ZLI_KEYMAP_SIZE = (ZLK_LAST+7)/8 };
 typedef unsigned int zlipointer_t; //use 30 bits = 5 buttons, 6 mice/touches
-static unsigned char ZLI_Inited, ZLI_MaxPointers, ZLI_Lock, ZLI_Unlock, ZLI_KeyHeld[ZLI_KEYMAP_SIZE];
-struct sZLI_Data { unsigned char KeyDown[ZLI_KEYMAP_SIZE], KeyUp[ZLI_KEYMAP_SIZE], PointerGotMove; zlipointer_t PointerDown, PointerUp; scalar RelX, RelY, WheelY; };
+static unsigned char ZLI_Inited, ZLI_MaxPointers, ZLI_Lock, ZLI_Unlock, ZLI_KeyHeld[ZLI_KEYMAP_SIZE], ZLI_Helds;
+struct sZLI_Data { unsigned char KeyDown[ZLI_KEYMAP_SIZE], KeyUp[ZLI_KEYMAP_SIZE], KeyDowns, KeyUps, PointerGotMove; zlipointer_t PointerDown, PointerUp; scalar RelX, RelY, WheelY; };
 static sZLI_Data ZLI_Incoming, ZLI_Now;
 static ZL_Vector ZLI_PointerNow[6], ZLI_PointerOld[6], ZLI_PointerClicked[6];
 static zlipointer_t ZLI_PointerHeld;
@@ -36,8 +36,8 @@ static void ZLI_OnKeyDownUp(ZL_KeyboardEvent& e)
 {
 	int index = e.key>>3, mask = (1<<(e.key&7));
 	if (e.is_repeat) { }
-	else if (e.is_down) { ZLI_Incoming.KeyDown[index] |= mask; ZLI_KeyHeld[index] |=  mask; }
-	else                { ZLI_Incoming.KeyUp[index]   |= mask; ZLI_KeyHeld[index] &= ~mask; }
+	else if (e.is_down) { ZLI_Incoming.KeyDown[index] |= mask; ZLI_Incoming.KeyDowns++; ZLI_KeyHeld[index] |=  mask; ZLI_Helds++; }
+	else                { ZLI_Incoming.KeyUp[index]   |= mask; ZLI_Incoming.KeyUps++;   ZLI_KeyHeld[index] &= ~mask; ZLI_Helds--; }
 }
 
 static void ZLI_OnPointerDownUp(ZL_PointerPressEvent& e)
@@ -115,16 +115,20 @@ void ZL_Input::Consume(ZL_Key key)
 	ZLI_KeyHeld[key>>3] &= ~(1<<(key&7));
 }
 
-#define ZLI_CONSUME_POINTERDOWN_RETURN { if (consume) ZLI_Now.PointerDown &= ~(1 << (i * 5 + btn - 1)); return i+1; }
-#define ZLI_CONSUME_POINTERUP_RETURN   { if (consume) ZLI_Now.PointerUp   &= ~(1 << (i * 5 + btn - 1)); return i+1; }
-#define ZLI_CONSUME_POINTERHELD_RETURN { if (consume) ZLI_PointerHeld     &= ~(1 << (i * 5 + btn - 1)); return i+1; }
+int ZL_Input::KeyDownCount() { return ZLI_Now.KeyDowns; }
+int ZL_Input::KeyUpCount() { return ZLI_Now.KeyUps; }
+int ZL_Input::KeyHeldCount() { return ZLI_Helds; }
+
+#define ZLI_CONSUME_POINTERDOWN(i) if (consume) ZLI_Now.PointerDown &= ~(1 << ((i) * 5 + btn - 1));
+#define ZLI_CONSUME_POINTERUP(i)   if (consume) ZLI_Now.PointerUp   &= ~(1 << ((i) * 5 + btn - 1));
+#define ZLI_CONSUME_POINTERHELD(i) if (consume) ZLI_PointerHeld     &= ~(1 << ((i) * 5 + btn - 1));
 
 int ZL_Input::Down(int btn, bool consume)
 {
 	if (ZLI_Lock == ZLI_Unlock)
 		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
 			if (ZLI_Now.PointerDown & (1 << (i * 5 + btn - 1)))
-				ZLI_CONSUME_POINTERDOWN_RETURN
+				{ ZLI_CONSUME_POINTERDOWN(i) return i+1; }
 	return 0;
 }
 
@@ -133,7 +137,7 @@ int ZL_Input::Up(int btn, bool consume)
 	if (ZLI_Lock == ZLI_Unlock)
 		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
 			if (ZLI_Now.PointerUp & (1 << (i * 5 + btn - 1)))
-				ZLI_CONSUME_POINTERUP_RETURN
+				{ ZLI_CONSUME_POINTERUP(i) return i+1; }
 	return 0;
 }
 
@@ -142,35 +146,7 @@ int ZL_Input::Held(int btn, bool consume)
 	if (ZLI_Lock == ZLI_Unlock)
 		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
 			if (ZLI_PointerHeld & (1 << (i * 5 + btn - 1)))
-				ZLI_CONSUME_POINTERHELD_RETURN
-	return 0;
-}
-
-int ZL_Input::Down(const ZL_Rectf& rec, int btn, bool consume)
-{
-	if (ZLI_Lock == ZLI_Unlock)
-		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
-			if (ZLI_Now.PointerDown & (1 << (i * 5 + btn - 1)) && rec.Contains(ZLI_PointerNow[i]))
-				ZLI_CONSUME_POINTERDOWN_RETURN
-	return 0;
-}
-
-int ZL_Input::Up(const ZL_Rectf& rec, int btn, bool consume)
-{
-	if (ZLI_Lock == ZLI_Unlock)
-		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
-			if (ZLI_Now.PointerUp & (1 << (i * 5 + btn - 1)) && rec.Contains(ZLI_PointerNow[i]))
-				ZLI_CONSUME_POINTERUP_RETURN
-	return 0;
-}
-
-int ZL_Input::Held(const ZL_Rectf& rec, int btn, bool consume)
-{
-	if (ZLI_Lock == ZLI_Unlock)
-		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
-			if (ZLI_PointerHeld & (1 << (i * 5 + btn - 1)))
-				if (rec.Contains(ZLI_PointerNow[i]) && rec.Contains(ZLI_PointerClicked[i]))
-					ZLI_CONSUME_POINTERHELD_RETURN
+				{ ZLI_CONSUME_POINTERHELD(i) return i+1; }
 	return 0;
 }
 
@@ -179,7 +155,34 @@ int ZL_Input::Clicked(int btn, bool consume)
 	if (ZLI_Lock == ZLI_Unlock)
 		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
 			if (ZLI_Now.PointerUp & (1 << (i * 5 + btn - 1)))
-				ZLI_CONSUME_POINTERUP_RETURN
+				{ ZLI_CONSUME_POINTERUP(i) return i+1; }
+	return 0;
+}
+
+int ZL_Input::Down(const ZL_Rectf& rec, int btn, bool consume)
+{
+	if (ZLI_Lock == ZLI_Unlock)
+		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
+			if (ZLI_Now.PointerDown & (1 << (i * 5 + btn - 1)) && rec.Contains(ZLI_PointerNow[i]))
+				{ ZLI_CONSUME_POINTERDOWN(i) return i+1; }
+	return 0;
+}
+
+int ZL_Input::Up(const ZL_Rectf& rec, int btn, bool consume)
+{
+	if (ZLI_Lock == ZLI_Unlock)
+		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
+			if (ZLI_Now.PointerUp & (1 << (i * 5 + btn - 1)) && rec.Contains(ZLI_PointerNow[i]))
+				{ ZLI_CONSUME_POINTERUP(i) return i+1; }
+	return 0;
+}
+
+int ZL_Input::Held(const ZL_Rectf& rec, int btn, bool consume)
+{
+	if (ZLI_Lock == ZLI_Unlock)
+		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
+			if (ZLI_PointerHeld & (1 << (i * 5 + btn - 1)) && rec.Contains(ZLI_PointerNow[i]))
+				{ ZLI_CONSUME_POINTERHELD(i) return i+1; }
 	return 0;
 }
 
@@ -188,7 +191,34 @@ int ZL_Input::Clicked(const ZL_Rectf& rec, int btn, bool consume)
 	if (ZLI_Lock == ZLI_Unlock)
 		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
 			if (ZLI_Now.PointerUp & (1 << (i * 5 + btn - 1)) && rec.Contains(ZLI_PointerNow[i]) && rec.Contains(ZLI_PointerClicked[i]))
-					ZLI_CONSUME_POINTERUP_RETURN
+				{ ZLI_CONSUME_POINTERUP(i) return i+1; }
+	return 0;
+}
+
+int ZL_Input::DownOutside(const ZL_Rectf& rec, int btn, bool consume)
+{
+	if (ZLI_Lock == ZLI_Unlock)
+		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
+			if (ZLI_Now.PointerDown & (1 << (i * 5 + btn - 1)) && !rec.Contains(ZLI_PointerNow[i]))
+				{ ZLI_CONSUME_POINTERDOWN(i) return i+1; }
+	return 0;
+}
+
+int ZL_Input::UpOutside(const ZL_Rectf& rec, int btn, bool consume)
+{
+	if (ZLI_Lock == ZLI_Unlock)
+		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
+			if (ZLI_Now.PointerUp & (1 << (i * 5 + btn - 1)) && !rec.Contains(ZLI_PointerNow[i]))
+				{ ZLI_CONSUME_POINTERUP(i) return i+1; }
+	return 0;
+}
+
+int ZL_Input::HeldOutside(const ZL_Rectf& rec, int btn, bool consume)
+{
+	if (ZLI_Lock == ZLI_Unlock)
+		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
+			if (ZLI_PointerHeld & (1 << (i * 5 + btn - 1)) && !rec.Contains(ZLI_PointerNow[i]))
+				{ ZLI_CONSUME_POINTERHELD(i) return i+1; }
 	return 0;
 }
 
@@ -197,25 +227,43 @@ int ZL_Input::ClickedOutside(const ZL_Rectf& rec, int btn, bool consume)
 	if (ZLI_Lock == ZLI_Unlock)
 		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
 			if (ZLI_Now.PointerUp & (1 << (i * 5 + btn - 1)) && !rec.Contains(ZLI_PointerNow[i]) && !rec.Contains(ZLI_PointerClicked[i]))
-				ZLI_CONSUME_POINTERUP_RETURN
+				{ ZLI_CONSUME_POINTERUP(i) return i+1; }
 	return 0;
 }
 
-int ZL_Input::DragInside(const ZL_Rectf& rec, int btn)
+int ZL_Input::Drag(const ZL_Rectf& rec, int btn, bool consume)
 {
 	if (ZLI_Lock == ZLI_Unlock)
 		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
-			if (ZLI_PointerHeld & (1 << (i * 5 + btn - 1)))
-				if (rec.Contains(ZLI_PointerOld[i])) return i+1;
+			if (ZLI_PointerHeld & (1 << (i * 5 + btn - 1)) && rec.Contains(ZLI_PointerClicked[i]) && rec.Contains(ZLI_PointerNow[i]))
+				{ ZLI_CONSUME_POINTERHELD(i) return i+1; }
 	return 0;
 }
 
-int ZL_Input::DragAnywhere(const ZL_Rectf& rec, int btn)
+int ZL_Input::DragOutside(const ZL_Rectf& rec, int btn, bool consume)
 {
 	if (ZLI_Lock == ZLI_Unlock)
 		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
-			if (ZLI_PointerHeld & (1 << (i * 5 + btn - 1)))
-				if (rec.Contains(ZLI_PointerClicked[i])) return i+1;
+			if (ZLI_PointerHeld & (1 << (i * 5 + btn - 1)) && !rec.Contains(ZLI_PointerClicked[i]) && !rec.Contains(ZLI_PointerNow[i]))
+				{ ZLI_CONSUME_POINTERHELD(i) return i+1; }
+	return 0;
+}
+
+int ZL_Input::DragTo(const ZL_Rectf& rec, int btn, bool consume)
+{
+	if (ZLI_Lock == ZLI_Unlock)
+		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
+			if (ZLI_PointerHeld & (1 << (i * 5 + btn - 1)) && rec.Contains(ZLI_PointerNow[i]))
+				{ ZLI_CONSUME_POINTERHELD(i) return i+1; }
+	return 0;
+}
+
+int ZL_Input::DragFrom(const ZL_Rectf& rec, int btn, bool consume)
+{
+	if (ZLI_Lock == ZLI_Unlock)
+		for (unsigned char i = 0; i < ZLI_MaxPointers; i++)
+			if (ZLI_PointerHeld & (1 << (i * 5 + btn - 1)) && rec.Contains(ZLI_PointerClicked[i]))
+				{ ZLI_CONSUME_POINTERHELD(i) return i+1; }
 	return 0;
 }
 
@@ -233,6 +281,14 @@ void ZL_Input::Consume(int pointernum, int btn)
 	ZLI_Now.PointerDown &= ~mask;
 	ZLI_Now.PointerUp &= mask;
 	ZLI_PointerHeld &= ~mask;
+}
+
+bool ZL_Input::PointerUp(int pointernum, int btn, bool consume)
+{
+	if (ZLI_Lock == ZLI_Unlock)
+		if (ZLI_Now.PointerUp & (1 << ((pointernum-1) * 5 + btn - 1)))
+			{ ZLI_CONSUME_POINTERUP(pointernum-1) return true; }
+	return false;
 }
 
 ZL_Vector ZL_Input::Pointer(int pointernum)

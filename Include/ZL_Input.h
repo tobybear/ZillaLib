@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2019 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -35,21 +35,30 @@ struct ZL_Input
 	static bool Up(ZL_Key key, bool consume = false);
 	static bool Held(ZL_Key key, bool consume = false);
 	static void Consume(ZL_Key key);
+	static int KeyDownCount();
+	static int KeyUpCount();
+	static int KeyHeldCount();
 
 	//Mouse/Touch queries
 	static int Down(int btn = ZL_BUTTON_LEFT, bool consume = false);
 	static int Up(int btn = ZL_BUTTON_LEFT, bool consume = false);
 	static int Held(int btn = ZL_BUTTON_LEFT, bool consume = false);
+	static int Clicked(int btn = ZL_BUTTON_LEFT, bool consume = true);
 	static int Down(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = false);
 	static int Up(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = false);
 	static int Held(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = false);
-	static int Clicked(int btn = ZL_BUTTON_LEFT, bool consume = true);
 	static int Clicked(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = true);
+	static int DownOutside(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = false);
+	static int UpOutside(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = false);
+	static int HeldOutside(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = false);
 	static int ClickedOutside(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = true);
-	static int DragInside(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT);
-	static int DragAnywhere(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT);
+	static int Drag(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = false);
+	static int DragOutside(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = false);
+	static int DragTo(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = false);
+	static int DragFrom(const ZL_Rectf& rec, int btn = ZL_BUTTON_LEFT, bool consume = false);
 	static int Hover(const ZL_Rectf& rec);
 	static void Consume(int pointernum = 1, int btn = ZL_BUTTON_LEFT);
+	static bool PointerUp(int pointernum, int btn = ZL_BUTTON_LEFT, bool consume = false);
 	static ZL_Vector Pointer(int pointernum = 1); //touch or mouse screen position
 	static ZL_Vector PointerDelta(int pointernum = 1); //touch or mouse move delta this frame
 	static ZL_Vector MouseDelta(); //accumulated movement this frame, works for locked mouse pointer
