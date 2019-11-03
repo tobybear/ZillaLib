@@ -301,6 +301,16 @@ ZL_Vector ZL_Input::PointerDelta(int pointernum)
 	return (ZLI_Lock == ZLI_Unlock && pointernum && pointernum <= 6 && (ZLI_Now.PointerGotMove & (1 << (pointernum-1))) ? ZLI_PointerNow[pointernum-1] - ZLI_PointerOld[pointernum-1] : ZL_Vector::Zero);
 }
 
+ZL_Vector ZL_Input::PointerDown(int pointernum)
+{
+	return (ZLI_Lock == ZLI_Unlock && pointernum && pointernum <= 6 && (ZLI_PointerHeld & (31 << ((pointernum-1) * 5))) ? ZLI_PointerClicked[pointernum-1] : ZL_Vector::Zero);
+}
+
+ZL_Vector ZL_Input::PointerDownDelta(int pointernum)
+{
+	return (ZLI_Lock == ZLI_Unlock && pointernum && pointernum <= 6 && (ZLI_PointerHeld & (31 << ((pointernum-1) * 5))) ? ZLI_PointerNow[pointernum-1] - ZLI_PointerClicked[pointernum-1] : ZL_Vector::Zero);
+}
+
 ZL_Vector ZL_Input::MouseDelta() { return ZL_Vector(ZLI_Now.RelX, ZLI_Now.RelY); }
 
 scalar ZL_Input::MouseWheel() { return (ZLI_Lock == ZLI_Unlock ? ZLI_Now.WheelY : 0); }

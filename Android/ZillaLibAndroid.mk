@@ -265,7 +265,7 @@ $(ANDROIDPROJ_DIR)/bin/res.prepare: $(ANDROIDPROJ_DIR)/res $(wildcard $(ANDROIDP
 define BUILD_APK_UNSIGNED
 	@"$(HOST_ECHO)" "    Building APK Package $(1)..."
 	@$(CMD_MKMANIFEST) "$(ANDROIDPROJ_DIR)/AndroidManifest.xml" "$(ANDROID_PROJECT_OUTBASE)$2/AndroidManifest.xml" "$(ZL_VERSIONCODE.$(2))"
-	$(ANDROID_AAPT) p -f -S "$(ANDROIDPROJ_DIR)/bin/res" -I "$(ANDROID_SDK)/platforms/android-$(app.targetsdk)/android.jar" -F "$(1)" "$(ANDROID_PROJECT_OUTBASE)$2" "$(ANDROIDPROJ_DIR)/bin/dex"
+	@$(ANDROID_AAPT) p -f -S "$(ANDROIDPROJ_DIR)/bin/res" -I "$(ANDROID_SDK)/platforms/android-$(app.targetsdk)/android.jar" -F "$(1)" "$(ANDROID_PROJECT_OUTBASE)$2" "$(ANDROIDPROJ_DIR)/bin/dex"
 	@$(if $(ASSET_ALL_STARS),"$(HOST_ECHO)" "    Packing in $(words $(ASSET_ALL_STARS)) binary assets into APK...")
 	@$(if $(ASSET_ALL_STARS),$(ANDROID_AAPT) add -0 "" "$(1)" $(subst *, ,$(subst $(sp)," ","$(ASSET_ALL_STARS)")) >$(DEVNUL))
 endef

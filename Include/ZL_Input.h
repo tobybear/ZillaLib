@@ -61,6 +61,8 @@ struct ZL_Input
 	static bool PointerUp(int pointernum, int btn = ZL_BUTTON_LEFT, bool consume = false);
 	static ZL_Vector Pointer(int pointernum = 1); //touch or mouse screen position
 	static ZL_Vector PointerDelta(int pointernum = 1); //touch or mouse move delta this frame
+	static ZL_Vector PointerDown(int pointernum = 1); //first touch or mouse screen position when pressed down
+	static ZL_Vector PointerDownDelta(int pointernum = 1); //touch or mouse move delta since pressed down
 	static ZL_Vector MouseDelta(); //accumulated movement this frame, works for locked mouse pointer
 	static scalar MouseWheel();
 
