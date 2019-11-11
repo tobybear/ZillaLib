@@ -59,7 +59,7 @@ void ZL_Display_Process_Event(ZL_Event& event)
 	{
 		case ZL_EVENT_MOUSEMOTION:
 			if (use_inputscale) { event.motion.x -= window_viewport[0]; event.motion.x *= inputscale_x; event.motion.y -= window_viewport[1]; event.motion.y *= inputscale_y; event.motion.xrel *= inputscale_x; event.motion.yrel *= inputscale_y; }
-			event.motion.y = ZL_Display::Height - event.motion.y;
+			event.motion.y = ZL_Display::Height - 1 - event.motion.y;
 			ZL_Display::PointerX = event.motion.x;
 			ZL_Display::PointerY = event.motion.y;
 			event.motion.yrel = -event.motion.yrel;
@@ -69,7 +69,7 @@ void ZL_Display_Process_Event(ZL_Event& event)
 		case ZL_EVENT_MOUSEBUTTONUP:
 			assert(event.button.is_down == (event.type == ZL_EVENT_MOUSEBUTTONDOWN));
 			if (use_inputscale) { event.button.x -= window_viewport[0]; event.button.x *= inputscale_x; event.button.y -= window_viewport[1]; event.button.y *= inputscale_y; }
-			event.button.y = ZL_Display::Height - event.button.y;
+			event.button.y = ZL_Display::Height - 1 - event.button.y;
 			ZL_Display::PointerX = event.button.x;
 			ZL_Display::PointerY = event.button.y;
 			ZL_Display::MouseDown[event.button.button] = event.button.is_down;
