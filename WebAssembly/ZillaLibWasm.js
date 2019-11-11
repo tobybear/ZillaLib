@@ -1086,7 +1086,7 @@ function ZLJS_WASM_IMPORTS(env)
 
 		windEvent('resize', function(e)
 		{
-			if (fullscreen || cnvs.clientWidth<32 || cnvs.clientHeight<32 || (cnvs.width == cnvs.clientWidth && cnvs.height == cnvs.clientHeight)) return;
+			if (cnvs.clientWidth<32 || cnvs.clientHeight<32 || (cnvs.width == cnvs.clientWidth && cnvs.height == cnvs.clientHeight)) return;
 			cnvs.height = cnvs.clientHeight;
 			cnvs.width = cnvs.clientWidth;
 			ZL.asm.ZLFNWindow(6, cnvs.width, cnvs.height);
