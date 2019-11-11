@@ -55,7 +55,16 @@ extern void ZLJS_Websocket(struct ZL_WebSocketConnection_Impl* impl, int cmd, co
 
 static void ZL_WindowEvent(unsigned char event, int data1 = 0, int data2 = 0);
 static unsigned int WEB_WindowFlags = ZL_WINDOW_INPUT_FOCUS | ZL_WINDOW_MOUSE_FOCUS;
-static int mouse_state = 0;
+static int Web_MouseState = 0;
+struct WEB_Touch { int lastx, lasty, touchId; };
+static WEB_Touch WEB_Touches[10];
+
+static unsigned char WEB_GetTouchIndex(int touchId, bool returnFreeIfNotKnown)
+{
+	for (unsigned char i = 0; i < (unsigned char)COUNT_OF(WEB_Touches); i++)
+		if (WEB_Touches[i].touchId == touchId) return i;
+	return (returnFreeIfNotKnown ? WEB_GetTouchIndex(0, false) : 0xFF);
+}
 
 extern "C" void ZLFNDraw()
 {
@@ -116,26 +125,59 @@ extern "C" void ZLFNKey(bool is_down, int key_code, bool shift, bool ctrl, bool 
 	}
 }
 
-extern "C" void ZLFNMove(int x, int y, int relx, int rely)
+extern "C" void ZLFNMove(int x, int y, int relx, int rely, int touchId)
 {
+	unsigned char touchIdx = WEB_GetTouchIndex(touchId, (touchId == 1));
+	if (touchIdx == 0xFF) return;
+	if ((WEB_WindowFlags & ZL_WINDOW_POINTERLOCK) && touchId == 1)
+	{
+		x = WEB_Touches[touchIdx].lastx + relx;
+		y = WEB_Touches[touchIdx].lasty + rely;
+		if (x > native_width -1) x = native_width -1; else if (x < 0) x = 0;
+		if (y > native_height-1) y = native_height-1; else if (y < 0) y = 0;
+	}
+	else
+	{
+		relx = x - WEB_Touches[touchIdx].lastx;
+		rely = y - WEB_Touches[touchIdx].lasty;
+	}
+	if (!relx && !rely) return;
 	ZL_Event e;
 	e.type = ZL_EVENT_MOUSEMOTION;
-	e.motion.which = 0;
-	e.motion.state = mouse_state;
+	e.motion.which = touchIdx;
+	e.motion.state = (touchId == 1 ? Web_MouseState : 1);
 	e.motion.x = x;
 	e.motion.y = y;
 	e.motion.xrel = relx;
 	e.motion.yrel = rely;
+	WEB_Touches[touchIdx].lastx = x;
+	WEB_Touches[touchIdx].lasty = y;
 	ZL_Display_Process_Event(e);
 }
 
-extern "C" void ZLFNMouse(int button, bool is_down, int x, int y)
+extern "C" void ZLFNMouse(int button, bool is_down, int x, int y, int touchId)
 {
-	if (is_down) mouse_state |= 1<<button;
-	else mouse_state &= ~(1<<button);
+	unsigned char touchIdx = WEB_GetTouchIndex(touchId, (is_down || touchId == 1));
+	//ZL_LOG("ZLFNMouse", "button: %d - is_down: %d - x: %d - y: %d - touchId: %d - touchIdx: %d", button, is_down, x, y, touchId, touchIdx);
+	if (touchIdx == 0xFF) return;
+	if (touchId == 1)
+	{
+		if (is_down) Web_MouseState |= 1<<button;
+		else Web_MouseState &= ~(1<<button);
+		if (WEB_WindowFlags & ZL_WINDOW_POINTERLOCK) { x = WEB_Touches[touchIdx].lastx; y = WEB_Touches[touchIdx].lasty; }
+	}
 	ZL_Event e;
-	e.type = (is_down ? ZL_EVENT_MOUSEBUTTONDOWN : ZL_EVENT_MOUSEBUTTONUP);
-	e.button.which = 0;
+	if (is_down)
+	{
+		e.type = ZL_EVENT_MOUSEBUTTONDOWN;
+		WEB_Touches[touchIdx] = { x, y, touchId };
+	}
+	else
+	{
+		e.type = ZL_EVENT_MOUSEBUTTONUP;
+		WEB_Touches[touchIdx].touchId = 0;
+	}
+	e.button.which = touchIdx;
 	e.button.button = (button + 1);
 	e.button.is_down = is_down;
 	e.button.x = x;

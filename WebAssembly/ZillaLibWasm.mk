@@ -25,12 +25,13 @@ ISWIN := $(findstring :,$(firstword $(subst \, ,$(subst /, ,$(abspath .)))))
 ZILLALIB_DIR = $(or $(subst |,/,$(subst <,,$(subst <.|,,<$(subst /,|,$(dir $(subst $(sp),/,$(strip $(subst /,$(sp),$(dir $(THIS_MAKEFILE)))))))))),$(if $(subst ./,,$(dir $(THIS_MAKEFILE))),,../))
 sub_checkexe_run = $(if $(1),$(if $(shell "$(1)" $(2) 2>$(if $(ISWIN),nul,/dev/null)),$(1),),)
 -include $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk
-ifeq ($(LLVM_ROOT),)
+ifeq ($(and $(LLVM_ROOT),$(SYSTEM_ROOT),$(WASMOPT)),)
   $(info )
   $(info Please create the file $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with at least the following definitions:)
   $(info )
   $(info LLVM_ROOT = $(if $(ISWIN),d:)/path/to/llvm)
   $(info SYSTEM_ROOT = $(if $(ISWIN),d:)/path/to/emscripten/system)
+  $(info WASMOPT = $(if $(ISWIN),d:)/path/to/wasm-opt$(if $(ISWIN),.exe))
   $(info )
   $(error Aborting)
 endif
@@ -43,13 +44,14 @@ ifeq ($(BUILD),RELEASE)
   APPOUTDIR := Release-wasm
   DBGCFLAGS := -DNDEBUG
   LDFLAGS   := -strip-all -gc-sections
+  WOPTFLAGS := -O3
 else
   LIBOUTDIR := $(dir $(THIS_MAKEFILE))build-debug
   SYSOUTDIR := $(dir $(THIS_MAKEFILE))build
   APPOUTDIR := Debug-wasm
   DBGCFLAGS := -DDEBUG -D_DEBUG -DZILLALOG
   LDFLAGS   :=
-  WASMOPT   :=
+  WOPTFLAGS := -O0
 endif
 
 # Project Build flags
@@ -85,8 +87,11 @@ CLANGFLAGS += -isystem$(SYSTEM_ROOT)/lib/libc/musl/arch/emscripten
 APPFLAGS += $(subst \\\,$(sp),$(foreach F,$(subst \$(sp),\\\,$(D)),"-D$(F)"))
 
 # Compute tool paths
-ifeq ($(wildcard $(LLVM_ROOT)/clang*),)
+ifeq ($(wildcard $(subst $(sp),\ ,$(LLVM_ROOT))/clang*),)
   $(error clang executables not found in set LLVM_ROOT path ($(LLVM_ROOT)). Set custom path in $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with LLVM_ROOT = $(if $(ISWIN),d:)/path/to/clang)
+endif
+ifeq ($(wildcard $(subst $(sp),\ ,$(WASMOPT))),)
+  $(error wasm-opt executable not found in set WASMOPT path ($(WASMOPT)). Fix path in $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk with WASMOPT = $(if $(ISWIN),d:)/path/to/wasm-opt$(if $(ISWIN),.exe))
 endif
 PYTHON_NOQUOTE := $(if $(PYTHON),$(wildcard $(PYTHON)),$(call sub_checkexe_run,python,-c "print 1"))
 ifeq ($(PYTHON_NOQUOTE),)
@@ -100,9 +105,9 @@ endif
 CC      := "$(LLVM_ROOT)/clang"
 CXX     := "$(LLVM_ROOT)/clang" -x c++
 LD      := "$(LLVM_ROOT)/wasm-ld"
+WASMOPT := "$(WASMOPT)"
 PYTHON  := "$(PYTHON_NOQUOTE)"
 7ZIP    := $(if $(7ZIP),"$(7ZIP)")
-WASMOPT := $(if $(WASMOPT),"$(WASMOPT)")
 
 # Python one liner to delete all .o files when the dependency files were created empty due to compile error
 CMD_DEL_OLD_OBJ := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.path.getsize(a)==0 and os.path.exists(a.rstrip('d')+'o') and os.remove(a.rstrip('d')+'o') for a in sys.argv[1:]]"
@@ -181,12 +186,9 @@ $(APPOUTDIR)/$(ZillaApp).bc : $(APPOBJS)
 $(APPOUTDIR)/$(ZillaApp).wasm : $(THIS_MAKEFILE) $(APPOUTDIR)/$(ZillaApp).bc $(LIBOUTDIR)/ZillaLib.bc $(SYSOUTDIR)/System.bc
 	$(info Linking $@ ...)
 	@$(LD) $(LDFLAGS) -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(LIBOUTDIR)/ZillaLib.bc $(SYSOUTDIR)/System.bc
-#	@$(if $(WASMOPT),dir $(subst /,\,$@) | find ":" | find "  ")
-	$(if $(WASMOPT),$(info Optimizing $@ with wasm-opt ...))
-	@$(if $(WASMOPT),$(WASMOPT) $@ -o $@ -O3)
 #	D:\dev\emscripten_sdk\wabt\wasm-objdump.exe -x $@ >$@.objdump
 #	D:\dev\emscripten_sdk\wabt\wasm2c $@ -o $@.c
-#	@dir $(subst /,\,$^ $@) | find ":" | find "  "
+	@$(WASMOPT) --legalize-js-interface $(WOPTFLAGS) $@ -o $@
 
 $(ASSET_ZIP) : $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)))
 	$(info Building $@ with $(words $(ASSET_ALL_STARS)) assets ...)
@@ -239,7 +241,7 @@ ifeq ($(if $(ZillaApp),$(if $(filter B,$(MAKEFLAGS)),$(wildcard $(LIBOUTDIR)/Zil
 
 #if System.bc exists, don't even bother checking sources, build once and forget for now
 ifeq ($(if $(wildcard $(SYSOUTDIR)/System.bc),1,0),0)
-SYS_ADDS := dlmalloc.c libcxx/*.cpp libcxxabi/src/cxa_guard.cpp compiler-rt/lib/builtins/*.c
+SYS_ADDS := dlmalloc.c libcxx/*.cpp libcxxabi/src/cxa_guard.cpp compiler-rt/lib/builtins/*.c libc/wasi-helpers.c
 SYS_MUSL := complex crypt ctype dirent errno fcntl fenv internal locale math misc mman multibyte prng regex select stat stdio stdlib string termios unistd
 
 SYS_IGNORE := iostream.cpp strstream.cpp locale.cpp thread.cpp exception.cpp
@@ -264,13 +266,13 @@ ifeq ($(if $(SYS_OLDFILES),1,0),1)
   $(shell $(CMD_DEL_FILES) $(addprefix $(SYSOUTDIR)/temp/,$(SYS_OLDFILES)) $(SYSOUTDIR)/System.bc)
 endif
 
-SYSCXXFLAGS := -Ofast -std=c++11 -fno-rtti
+SYSCXXFLAGS := -Ofast -std=c++11 -fno-rtti -I$(SYSTEM_ROOT)/lib/libcxxabi/include
 SYSCXXFLAGS += -DNDEBUG -D_LIBCPP_BUILDING_LIBRARY -D_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
 
 SYSCCFLAGS := -Ofast -std=gnu99
 SYSCCFLAGS += -DNDEBUG -Dunix -D__unix -D__unix__
 SYSCCFLAGS += -isystem$(SYSTEM_ROOT)/lib/libc/musl/src/internal
-SYSCCFLAGS += -Wno-dangling-else -Wno-ignored-attributes -Wno-bitwise-op-parentheses -Wno-logical-op-parentheses -Wno-shift-op-parentheses -Wno-string-plus-int -Wno-unknown-pragmas -Wno-shift-count-overflow -Wno-return-type -Wno-macro-redefined
+SYSCCFLAGS += -Wno-dangling-else -Wno-ignored-attributes -Wno-bitwise-op-parentheses -Wno-logical-op-parentheses -Wno-shift-op-parentheses -Wno-string-plus-int -Wno-unknown-pragmas -Wno-shift-count-overflow -Wno-return-type -Wno-macro-redefined -Wno-unused-result -Wno-pointer-sign
 
 WASM_CPP_SYSOBJS := $(addprefix $(SYSOUTDIR)/temp/,$(subst /,!,$(patsubst %.cpp,%.o,$(filter %.cpp,$(SYSSOURCES)))))
 WASM_CC_SYSOBJS  := $(addprefix $(SYSOUTDIR)/temp/,$(subst /,!,$(patsubst   %.c,%.o,$(filter   %.c,$(SYSSOURCES)))))

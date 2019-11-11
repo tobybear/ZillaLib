@@ -5,7 +5,7 @@ ZillaLib on WebAssembly
     * [Getting LLVM](#getting-llvm)
     * [Getting System Libraries](#getting-system-libraries)
     * [Getting Python](#getting-python)
-    * [Getting wasm-opt](#getting-wasm-opt) (optional)
+    * [Getting wasm-opt](#getting-wasm-opt)
     * [Setup building with ZillaLib](#setup-building-with-zillalib)
   * [Building](#building)
     * [Building from Visual Studio on Windows](#building-from-visual-studio-on-windows)
@@ -17,7 +17,7 @@ For getting builds going, we need 4 things that all are easy to get and require 
  - [clang and wasm-ld from LLVM](#getting-llvm)
  - [libc/libcxx sources prepared for Wasm](#getting-system-libraries)
  - [any version of Python](#getting-python)
- - [wasm-opt for smaller output files](#getting-wasm-opt) (optional)
+ - [wasm-opt for smaller output files](#getting-wasm-opt)
 
 ## Getting LLVM
 We need only clang and wasm-ld from LLVM 8.0.0 or newer which is available on [the official LLVM releases page](https://releases.llvm.org/download.html).  
@@ -32,7 +32,7 @@ If you already have Python (any version) on your system, you're good to go.
 Otherwise if you're on Windows, there's a simple portable ZIP [here](https://s3.amazonaws.com/mozilla-games/emscripten/packages/python_2.7.5.3_64bit.zip).
 
 ## Getting wasm-opt
-Using the tool wasm-opt from Binaryen is optional, but it does provide a 15% size reduction of the generated .wasm files.  
+The tool wasm-opt from Binaryen is needed for finalization of the output and it also provides a 15% size reduction of the generated .wasm files.  
 Binary releases are available on the [Binaryen project page](https://github.com/WebAssembly/binaryen/releases).  
 Feel free to extract only `wasm-opt.exe` and ignore the rest.
 
@@ -52,12 +52,12 @@ The paths are set with forward slashes on all operating systems, not back slashe
 The required settings are:  
   - LLVM_ROOT: Path to LLVM with clang and wasm-ld executables
   - SYSTEM_ROOT: Path to system with sub-directories `lib` and `include`
+  - WASMOPT: Path to the wasm-opt tool
 
 These settings are for required programs but can be skipped if these are found in the system wide PATH environment variable:
   - PYTHON: Path to Python executable
 
 The rest of the settings are optional depending on your environment and requirements:
-  - WASMOPT: Path to the wasm-opt tool which can be used to reduce size of release builds
   - 7ZIP: Path to the 7z executable that can be used to compress the output binary of a release build to a .gz file that can be uploaded to a webserver instead of the uncompressed file. If not specified, the weaker built-in compression of Python will be used.
   - BROWSER: Path to the executable of a web browser. If not set, will use the system default. This is not required for building, only for running the game directly with the build scripts.
 

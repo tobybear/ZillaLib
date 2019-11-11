@@ -129,66 +129,60 @@ function Base64Decode(B)
 	return a;
 }
 
-function SYSCALLS_WASM_IMPORTS(env)
+function SYSCALLS_WASM_IMPORTS(env, wasi)
 {
-	var getVarArgs;
-	function get(set) { return HEAP32[(((set ? getVarArgs=set+4 : getVarArgs+=4))-4)>>2]; }
-	var PAYLOAD = (ZL.files ? Base64Decode(ZL.files) : new Uint8Array(0));delete ZL.files;
 	var PAYLOAD_CURSOR = 0;
+	var PAYLOAD = (ZL.files ? Base64Decode(ZL.files) : new Uint8Array(0));
+	delete ZL.files;
 
-	env.__syscall5 = function(which, varargs) // open
+	env.__syscall5 = function(which, varargs) // open (only used to open payload)
 	{
 		PAYLOAD_CURSOR = 0;
+		//var getVarArgs;
+		//function get(set) { return HEAP32[(((set ? getVarArgs=set+4 : getVarArgs+=4))-4)>>2]; }
 		//var pathname = Pointer_stringify(get(varargs)), flags = get(), mode = get();
 		//console.log('___syscall5 open: ' + pathname);
-		return 10;
+		return 1;
 	};
 
-	env.__syscall140 = function(which, varargs) // llseek
+	wasi.fd_read = function(fd, iov, iovcnt, pOutResult) //read from payload
 	{
-		var stream = get(varargs), offset_high = get(), offset_low = get(), result = get(), whence = get();
-
-		if (whence == 0) PAYLOAD_CURSOR = offset_low; //set
-		if (whence == 1) PAYLOAD_CURSOR += offset_low; //cur
-		if (whence == 2) PAYLOAD_CURSOR = PAYLOAD.length - offset_low; //end
-		if (PAYLOAD_CURSOR < 0) PAYLOAD_CURSOR = 0;
-		if (PAYLOAD_CURSOR > PAYLOAD.length) PAYLOAD_CURSOR = PAYLOAD.length;
-		HEAP32[(result+0)>>2] = PAYLOAD_CURSOR;
-		HEAP32[(result+4)>>2] = 0;
-		//console.log('___syscall140 llseek - stream: ' + stream + ' - offset_high: ' + offset_high + ' - offset_low: ' + offset_low + ' - result: ' + result + ' - whence: ' +whence + ' - seek to: ' + PAYLOAD_CURSOR);
-		return 0;
-	};
-
-	env.__syscall145 = function(which, varargs) // readv
-	{
-		var stream = get(varargs), iov = get(), iovcnt = get(), ret = 0;
+		var ret = 0;
 		for (var i = 0; i < iovcnt; i++)
 		{
 			var ptr = HEAP32[(((iov)+(i*8))>>2)];
 			var len = HEAP32[(((iov)+(i*8 + 4))>>2)];
 			var curr = Math.min(len, PAYLOAD.length - PAYLOAD_CURSOR);
-			//console.log('___syscall145 readv - stream: ' + stream + ' - iov: ' + iov + ' - iovcnt: ' + iovcnt + ' - ptr: ' + ptr + ' - len: ' + len + ' - reading: ' + curr + ' (from ' + PAYLOAD_CURSOR + ' to ' + (PAYLOAD_CURSOR + curr) + ')');
+			//console.log('__wasi_fd_read - fd: ' + fd + ' - iov: ' + iov + ' - iovcnt: ' + iovcnt + ' - ptr: ' + ptr + ' - len: ' + len + ' - reading: ' + curr + ' (from ' + PAYLOAD_CURSOR + ' to ' + (PAYLOAD_CURSOR + curr) + ')');
 
 			HEAPU8.set(PAYLOAD.subarray(PAYLOAD_CURSOR, PAYLOAD_CURSOR + curr), ptr);
 			PAYLOAD_CURSOR += curr;
 
-			if (curr < 0) return -1;
+			if (curr < 0) return 5;
 			ret += curr;
 			if (curr < len) break; // nothing more to read
 		}
-		return ret;
-	};
-
-	env.__syscall6 = function(which, varargs) // close
-	{
-		var stream = get(varargs);
-		//console.log('___syscall6 close - stream: ' + stream);
+		//console.log('__wasi_fd_read -     ret: ' + ret);
+		HEAP32[pOutResult>>2] = ret;
 		return 0;
 	};
 
-	env.__syscall146 = function(which, varargs) // writev
+	wasi.fd_seek = function(fd, offset_low, offset_high, whence, pOutResult) //seek in payload
 	{
-		var stream = get(varargs), iov = get(), iovcnt = get(), ret = 0, str = '';
+		if (whence == 0) PAYLOAD_CURSOR = offset_low; //set
+		if (whence == 1) PAYLOAD_CURSOR += offset_low; //cur
+		if (whence == 2) PAYLOAD_CURSOR = PAYLOAD.length - offset_low; //end
+		if (PAYLOAD_CURSOR < 0) PAYLOAD_CURSOR = 0;
+		if (PAYLOAD_CURSOR > PAYLOAD.length) PAYLOAD_CURSOR = PAYLOAD.length;
+		HEAP32[(pOutResult+0)>>2] = PAYLOAD_CURSOR;
+		HEAP32[(pOutResult+4)>>2] = 0;
+		//console.log('__wasi_fd_seek - fd: ' + fd + ' - offset_high: ' + offset_high + ' - offset_low: ' + offset_low + ' - pOutResult: ' + pOutResult + ' - whence: ' +whence + ' - seek to: ' + PAYLOAD_CURSOR);
+		return 0;
+	};
+
+	wasi.fd_write = function(fd, iov, iovcnt, pOutResult) //only used to write to stdout
+	{
+		var ret = 0, str = '';
 		if (iovcnt == 0) return 0;
 		for (var i = 0; i < iovcnt; i++)
 		{
@@ -197,23 +191,21 @@ function SYSCALLS_WASM_IMPORTS(env)
 			if (len < 0) return -1;
 			ret += len;
 			str += Pointer_stringify(ptr, len);
-			//console.log('___syscall146 writev['+i+'][len:'+len+']: ' + Pointer_stringify(ptr, len));
+			//console.log('__wasi_fd_write - fd: ' + fd + ' - ['+i+'][len:'+len+']: ' + Pointer_stringify(ptr, len));
 		}
 		ZL.print(str);
-		return ret;
-	};
-
-	env.__syscall221 = function(which, varargs) // fcntl64
-	{
-		//var stream = get(varargs), cmd = get();
-		//console.log('___syscall221 fcntl64 - stream: ' + stream + ' - cmd: ' + cmd);
+		HEAP32[pOutResult>>2] = ret;
 		return 0;
 	};
 
-	env.__syscall54 = function(which, varargs) // ioctl
+	wasi.fd_close = function(fd)
 	{
-		//var stream = get(varargs), op = get();
-		//console.log('___syscall54 ioctl - stream: ' + stream + ' - op: ' + op);
+		//console.log('__wasi_fd_close - fd: ' + fd);
+		return 0;
+	};
+
+	env.__syscall221 = env.__syscall54 = function(which, varargs) // fcntl64, ioctl
+	{
 		return 0;
 	};
 }
@@ -1044,8 +1036,9 @@ function ZLJS_WASM_IMPORTS(env)
 
 		if (!GLsetupContext(cnvs)) return;
 
-		var mousfocs = true, pointerlock = null, fullscreen = null, mouse_lastx = -1, mouse_lasty = -1;
+		var mousefocus = true, pointerlock = null, fullscreen = null;
 		var cancelEvent = function(e) { if (e.preventDefault) e.preventDefault(true); else if (e.stopPropagation) e.stopPropagation(true); else e.stopped = true; };
+		var cancelIfFocus = function(e) { if (mousefocus) cancelEvent(e); };
 		var mx = function(e) { return (e.offsetX !== undefined ? e.offsetX : e.clientX - (fullscreen ? 0 : cnvs.getBoundingClientRect().left)) * cnvs.width  / cnvs.clientWidth;  };
 		var my = function(e) { return (e.offsetY !== undefined ? e.offsetY : e.clientY - (fullscreen ? 0 : cnvs.getBoundingClientRect().top )) * cnvs.height / cnvs.clientHeight; };
 		var eventAliases = function(t, f, evntf) { evntf('moz'+t, f, 1); evntf('webkit'+t, f, 1); evntf('ms'+t, f, 1); }
@@ -1072,42 +1065,22 @@ function ZLJS_WASM_IMPORTS(env)
 		});
 		cnvsEvent('mousemove', function(e)
 		{
-			if (pointerlock)
-			{
-				if (mouse_lastx == -1) mouse_lastx = mouse_lasty = 200;
-				var relx = (e.movementX|0), rely = (e.movementY|0);
-				if (relx || rely)
-				{
-					mouse_lastx += relx;
-					mouse_lasty += rely;
-					if      (mouse_lastx <             0) mouse_lastx = 0;
-					else if (mouse_lastx >  cnvs.width-1) mouse_lastx = cnvs.width-1;
-					if      (mouse_lasty <             0) mouse_lasty = 0;
-					else if (mouse_lasty > cnvs.height-1) mouse_lasty = cnvs.height-1;
-					ZL.asm.ZLFNMove(mouse_lastx, mouse_lasty, relx, rely);
-				}
-			}
-			else
-			{
-				var x = mx(e), y = my(e);
-				if (mouse_lastx == -1 || x != mouse_lastx || y != mouse_lasty)
-				{
-					if (mouse_lastx == -1) { mouse_lastx = x; mouse_lasty = y; }
-					ZL.asm.ZLFNMove(x, y, x-mouse_lastx, y-mouse_lasty);
-					mouse_lastx = x; mouse_lasty = y;
-				}
-			}
-			if (mousfocs) cancelEvent(e);
+			if (!pointerlock) ZL.asm.ZLFNMove(mx(e), my(e), 0, 0, 1);
+			else ZL.asm.ZLFNMove(0, 0, (e.movementX|0), (e.movementY|0), 1);
+			cancelIfFocus(e);
 		});
-		cnvsEvent('mousedown',      function(e) { ZL.asm.ZLFNMouse(e.button,  true, (pointerlock ? mouse_lastx : mx(e)), (pointerlock ? mouse_lasty : my(e))); if (mousfocs) cancelEvent(e); if (lock_flag && !pointerlock) do_lock(1); });
-		cnvsEvent('mouseup',        function(e) { ZL.asm.ZLFNMouse(e.button, false, (pointerlock ? mouse_lastx : mx(e)), (pointerlock ? mouse_lasty : my(e))); if (mousfocs) cancelEvent(e); });
-		cnvsEvent('mousewheel',     function(e) { ZL.asm.ZLFNWheel(e.wheelDelta); if (mousfocs) cancelEvent(e); });
-		cnvsEvent('DOMMouseScroll', function(e) { ZL.asm.ZLFNWheel(-e.detail*40); if (mousfocs) cancelEvent(e); });
-		cnvsEvent('mouseover',      function(e) { if (pointerlock||fullscreen) return; mousfocs = true;  ZL.asm.ZLFNWindow(1,0,0); });
-		cnvsEvent('mouseout',       function(e) { if (pointerlock||fullscreen) return; mousfocs = false; mouse_lastx = mouse_lasty = -1; ZL.asm.ZLFNWindow(2,0,0); });
-		cnvsEvent('touchstart',     function(e) { ZL.asm.ZLFNMouse(0, true, mouse_lastx = mx(e.touches[0]), mouse_lasty = my(e.touches[0])); if (mousfocs) cancelEvent(e); });
-		cnvsEvent('touchmove',      function(e) { var x = mx(e.touches[0]), y = my(e.touches[0]); ZL.asm.ZLFNMove(x, y, x-mouse_lastx, y-mouse_lasty); mouse_lastx = x; mouse_lasty = y; if (mousfocs) cancelEvent(e); });
-		cnvsEvent('touchend',       function(e) { ZL.asm.ZLFNMouse(0, false, mouse_lastx, mouse_lasty); if (mousfocs) cancelEvent(e); });
+		var mouseUpDown = function(e, v) { ZL.asm.ZLFNMouse(e.button,  v, mx(e), my(e), 1); cancelIfFocus(e); if (lock_flag && !pointerlock) do_lock(1); };
+		var touchStartEnd = function(e, v) { for (var i = 0, t = e.changedTouches; i != t.length; i++) ZL.asm.ZLFNMouse(0, v, mx(t[i]), my(t[i]), 9+t[i].identifier); cancelIfFocus(e); };
+		cnvsEvent('mousedown',      function(e) { mouseUpDown(e, true); });
+		cnvsEvent('mouseup',        function(e) { mouseUpDown(e, false); });
+		cnvsEvent('mousewheel',     function(e) { ZL.asm.ZLFNWheel(e.wheelDelta); cancelIfFocus(e); });
+		cnvsEvent('DOMMouseScroll', function(e) { ZL.asm.ZLFNWheel(-e.detail*40); cancelIfFocus(e); });
+		cnvsEvent('mouseover',      function(e) { if (pointerlock||fullscreen) return; mousefocus = true;  ZL.asm.ZLFNWindow(1,0,0); });
+		cnvsEvent('mouseout',       function(e) { if (pointerlock||fullscreen) return; mousefocus = false; ZL.asm.ZLFNWindow(2,0,0); });
+		cnvsEvent('touchstart',     function(e) { touchStartEnd(e, true); });
+		cnvsEvent('touchmove',      function(e) { for (var i = 0, t = e.changedTouches; i != t.length; i++) ZL.asm.ZLFNMove(mx(t[i]), my(t[i]), 0, 0, 9+t[i].identifier); cancelIfFocus(e); });
+		cnvsEvent('touchend',       function(e) { touchStartEnd(e, false); });
+		cnvsEvent('touchcancel',    function(e) { touchStartEnd(e, false); });
 		windEvent('focus',          function(e) { if (e.target == window) ZL.asm.ZLFNWindow(3,0,0); });
 		windEvent('blur',           function(e) { if (e.target == window) ZL.asm.ZLFNWindow(4,0,0); });
 
@@ -1294,7 +1267,7 @@ var env =
 	__cxa_pure_virtual: function() { abort('CRASH', 'pure virtual'); },
 	abort: function() { abort('CRASH', 'Abort called'); },
 	longjmp: function() { abort('CRASH', 'Unsupported longjmp called'); },
-};
+}, wasi = {};
 env.setjmp = env.__cxa_atexit = env.__lock = env.__unlock = function() {};
 env.ceil  = env.ceilf  = Math.ceil;
 env.exp  = env.expf  = Math.exp;
@@ -1314,12 +1287,12 @@ env.round  = env.roundf = env.rint  = env.rintf = Math.round;
 
 ZLJS_WASM_IMPORTS(env);
 GL_WASM_IMPORTS(env);
-SYSCALLS_WASM_IMPORTS(env);
+SYSCALLS_WASM_IMPORTS(env, wasi);
 
 if (!ZL.wasm) abort('BOOT', 'Missing Wasm data');
 var wasmBytes = Base64Decode(ZL.wasm);delete ZL.wasm;
 //console.log('WASM BINARY LENGTH: ' + wasmBytes.length);
-var wasmGlobals = [], wasmDataEnd, wasmStackTop, wasmHeapBase;
+var wasmDataEnd, wasmStackTop, wasmHeapBase;
 for (let i = 8, sectionEnd, type, length; i < wasmBytes.length; i = sectionEnd)
 {
 	function Get() { return wasmBytes[i++]; }
@@ -1329,41 +1302,33 @@ for (let i = 8, sectionEnd, type, length; i < wasmBytes.length; i = sectionEnd)
 	//console.log('WASM SECTION TYPE: ' + type + ' - LENGTH: ' + length + ' - DATA START: ' + i);
 	if (type == 6) //globals
 	{
-		for (let count = GetLEB(), j = 0; j != count && i < sectionEnd; j++)
-		{
-			let gtype = Get(), mutable = Get(), opcode = GetLEB(), offset = GetLEB(), endcode = GetLEB();
-			//console.log('    GLOBAL [' + j + '/' + count + '] gtype: ' + gtype + ' - mutable: ' + mutable + ' - opcode: ' + opcode + ' - offset: ' + offset + ' - endcode: ' + endcode);
-			wasmGlobals[j] = offset;
+		let count = GetLEB(), gtype = Get(), mutable = Get(), opcode = GetLEB(), offset = GetLEB(), endcode = GetLEB();
+		//console.log('    GLOBAL [' + 0 + '/' + 1 + '] gtype: ' + gtype + ' - mutable: ' + mutable + ' - opcode: ' + opcode + ' - offset: ' + offset + ' - endcode: ' + endcode);
+		wasmHeapBase = offset;
 		}
-	}
-	if (type == 7) //exports
+	if (type == 11) //data
 	{
 		for (let count = GetLEB(), j = 0; j != count && i < sectionEnd; j++)
 		{
-			let fieldLen = GetLEB(), fieldStr = '';
-			for (let k = 0; k < fieldLen; k++) fieldStr += String.fromCharCode(Get());
-			let kind = Get(), index = GetLEB();
-			//console.log('    EXPORT [' + j + '/' + count + '] fieldStr: ' + fieldStr + ' - kind: ' + kind + ' - index: ' + index);
-			if (kind == 3 && fieldStr == '__data_end') wasmDataEnd = index;
-			if (kind == 3 && fieldStr == '__heap_base') wasmHeapBase = index;
+			let dindex = Get(), dopcode = GetLEB(), doffset = GetLEB(), dendcode = GetLEB(), dsize = GetLEB();
+			//console.log('    DATA [' + j + '/' + count + '] RANGE: ' + doffset + ' ~ ' + (doffset + dsize) + ' (SIZE: ' + dsize + ')');
+			wasmDataEnd = (doffset + dsize);
+			wasmStackTop = (wasmDataEnd+15)>>4<<4;
+			i += dsize;
 		}
 	}
 }
-if (!wasmGlobals) abort('BOOT', 'Invalid Wasm file');
-wasmDataEnd = wasmGlobals[wasmDataEnd]|0;
-wasmStackTop = (wasmDataEnd+15)>>4<<4;
-wasmHeapBase = wasmGlobals[wasmHeapBase]|0;
-if (wasmDataEnd <= 0 || wasmHeapBase <= wasmStackTop) abort('BOOT', 'Invalid memory layout (' + wasmDataEnd + '/' + wasmStackTop + '/' + wasmHeapBase + ')');
 
 //console.log('[WASM] wasmDataEnd: ' + wasmDataEnd + ' - wasmHeapBase: ' + wasmHeapBase);
 //console.log('[WASM] STATIC DATA: [' + 0 + ' ~ ' + wasmDataEnd + '] - STACK: [' + wasmStackTop + ' ~ ' + (wasmHeapBase-1) + '] - HEAP: [' + wasmHeapBase + ' ~ ...]');
+if (wasmDataEnd <= 0 || wasmHeapBase <= wasmStackTop) abort('BOOT', 'Invalid memory layout (' + wasmDataEnd + '/' + wasmStackTop + '/' + wasmHeapBase + ')');
 
 var wasmMemInitial = 262144+((wasmHeapBase+65535)>>16<<16); //data + stack + 256kb
 WASM_HEAP = wasmHeapBase;
 WASM_MEMORY = env.memory = new WebAssembly.Memory({initial: wasmMemInitial>>16, maximum: WASM_HEAP_MAX>>16 });
 updateGlobalBufferViews();
 
-WebAssembly.instantiate(wasmBytes, {env:env}).then(function (output)
+WebAssembly.instantiate(wasmBytes, {env:env,wasi_unstable:wasi}).then(function (output)
 {
 	ZL.asm = output.instance.exports;
 
@@ -1377,7 +1342,7 @@ WebAssembly.instantiate(wasmBytes, {env:env}).then(function (output)
 })
 .catch(function (err)
 {
-	if (err !== 'abort') abort('BOOT', 'WASM instiantate error: ' + err);
+	if (err !== 'abort') abort('BOOT', 'WASM instiantate error: ' + err + (err.stack ? "\n" + err.stack : ''));
 });
 
 })();
