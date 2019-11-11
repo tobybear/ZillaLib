@@ -72,7 +72,7 @@ LDFLAGS += -export=ZLFNWheel -export=ZLFNWindow -export=ZLFNAudio -export=ZLFNHT
 # Global compiler flags for Wasm targeting
 CLANGFLAGS := -target wasm32 -nostdinc
 CLANGFLAGS += -D__EMSCRIPTEN__ -D_LIBCPP_ABI_VERSION=2
-CLANGFLAGS += -fvisibility=hidden -fno-builtin -fno-exceptions
+CLANGFLAGS += -fvisibility=hidden -fno-builtin -fno-exceptions -fno-threadsafe-statics
 CLANGFLAGS += -isystem$(SYSTEM_ROOT)/include/libcxx
 CLANGFLAGS += -isystem$(SYSTEM_ROOT)/include/compat
 CLANGFLAGS += -isystem$(SYSTEM_ROOT)/include
@@ -266,10 +266,10 @@ ifeq ($(if $(SYS_OLDFILES),1,0),1)
   $(shell $(CMD_DEL_FILES) $(addprefix $(SYSOUTDIR)/temp/,$(SYS_OLDFILES)) $(SYSOUTDIR)/System.bc)
 endif
 
-SYSCXXFLAGS := -Ofast -std=c++11 -fno-rtti -I$(SYSTEM_ROOT)/lib/libcxxabi/include
+SYSCXXFLAGS := -Ofast -std=c++11 -fno-threadsafe-statics -fno-rtti -I$(SYSTEM_ROOT)/lib/libcxxabi/include
 SYSCXXFLAGS += -DNDEBUG -D_LIBCPP_BUILDING_LIBRARY -D_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
 
-SYSCCFLAGS := -Ofast -std=gnu99
+SYSCCFLAGS := -Ofast -std=gnu99 -fno-threadsafe-statics
 SYSCCFLAGS += -DNDEBUG -Dunix -D__unix -D__unix__
 SYSCCFLAGS += -isystem$(SYSTEM_ROOT)/lib/libc/musl/src/internal
 SYSCCFLAGS += -Wno-dangling-else -Wno-ignored-attributes -Wno-bitwise-op-parentheses -Wno-logical-op-parentheses -Wno-shift-op-parentheses -Wno-string-plus-int -Wno-unknown-pragmas -Wno-shift-count-overflow -Wno-return-type -Wno-macro-redefined -Wno-unused-result -Wno-pointer-sign
