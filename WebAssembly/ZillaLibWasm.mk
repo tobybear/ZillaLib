@@ -128,7 +128,7 @@ ifdef ZillaApp
 
 ZL_IS_APP_MAKE = 1
 -include Makefile
-APPSOURCES := $(wildcard *.cpp)
+APPSOURCES := $(wildcard *.cpp *.c)
 -include sources.mk
 APPSOURCES += $(foreach F, $(ZL_ADD_SRC_FILES), $(wildcard $(F)))
 ifeq ($(APPSOURCES),)

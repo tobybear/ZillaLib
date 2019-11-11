@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2018 Bernhard Schelling
+#  Copyright (C) 2010-2019 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -117,7 +117,7 @@ else ifdef ZillaApp
 
 ZL_IS_APP_MAKE = 1
 -include Makefile
-APPSOURCES := $(wildcard *.cpp)
+APPSOURCES := $(wildcard *.cpp *.c)
 -include sources.mk
 APPSOURCES += $(foreach F, $(ZL_ADD_SRC_FILES), $(wildcard $(F)))
 ifeq ($(APPSOURCES),)
