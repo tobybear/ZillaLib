@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -28,6 +28,12 @@
 #if defined(__wasm__) || defined(__EMSCRIPTEN__) || defined(__native_client__)
 #define ZL_NO_SOCKETS
 #endif
+
+struct ZL_Network
+{
+	static bool Init();
+	static void DeInit();
+};
 
 #ifndef ZL_NO_SOCKETS
 
@@ -59,7 +65,7 @@ struct ZL_Peer
 {
 	unsigned int host;
 	unsigned short port;
-	void** data;
+	void* data;
 	ZL_PeerHandle handle;
 };
 
@@ -78,23 +84,40 @@ struct ZL_Server
 	void Open(int server_port, unsigned short max_connections, const char *bind_host = NULL, unsigned char num_channels = 1);
 	void OpenP2P(const char *p2prelay_host, int p2prelay_port, unsigned short max_connections = 2, const void* relaykey = NULL, unsigned char relaykey_length = 0, unsigned char num_channels = 1);
 	void Close(unsigned int closemsg = 0);
-	void Send(ZL_PeerHandle peerhandle, const ZL_Packet& packet);
-	void Send(ZL_PeerHandle peerhandle, const void* data, size_t length, unsigned char channel = 0, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE);
-	void Send(const std::vector<ZL_PeerHandle>& peerhandles, const ZL_Packet& packet);
-	void Send(const std::vector<ZL_PeerHandle>& peerhandles, const void* data, size_t length, unsigned char channel = 0, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE);
-	void Broadcast(const ZL_Packet& packet);
-	void Broadcast(const ZL_Packet& packet, ZL_PeerHandle peerhandle_except);
-	void Broadcast(const void* data, size_t length, unsigned char channel = 0, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE);
-	void Broadcast(const void* data, size_t length, ZL_PeerHandle peerhandle_except, unsigned char channel = 0, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE);
+
+	//Send to a single client
+	void Send(ZL_PeerHandle handle, const void* data, size_t length, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0);
+	void Send(ZL_PeerHandle handle, const ZL_Packet& packet)                                                                                           { Send(handle, packet.data, packet.length, packet.type, packet.channel); }
+	void Send(ZL_PeerHandle handle, const char *data, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0)                      { Send(handle, data, (data ? strlen(data) : 0), type, channel); }
+	void Send(ZL_PeerHandle handle, const ZL_String& str, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0)                  { Send(handle, (str.empty() ? 0 : &*str.begin()), (str.empty() ? 0 : str.size()), type, channel); }
+	template <typename T> void Send(ZL_PeerHandle handle, const T& packet, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0) { Send(handle, &packet, sizeof(packet), type, channel); }
+
+	//Send to all clients
+	void Broadcast(const void* data, size_t length, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0);
+	void Broadcast(const ZL_Packet& packet)                                                                                           { Broadcast(packet.data, packet.length, packet.type, packet.channel); }
+	void Broadcast(const char *data, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0)                      { Broadcast(data, (data ? strlen(data) : 0), type, channel); }
+	void Broadcast(const ZL_String& str, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0)                  { Broadcast((str.empty() ? 0 : &*str.begin()), (str.empty() ? 0 : str.size()), type, channel); }
+	template <typename T> void Broadcast(const T& packet, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0) { Broadcast(&packet, sizeof(packet), type, channel); }
+
+	//Send to all clients except one
+	void Broadcast(const void* data, size_t length, ZL_PeerHandle handle_except, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0);
+	void Broadcast(const ZL_Packet& packet, ZL_PeerHandle handle_except)                                                                                           { Broadcast(packet.data, packet.length, handle_except, packet.type, packet.channel); }
+	void Broadcast(const char *data, ZL_PeerHandle handle_except, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0)                      { Broadcast(data, (data ? strlen(data) : 0), handle_except, type, channel); }
+	void Broadcast(const ZL_String& str, ZL_PeerHandle handle_except, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0)                  { Broadcast((str.empty() ? 0 : &*str.begin()), (str.empty() ? 0 : str.size()), handle_except, type, channel); }
+	template <typename T> void Broadcast(const T& packet, ZL_PeerHandle handle_except, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0) { Broadcast(&packet, sizeof(packet), handle_except, type, channel); }
+
+	void DisconnectPeer(ZL_PeerHandle handle, unsigned int closemsg = 0);
 	void GetPeerHandles(std::vector<ZL_PeerHandle>& out_list);
 	void GetPeerDetails(std::vector<ZL_Peer>& out_list);
+	void SetPeerData(ZL_PeerHandle handle, void* data);
+	void SetPeerData(const ZL_Peer& peer, void* data);
 	bool IsOpened();
 	size_t GetPeerCount();
 	bool IsP2PMaster();
 
-	ZL_Signal_v1<ZL_Peer&>& sigConnected();
-	ZL_Signal_v1<ZL_Peer&>& sigDisconnected();
-	ZL_Signal_v2<ZL_Peer&, ZL_Packet&>& sigReceived();
+	ZL_Signal_v1<const ZL_Peer&>& sigConnected();
+	ZL_Signal_v2<const ZL_Peer&, unsigned int>& sigDisconnected();
+	ZL_Signal_v2<const ZL_Peer&, ZL_Packet&>& sigReceived();
 
 	private: struct ZL_Server_Impl* impl;
 };
@@ -113,12 +136,16 @@ public:
 
 	void Connect(const char *host, int port, unsigned char num_channels = 1);
 	void Disconnect(unsigned int closemsg = 0);
-	void Send(ZL_Packet &packet);
-	void Send(const void* data, size_t length, unsigned char channel = 0, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE);
-	bool IsConnected();
 
+	void Send(const void* data, size_t length, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0);
+	void Send(const ZL_Packet& packet)                                                                                           { Send(packet.data, packet.length, packet.type, packet.channel); }
+	void Send(const char *data, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0)                      { Send(data, (data ? strlen(data) : 0), type, channel); }
+	void Send(const ZL_String& str, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0)                  { Send((str.empty() ? 0 : &*str.begin()), (str.empty() ? 0 : str.size()), type, channel); }
+	template <typename T> void Send(const T& packet, ZL_Packet_Reliability type = ZL_PACKET_RELIABLE, unsigned char channel = 0) { Send(&packet, sizeof(packet), type, channel); }
+
+	bool IsConnected();
 	ZL_Signal_v0& sigConnected();
-	ZL_Signal_v0& sigDisconnected();
+	ZL_Signal_v1<unsigned int>& sigDisconnected();
 	ZL_Signal_v1<ZL_Packet&>& sigReceived();
 
 	private: struct ZL_Client_Impl* impl;
@@ -145,12 +172,82 @@ struct ZL_RawSocket
 	private: struct ZL_RawSocket_Impl* impl;
 };
 
+struct ZL_WebSocketServer
+{
+	ZL_WebSocketServer();
+	ZL_WebSocketServer(int server_port, unsigned short max_connections, const char *bind_host = NULL);
+	~ZL_WebSocketServer();
+	ZL_WebSocketServer(const ZL_WebSocketServer &source);
+	ZL_WebSocketServer &operator =(const ZL_WebSocketServer &source);
+	operator bool () const { return (impl!=NULL); }
+	bool operator==(const ZL_WebSocketServer &b) const { return (impl==b.impl); }
+	bool operator!=(const ZL_WebSocketServer &b) const { return (impl!=b.impl); }
+
+	void Open(int server_port, unsigned short max_connections, const char *bind_host = NULL);
+	void Close(short code = 0);
+
+	//Send to one client
+	void Send(ZL_PeerHandle handle, const void* data, size_t length, bool is_text = false);
+	void Send(ZL_PeerHandle handle, const char *data, bool is_text = true)     { Send(handle, data, (data ? strlen(data) : 0), is_text); }
+	void Send(ZL_PeerHandle handle, const ZL_String& str, bool is_text = true) { Send(handle, (str.empty() ? 0 : &*str.begin()), (str.empty() ? 0 : str.size()), is_text); }
+	template <typename T> void Send(ZL_PeerHandle handle, const T& packet)     { Send(handle, &packet, sizeof(packet), false); }
+
+	//Send to all clients
+	void Broadcast(const void* data, size_t length, bool is_text = false);
+	void Broadcast(const char *data, bool is_text = true)     { Broadcast(data, (data ? strlen(data) : 0), is_text); }
+	void Broadcast(const ZL_String& str, bool is_text = true) { Broadcast((str.empty() ? 0 : &*str.begin()), (str.empty() ? 0 : str.size()), is_text); }
+	template <typename T> void Broadcast(const T& packet)     { Broadcast(&packet, sizeof(packet), false); }
+
+	//Send to all clients except one
+	void Broadcast(const void* data, size_t length, ZL_PeerHandle handle_except, bool is_text = false);
+	void Broadcast(const char *data, ZL_PeerHandle handle_except, bool is_text = true)     { Broadcast(data, (data ? strlen(data) : 0), handle_except, is_text); }
+	void Broadcast(const ZL_String& str, ZL_PeerHandle handle_except, bool is_text = true) { Broadcast((str.empty() ? 0 : &*str.begin()), (str.empty() ? 0 : str.size()), handle_except, is_text); }
+	template <typename T> void Broadcast(const T& packet, ZL_PeerHandle handle_except)     { Broadcast(&packet, sizeof(packet), handle_except, false); }
+
+	void DisconnectPeer(ZL_PeerHandle handle, short code = 0);
+	void GetPeerHandles(std::vector<ZL_PeerHandle>& out_list);
+	void GetPeerDetails(std::vector<ZL_Peer>& out_list);
+	void SetPeerData(ZL_PeerHandle handle, void* data);
+	void SetPeerData(const ZL_Peer& peer, void* data);
+	bool IsOpened();
+	size_t GetPeerCount();
+	
+	ZL_Signal_v2<const ZL_Peer&, const ZL_String&>& sigConnected();
+	ZL_Signal_v2<const ZL_Peer&, unsigned short>& sigDisconnected();
+	ZL_Signal_v2<const ZL_Peer&, const ZL_String&>& sigReceivedText();
+	ZL_Signal_v3<const ZL_Peer&, const void*, size_t>& sigReceivedBinary();
+
+	private: struct ZL_WebSocketServer_Impl* impl;
+};
+
 #endif //ZL_NO_SOCKETS
 
-struct ZL_Network
+struct ZL_WebSocketClient
 {
-	static bool Init();
-	static void DeInit();
+	ZL_WebSocketClient();
+	ZL_WebSocketClient(const char *url);
+	~ZL_WebSocketClient();
+	ZL_WebSocketClient(const ZL_WebSocketClient &source);
+	ZL_WebSocketClient &operator =(const ZL_WebSocketClient &source);
+	operator bool () const { return (impl!=NULL); }
+	bool operator==(const ZL_WebSocketClient &b) const { return (impl==b.impl); }
+	bool operator!=(const ZL_WebSocketClient &b) const { return (impl!=b.impl); }
+
+	void Connect(const char *url);
+	void Disconnect(unsigned short code = 1000, const char *reason = NULL, size_t reason_length = 0) const;
+	bool IsConnected() const;
+
+	void Send(const void* data, size_t length, bool is_text = false);
+	void Send(const char *data, bool is_text = true)     { Send(data, (data ? strlen(data) : 0), is_text); }
+	void Send(const ZL_String& str, bool is_text = true) { Send((str.empty() ? 0 : &*str.begin()), (str.empty() ? 0 : str.size()), is_text); }
+	template <typename T> void Send(const T& packet)     { Send(&packet, sizeof(packet), false); }
+
+	ZL_Signal_v0& sigConnected();
+	ZL_Signal_v1<unsigned short>& sigDisconnected();
+	ZL_Signal_v1<const ZL_String&>& sigReceivedText();
+	ZL_Signal_v2<const void*, size_t>& sigReceivedBinary();
+
+	private: struct ZL_WebSocketClient_Impl* impl;
 };
 
 struct ZL_HttpConnection
@@ -163,54 +260,22 @@ struct ZL_HttpConnection
 	operator bool () const { return (impl!=NULL); }
 	bool operator==(const ZL_HttpConnection &b) const { return (impl==b.impl); }
 	bool operator!=(const ZL_HttpConnection &b) const { return (impl!=b.impl); }
-
-	ZL_HttpConnection& SetURL(const char *url);
 	ZL_HttpConnection& SetPostData(const char *data); //zero terminated string
 	ZL_HttpConnection& SetPostData(const void* data, size_t length);
+	ZL_HttpConnection& ClearPostData();
 
 	//Stream data in packets with a final zero length terminating packet
 	ZL_HttpConnection& SetDoStreamData(bool DoStreamData = true);
 
-	#ifndef ZL_NO_SOCKETS
-	//set custom timeout for http request, most platforms use a appropriate default
+	//set custom timeout for http request (default 10 seconds)
 	ZL_HttpConnection& SetTimeout(unsigned int timeout_msec = 10000);
-	#endif
 
-	void Connect() const;
+	void Connect(const char *url);
 
 	ZL_Signal_v2<int, const ZL_String&>& sigReceivedString();
 	ZL_Signal_v3<int, const char*, size_t>& sigReceivedData();
 
 	private: struct ZL_HttpConnection_Impl* impl;
-};
-
-struct ZL_WebSocketConnection
-{
-	ZL_WebSocketConnection();
-	ZL_WebSocketConnection(const char *url);
-	~ZL_WebSocketConnection();
-	ZL_WebSocketConnection(const ZL_WebSocketConnection &source);
-	ZL_WebSocketConnection &operator =(const ZL_WebSocketConnection &source);
-	operator bool () const { return (impl!=NULL); }
-	bool operator==(const ZL_WebSocketConnection &b) const { return (impl==b.impl); }
-	bool operator!=(const ZL_WebSocketConnection &b) const { return (impl!=b.impl); }
-
-	ZL_WebSocketConnection& SetURL(const char *url);
-	ZL_WebSocketConnection& SendText(const char *data);
-	ZL_WebSocketConnection& SendText(const char *data, size_t length);
-	ZL_WebSocketConnection& SendText(const ZL_String& str);
-	ZL_WebSocketConnection& SendBinary(const void* data, size_t length);
-
-	void Connect() const;
-	void Disconnect(unsigned short code = 1000, const char *reason = NULL, size_t reason_length = 0) const;
-	bool IsConnected() const;
-
-	ZL_Signal_v1<const ZL_String&>& sigReceivedText();
-	ZL_Signal_v2<const char*, size_t>& sigReceivedBinary();
-	ZL_Signal_v0& sigConnected();
-	ZL_Signal_v0& sigDisconnected();
-
-	private: struct ZL_WebSocketConnection_Impl* impl;
 };
 
 #endif //__ZL_NETWORK__

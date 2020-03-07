@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -916,22 +916,22 @@ size_t ZL_Compression::Compress(const void* InBuf, size_t InSize, std::vector<un
 {
 	z_stream z;
 	memset(&z, 0, sizeof(z));
-	out.clear();
 	if (sizeof(InSize) != sizeof(z.total_in) && !ZL_VERIFY(InSize <= 0xFFFFFFFF)) return 0; //zlib limit
 	if (deflateInit(&z, Level) != Z_OK) return 0;
-	if (ReserveMaxCompressSize) out.reserve(deflateBound(&z, (unsigned long)InSize));
+	size_t head = out.size();
+	if (ReserveMaxCompressSize) out.reserve(head + deflateBound(&z, (unsigned long)InSize));
 	for (;;)
 	{
 		if (!z.avail_in && InSize) { z.next_in = (unsigned char*)InBuf + z.total_in; InSize -= (z.avail_in = (InSize < 1048576 ? (unsigned int)InSize : 1048576)); }
-		if (!z.avail_out) { out.resize(out.size() - z.avail_out + 1024); z.next_out = &out[z.total_out]; z.avail_out = (unsigned int)(out.size() - z.total_out); }
+		if (!z.avail_out) { out.resize(out.size() + 1024); z.next_out = &out[head + z.total_out]; z.avail_out = (unsigned int)(out.size() - head - z.total_out); }
 		int status = deflate(&z, (InSize ? Z_NO_FLUSH : Z_FINISH));
 		if (status == Z_OK) continue;
-		if (!ZL_VERIFY(status == Z_STREAM_END)) z.avail_out = (unsigned int)out.size();
+		if (!ZL_VERIFY(status == Z_STREAM_END)) z.avail_out += z.total_out;
 		break;
 	}
 	out.resize(out.size() - z.avail_out);
 	ZL_ASSERT(deflateEnd(&z) == Z_OK);
-	return out.size();
+	return out.size() - head;
 }
 
 size_t ZL_Compression::CompressMaxSize(size_t DecompressedSize)
@@ -953,23 +953,23 @@ size_t ZL_Compression::Decompress(const void* InBuf, size_t InSize, std::vector<
 {
 	z_stream z;
 	memset(&z, 0, sizeof(z));
-	out.clear();
 	if (sizeof(InSize) != sizeof(z.total_in) && !ZL_VERIFY(InSize <= 0xFFFFFFFF)) return 0; //zlib limit
 	if (sizeof(Hint) != sizeof(z.avail_out) && !ZL_VERIFY(Hint <= 0xFFFFFFFF)) Hint = 0xFFFFFFFF; //zlib limit
 	if (inflateInit(&z) != Z_OK) return 0;
-	if (Hint) { out.resize(z.avail_out = (unsigned int)Hint); z.next_out = &out[0]; }
+	size_t head = out.size();
+	if (Hint) { out.resize(head + (z.avail_out = (unsigned int)Hint)); z.next_out = &out[head]; }
 	for (;;)
 	{
 		if (!z.avail_in && InSize) { z.next_in = (unsigned char*)InBuf + z.total_in; InSize -= (z.avail_in = (InSize < 1048576 ? (unsigned int)InSize : 1048576)); }
-		if (!z.avail_out) { out.resize(out.size() - z.avail_out + 1024); z.next_out = &out[z.total_out]; z.avail_out = (unsigned int)(out.size() - z.total_out); }
+		if (!z.avail_out) { out.resize(out.size() + 1024); z.next_out = &out[head + z.total_out]; z.avail_out = (unsigned int)(out.size() - head - z.total_out); }
 		int status = inflate(&z, Z_NO_FLUSH);
 		if (status == Z_OK) continue;
-		if (!ZL_VERIFY(status == Z_STREAM_END)) z.avail_out = (unsigned int)out.size();
+		if (!ZL_VERIFY(status == Z_STREAM_END)) z.avail_out += z.total_out;
 		break;
 	}
 	out.resize(out.size() - z.avail_out);
 	ZL_ASSERT(inflateEnd(&z) == Z_OK);
-	return out.size();
+	return out.size() - head;
 }
 
 bool ZL_Compression::Decompress(const void* InBuffer, size_t InSize, const void* OutBuffer, size_t* OutSize)
@@ -1006,4 +1006,92 @@ unsigned int ZL_Checksum::Fast4(const void* Data, size_t DataSize)
 	unsigned int res = 0, *p = (unsigned int*)Data, *pMax = (unsigned int*)((char*)p + DataSize);
 	while (p != pMax) res = res*65599 + *(p++);
 	return res;
+}
+
+void ZL_Checksum::SHA1(const void* Data, size_t DataSize, unsigned char OutResult[20])
+{
+	struct SHA1_CTX
+	{
+		static void SHA1Transform(unsigned int* state, const void* buffer)
+		{
+			// Hash a single 512-bit block. This is the core of the algorithm
+			unsigned int block[16];
+			memcpy(block, buffer, 64);
+			unsigned int a = state[0], b = state[1], c = state[2], d = state[3], e = state[4];
+			// BLK0() and BLK() perform the initial expand
+			// (R0+R1), R2, R3, R4 are the different operations used in SHA1
+			#define SHA1ROL(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
+			#define SHA1BLK0(i) (block[i] = (SHA1ROL(block[i],24)&0xFF00FF00)|(SHA1ROL(block[i],8)&0x00FF00FF))
+			#define SHA1BLK(i) (block[i&15] = SHA1ROL(block[(i+13)&15]^block[(i+8)&15]^block[(i+2)&15]^block[i&15],1))
+			#define SHA1R0(v,w,x,y,z,i) z+=((w&(x^y))^y)+SHA1BLK0(i)+0x5A827999+SHA1ROL(v,5);w=SHA1ROL(w,30);
+			#define SHA1R1(v,w,x,y,z,i) z+=((w&(x^y))^y)+SHA1BLK(i)+0x5A827999+SHA1ROL(v,5);w=SHA1ROL(w,30);
+			#define SHA1R2(v,w,x,y,z,i) z+=(w^x^y)+SHA1BLK(i)+0x6ED9EBA1+SHA1ROL(v,5);w=SHA1ROL(w,30);
+			#define SHA1R3(v,w,x,y,z,i) z+=(((w|x)&y)|(w&x))+SHA1BLK(i)+0x8F1BBCDC+SHA1ROL(v,5);w=SHA1ROL(w,30);
+			#define SHA1R4(v,w,x,y,z,i) z+=(w^x^y)+SHA1BLK(i)+0xCA62C1D6+SHA1ROL(v,5);w=SHA1ROL(w,30);
+			// 4 rounds of 20 operations each. Loop unrolled.
+			SHA1R0(a,b,c,d,e, 0); SHA1R0(e,a,b,c,d, 1); SHA1R0(d,e,a,b,c, 2); SHA1R0(c,d,e,a,b, 3);
+			SHA1R0(b,c,d,e,a, 4); SHA1R0(a,b,c,d,e, 5); SHA1R0(e,a,b,c,d, 6); SHA1R0(d,e,a,b,c, 7);
+			SHA1R0(c,d,e,a,b, 8); SHA1R0(b,c,d,e,a, 9); SHA1R0(a,b,c,d,e,10); SHA1R0(e,a,b,c,d,11);
+			SHA1R0(d,e,a,b,c,12); SHA1R0(c,d,e,a,b,13); SHA1R0(b,c,d,e,a,14); SHA1R0(a,b,c,d,e,15);
+			SHA1R1(e,a,b,c,d,16); SHA1R1(d,e,a,b,c,17); SHA1R1(c,d,e,a,b,18); SHA1R1(b,c,d,e,a,19);
+			SHA1R2(a,b,c,d,e,20); SHA1R2(e,a,b,c,d,21); SHA1R2(d,e,a,b,c,22); SHA1R2(c,d,e,a,b,23);
+			SHA1R2(b,c,d,e,a,24); SHA1R2(a,b,c,d,e,25); SHA1R2(e,a,b,c,d,26); SHA1R2(d,e,a,b,c,27);
+			SHA1R2(c,d,e,a,b,28); SHA1R2(b,c,d,e,a,29); SHA1R2(a,b,c,d,e,30); SHA1R2(e,a,b,c,d,31);
+			SHA1R2(d,e,a,b,c,32); SHA1R2(c,d,e,a,b,33); SHA1R2(b,c,d,e,a,34); SHA1R2(a,b,c,d,e,35);
+			SHA1R2(e,a,b,c,d,36); SHA1R2(d,e,a,b,c,37); SHA1R2(c,d,e,a,b,38); SHA1R2(b,c,d,e,a,39);
+			SHA1R3(a,b,c,d,e,40); SHA1R3(e,a,b,c,d,41); SHA1R3(d,e,a,b,c,42); SHA1R3(c,d,e,a,b,43);
+			SHA1R3(b,c,d,e,a,44); SHA1R3(a,b,c,d,e,45); SHA1R3(e,a,b,c,d,46); SHA1R3(d,e,a,b,c,47);
+			SHA1R3(c,d,e,a,b,48); SHA1R3(b,c,d,e,a,49); SHA1R3(a,b,c,d,e,50); SHA1R3(e,a,b,c,d,51);
+			SHA1R3(d,e,a,b,c,52); SHA1R3(c,d,e,a,b,53); SHA1R3(b,c,d,e,a,54); SHA1R3(a,b,c,d,e,55);
+			SHA1R3(e,a,b,c,d,56); SHA1R3(d,e,a,b,c,57); SHA1R3(c,d,e,a,b,58); SHA1R3(b,c,d,e,a,59);
+			SHA1R4(a,b,c,d,e,60); SHA1R4(e,a,b,c,d,61); SHA1R4(d,e,a,b,c,62); SHA1R4(c,d,e,a,b,63);
+			SHA1R4(b,c,d,e,a,64); SHA1R4(a,b,c,d,e,65); SHA1R4(e,a,b,c,d,66); SHA1R4(d,e,a,b,c,67);
+			SHA1R4(c,d,e,a,b,68); SHA1R4(b,c,d,e,a,69); SHA1R4(a,b,c,d,e,70); SHA1R4(e,a,b,c,d,71);
+			SHA1R4(d,e,a,b,c,72); SHA1R4(c,d,e,a,b,73); SHA1R4(b,c,d,e,a,74); SHA1R4(a,b,c,d,e,75);
+			SHA1R4(e,a,b,c,d,76); SHA1R4(d,e,a,b,c,77); SHA1R4(c,d,e,a,b,78); SHA1R4(b,c,d,e,a,79);
+			// Add the working vars back into context.state[]
+			state[0] += a; state[1] += b; state[2] += c; state[3] += d; state[4] += e;
+		}
+
+		static void SHA1Process(SHA1_CTX* context, const unsigned char* data, size_t len)
+		{
+			size_t i, j = context->count[0];
+			if ((context->count[0] += (len << 3)) < j) context->count[1]++;
+			context->count[1] += (len>>29);
+			j = (j >> 3) & 63;
+			if ((j + len) > 63)
+			{
+				memcpy(&context->buffer[j], data, (i = 64-j));
+				SHA1Transform(context->state, context->buffer);
+				for (; i + 63 < len; i += 64) SHA1Transform(context->state, &data[i]);
+				j = 0;
+			}
+			else i = 0;
+			memcpy(&context->buffer[j], &data[i], len - i);
+		}
+
+		size_t count[2];
+		unsigned int state[5];
+		unsigned char buffer[64];
+	};
+
+	// Initialize new context with initialization constants
+	SHA1_CTX ctx;
+	ctx.count[0] = ctx.count[1] = 0;
+	ctx.state[0] = 0x67452301;
+	ctx.state[1] = 0xEFCDAB89;
+	ctx.state[2] = 0x98BADCFE;
+	ctx.state[3] = 0x10325476;
+	ctx.state[4] = 0xC3D2E1F0;
+
+	SHA1_CTX::SHA1Process(&ctx, (const unsigned char*)Data, DataSize);
+
+	// Add padding and return the message digest
+	unsigned char finalcount[8];
+	for (unsigned i = 0; i < 8; i++)  finalcount[i] = (unsigned char)((ctx.count[(i >= 4 ? 0 : 1)] >> ((3-(i & 3)) * 8) ) & 255);
+	unsigned char c = 0200;
+	SHA1_CTX::SHA1Process(&ctx, &c, 1);
+	while ((ctx.count[0] & 504) != 448) { c = 0000; SHA1_CTX::SHA1Process(&ctx, &c, 1); }
+	SHA1_CTX::SHA1Process(&ctx, finalcount, 8);
+	for (unsigned j = 0; j < 20; j++) OutResult[j] = (unsigned char)((ctx.state[j>>2] >> ((3-(j & 3)) * 8) ) & 255);
 }

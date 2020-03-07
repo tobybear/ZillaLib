@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -761,7 +761,7 @@ void ZL_SettingsSynchronize()
 
 ZL_HTTPCONNECTION_IMPL_INTERFACE
 
-ZL_HttpConnection_Impl::ZL_HttpConnection_Impl() : dostream(false), urlloader(0) { }
+ZL_HttpConnection_Impl::ZL_HttpConnection_Impl() : timeout_msec(10000), dostream(false), urlloader(0) { }
 void ZL_HttpConnection_Disconnect(ZL_HttpConnection_Impl *impl)
 {
 	if (!impl->urlloader) return;
@@ -824,12 +824,11 @@ void ZL_HttpConnection_Open_Callback(void* vimpl, int32_t result)
 	const PP_CompletionCallback cc = { &ZL_HttpConnection_Read_Callback, vimpl, 0 };
 	ppb_urlloader_interface->ReadResponseBody(impl->urlloader, &impl->data[0], URLLOAD_BUFSIZE, cc);
 }
-void ZL_HttpConnection_Impl::Connect()
+void ZL_HttpConnection_Impl::Connect(const char* url)
 {
-	if (!url.length()) return;
 	urlloader = ppb_urlloader_interface->Create(instance_);
 	PP_Resource urlrequestinfo = ppb_urlrequestinfo_interface->Create(instance_);
-	ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_URL, ZLStrToVar(url));
+	ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_URL, ppb_var_interface->VarFromUtf8(url, strlen(url)));
 	ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_ALLOWCROSSORIGINREQUESTS, PP_MakeBool(PP_TRUE));
 	ppb_urlrequestinfo_interface->SetProperty(urlrequestinfo, PP_URLREQUESTPROPERTY_RECORDDOWNLOADPROGRESS, PP_MakeBool(PP_TRUE));
 	if (post_data.size())
@@ -843,30 +842,31 @@ void ZL_HttpConnection_Impl::Connect()
 	if (ppb_urlloader_interface->Open(urlloader, urlrequestinfo, cc) != PP_OK_COMPLETIONPENDING) ZL_HttpConnection_Open_Callback(cc.user_data, -1);
 }
 
-ZL_WEBSOCKETCONNECTION_IMPL_INTERFACE
-ZL_WebSocketConnection_Impl::ZL_WebSocketConnection_Impl() : websocket_active(false) { }
-void ZL_WebSocketConnection_Impl::Connect()
+ZL_WEBSOCKETCLIENT_IMPL_INTERFACE
+ZL_WebSocketClient_Impl::ZL_WebSocketClient_Impl() : websocket_active(false) { }
+void ZL_WebSocketClient_Impl::Connect(const char* url)
 {
 	struct ZL_WebSocket_Callbacks
 	{
-		static void OnConnect(ZL_WebSocketConnection_Impl* impl, int32_t result)
+		static void OnConnect(ZL_WebSocketClient_Impl* impl, int32_t result)
 		{
 			//ZL_LOG("NACLWSC", "ONCONNECT - WS: %d - RESULT: %d - READYSTATE: %d", impl->websocket, result, (int32_t)ppb_websocket_interface->GetReadyState(impl->websocket));
-			if (result < 0) { impl->Disconnect(PP_WEBSOCKETSTATUSCODE_ABNORMAL_CLOSURE, NULL, 0); return; }
+			if (result < 0) { impl->sigDisconnected.call((uint16_t)ppb_websocket_interface->GetCloseCode(impl->websocket)); impl->websocket = 0; return; }
 			impl->websocket_active = true;
 			impl->sigConnected.call();
-			if (ppb_websocket_interface->ReceiveMessage(impl->websocket, &impl->data, PP_MakeCompletionCallback((PP_CompletionCallback_Func)&OnReceiveMessage, impl)) == PP_OK)
-				OnReceiveMessage(impl, PP_OK);
+			impl->data = PP_MakeUndefined();
+			OnReceiveMessage(impl, PP_OK_COMPLETIONPENDING);
 		}
-		static void OnReceiveMessage(ZL_WebSocketConnection_Impl* impl, int32_t result)
+		static void OnReceiveMessage(ZL_WebSocketClient_Impl* impl, int32_t result)
 		{
 			//ZL_LOG("NACLWSC", "ONRECEIVE - WS: %d - RESULT: %d - READYSTATE: %d - BUFFER: %d", impl->websocket, result, (int32_t)ppb_websocket_interface->GetReadyState(impl->websocket), (int32_t)ppb_websocket_interface->GetBufferedAmount(impl->websocket));
-			if (result < 0) { impl->Disconnect(PP_WEBSOCKETSTATUSCODE_ABNORMAL_CLOSURE, NULL, 0); return; }
 			HandleMessage(impl);
+			int32_t lastPP;
 			const PP_CompletionCallback cc = PP_MakeCompletionCallback((PP_CompletionCallback_Func)&OnReceiveMessage, (void*)impl);
-			while (ppb_websocket_interface->ReceiveMessage(impl->websocket, &impl->data, cc) == PP_OK) HandleMessage(impl);
+			while ((lastPP = ppb_websocket_interface->ReceiveMessage(impl->websocket, &impl->data, cc)) == PP_OK) HandleMessage(impl);
+			if (lastPP <= PP_ERROR_FAILED) { impl->sigDisconnected.call((uint16_t)ppb_websocket_interface->GetCloseCode(impl->websocket)); impl->websocket = 0; impl->websocket_active = false; }
 		}
-		static void HandleMessage(ZL_WebSocketConnection_Impl* impl)
+		static void HandleMessage(ZL_WebSocketClient_Impl* impl)
 		{
 			//ZL_LOG("NACLWSC", "HANDLEMESSAGE - WS: %d - VALUE_ID: %d - READYSTATE: %d", impl->websocket, (int32_t)impl->data.value.as_id, (int32_t)ppb_websocket_interface->GetReadyState(impl->websocket));
 			if (!impl->data.value.as_id) return;
@@ -880,35 +880,31 @@ void ZL_WebSocketConnection_Impl::Connect()
 			{
 				uint32_t length;
 				ppb_vararraybuffer_interface->ByteLength(impl->data, &length);
-				const char* data = (const char*)ppb_vararraybuffer_interface->Map(impl->data);
+				const void* data = (const void*)ppb_vararraybuffer_interface->Map(impl->data);
 				impl->sigReceivedBinary.call(data, length);
+				ppb_vararraybuffer_interface->Unmap(impl->data);
 			}
 			ppb_var_interface->Release(impl->data);
 		}
 	};
 	websocket = ppb_websocket_interface->Create(instance_);
-	ppb_websocket_interface->Connect(websocket, ZLStrToVar(url), NULL, 0, PP_MakeCompletionCallback((PP_CompletionCallback_Func)&ZL_WebSocket_Callbacks::OnConnect, this));
+	ppb_websocket_interface->Connect(websocket, ppb_var_interface->VarFromUtf8(url, strlen(url)), NULL, 0, PP_MakeCompletionCallback((PP_CompletionCallback_Func)&ZL_WebSocket_Callbacks::OnConnect, this));
 }
-void ZL_WebSocketConnection_Impl::SendText(const char* buf, size_t len)
+void ZL_WebSocketClient_Impl::Send(const void* buf, size_t len, bool is_text)
 {
 	if (!websocket) return;
-	ppb_websocket_interface->SendMessage(websocket, ppb_var_interface->VarFromUtf8(buf, len));
-}
-void ZL_WebSocketConnection_Impl::SendBinary(const void* buf, size_t len)
-{
-	if (!websocket) return;
-	PP_Var v = ppb_vararraybuffer_interface->Create(len);
-	memcpy(ppb_vararraybuffer_interface->Map(v), buf, len);
+	PP_Var v;
+	if (is_text) v = ppb_var_interface->VarFromUtf8((const char*)buf, len);
+	else { memcpy(ppb_vararraybuffer_interface->Map(v = ppb_vararraybuffer_interface->Create(len)), buf, len); ppb_vararraybuffer_interface->Unmap(v); }
 	ppb_websocket_interface->SendMessage(websocket, v);
 }
-void ZL_WebSocketConnection_Impl::Disconnect(unsigned short code, const char* buf, size_t len)
+void ZL_WebSocketClient_Impl::Disconnect(unsigned short code, const char* buf, size_t len)
 {
 	if (!websocket) return;
 	struct ZL_WebSocket_Callbacks { static void OnDisconnect(void*, int32_t) {} };
 	ppb_websocket_interface->Close(websocket, code, (buf ? ppb_var_interface->VarFromUtf8(buf, len) : PP_MakeUndefined()), PP_MakeCompletionCallback(&ZL_WebSocket_Callbacks::OnDisconnect, NULL));
 	websocket = 0;
 	websocket_active = false;
-	sigDisconnected.call();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -190,7 +190,7 @@ struct ZL_Compression
 {
 	enum { NO_COMPRESSION = 0, BEST_SPEED = 1, BEST_COMPRESSION = 9, DEFAULT_COMPRESSION = 6 };
 
-	//Compress data into an automatically sized output vector and return size of output (if ReserveMaxCompressSize is false, multiple re-allocations might be made)
+	//Compress data and append it to an automatically sized output vector and return the compressed size (if ReserveMaxCompressSize is false, multiple re-allocations might be made)
 	static size_t Compress(const void* DecompressedBuffer, size_t DecompressedSize, std::vector<unsigned char>& Output, int Level = DEFAULT_COMPRESSION, bool ReserveMaxCompressSize = false);
 	static inline size_t Compress(const std::vector<unsigned char>& Decompressed, std::vector<unsigned char>& Output, int Level = DEFAULT_COMPRESSION, bool ReserveMaxCompressSize = false) { return Compress((Decompressed.empty() ? NULL : &Decompressed[0]), Decompressed.size(), Output, Level, ReserveMaxCompressSize); }
 
@@ -200,7 +200,7 @@ struct ZL_Compression
 	//Compress data into a fixed size buffer and returns true if the given buffer was large enough (CompressedSize will be modified to actual size)
 	static bool Compress(const void* DecompressedBuffer, size_t DecompressedSize, const void* CompressedBuffer, size_t* CompressedSize, int Level = DEFAULT_COMPRESSION);
 
-	//Decompress data into an automatically sized output vector and return size of output (if DecompressedSizeHint is not large enough, multiple re-allocations might be made)
+	//Decompress and append data to an automatically sized output vector and return size of output (if DecompressedSizeHint is not large enough, multiple re-allocations might be made)
 	static size_t Decompress(const void* CompressedBuffer, size_t CompressedSize, std::vector<unsigned char>& Output, size_t DecompressedSizeHint = 0);
 	static inline size_t Decompress(const std::vector<unsigned char>& Compressed, std::vector<unsigned char>& Output, size_t DecompressedSizeHint = 0) { return Decompress((Compressed.empty() ? NULL : &Compressed[0]), Compressed.size(), Output, DecompressedSizeHint); }
 
@@ -214,6 +214,7 @@ struct ZL_Checksum
 	static unsigned int CRC32(const void* Data, size_t DataSize);
 	static unsigned int Fast(const void* Data, size_t DataSize);
 	static unsigned int Fast4(const void* Data, size_t DataSize); //DataSize must be 4 byte aligned
+	static void SHA1(const void* Data, size_t DataSize, unsigned char OutResult[20]);
 };
 
 inline size_t ZL_Hash(i64 x) { x *= 0xff51afd7ed558ccd; return (size_t)(x ^ (x >> 32)); }

@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -197,11 +197,12 @@ var LibraryZLJS =
 		ZLJS.do_lock(flag);
 	},
 
-	ZLJS_AsyncLoad: function(url, impl, postdata, postlength)
+	ZLJS_AsyncLoad: function(url, impl, postdata, postlength, timeout)
 	{
 		var xhr = new XMLHttpRequest();
-		xhr.open((postlength ? 'POST' : 'GET'), Pointer_stringify(url), true);
+		xhr.open((postlength ? 'POST' : 'GET'), UTF8ToString(url), true);
 		xhr.responseType = 'arraybuffer';
+		xhr.timeout = timeout;
 		xhr.onload = function()
 		{
 			if (xhr.status == 200)
@@ -212,9 +213,10 @@ var LibraryZLJS =
 			}
 			else _ZLFNHTTP(impl, xhr.status, 0, 0);
 		};
-		xhr.onerror = function(event)
+		xhr.ontimeout = xhr.onerror = function(event)
 		{
-			_ZLFNHTTP(impl, xhr.status, 0, 0);
+			// this could be called synchronously by xhr.send() so force it to arrive a frame later
+			setTimeout(function() { _ZLFNHTTP(impl, xhr.status||-1, 0, 0); });
 		};
 		if (postlength) try { xhr.send(HEAPU8.subarray(postdata, postdata+postlength)); } catch (e) { xhr.send(HEAPU8.buffer.slice(postdata, postdata+postlength)); }
 		else xhr.send(null);
@@ -223,19 +225,19 @@ var LibraryZLJS =
 	ZLJS_Websocket__deps: ['$ZLJS'],
 	ZLJS_Websocket: function(impl, cmd, param, len)
 	{
-		if (cmd == 1) { if (ZLJS.ws) ZLJS.ws.send(Pointer_stringify(param,len)); return; }
+		if (cmd == 1) { if (ZLJS.ws) ZLJS.ws.send(UTF8ToString(param,len)); return; }
 		if (cmd == 2) { if (ZLJS.ws) ZLJS.ws.send(HEAPU8.subarray(param, param+len)); return; }
-		if (cmd >= 3) { ZLJS.ws.close(cmd-3, len?Pointer_stringify(param,len):undefined); ZLJS.ws = undefined; return; }
-		var w = new WebSocket(Pointer_stringify(param));
+		if (cmd >= 3) { if (ZLJS.ws) ZLJS.ws.close(cmd-3, len?UTF8ToString(param,len):undefined); ZLJS.ws = undefined; return; }
+		var w = new WebSocket(UTF8ToString(param));
 		w.binaryType = 'arraybuffer';
-		w.onopen = function() { _ZLFNWebSocket(impl, 1); }
+		w.onopen = function() { _ZLFNWebSocket(impl, 0); }
 		w.onmessage = function (evt)
 		{
 			var s = typeof evt.data === 'string', v = s ? evt.data : new Uint8Array(evt.data), b = s ? ZLJS.malloc_string(v) : allocate(v, 'i8', ALLOC_NORMAL);
-			_ZLFNWebSocket(impl, s ? 2 : 3, b, v.length);
+			_ZLFNWebSocket(impl, s ? 1 : 2, b, v.length);
 			_free(b);
 		}
-		w.onclose = function() { _ZLFNWebSocket(impl, 0); ZLJS.ws = undefined; }
+		w.onclose = function(evt) { _ZLFNWebSocket(impl, 3+evt.code); ZLJS.ws = undefined; }
 		ZLJS.ws = w;
 	},
 
@@ -286,7 +288,7 @@ var LibraryZLJS =
 	ZLJS_OpenExternalUrl__deps: ['$ZLJS'],
 	ZLJS_OpenExternalUrl: function(url)
 	{
-		url = Pointer_stringify(url);
+		url = UTF8ToString(url);
 		if (Module['openUrl']) Module['openUrl'](url);
 		else window.open(url, '_newtab');
 	},
@@ -294,31 +296,31 @@ var LibraryZLJS =
 	ZLJS_SettingsInit__deps: ['$ZLJS'],
 	ZLJS_SettingsInit: function(prefix)
 	{
-		ZLJS.settings_prefix = (Module['settingsPrefix'] ? Module['settingsPrefix'] : Pointer_stringify(prefix));
+		ZLJS.settings_prefix = (Module['settingsPrefix'] ? Module['settingsPrefix'] : UTF8ToString(prefix));
 	},
 
 	ZLJS_SettingsSet__deps: ['$ZLJS'],
 	ZLJS_SettingsSet: function(key, val)
 	{
-		if (localStorage) localStorage[ZLJS.settings_prefix +' '+Pointer_stringify(key)] = Pointer_stringify(val);
+		if (localStorage) localStorage[ZLJS.settings_prefix +' '+UTF8ToString(key)] = UTF8ToString(val);
 	},
 
 	ZLJS_SettingsDel__deps: ['$ZLJS'],
 	ZLJS_SettingsDel: function(key)
 	{
-		if (localStorage) localStorage.removeItem(ZLJS.settings_prefix +' '+Pointer_stringify(key));
+		if (localStorage) localStorage.removeItem(ZLJS.settings_prefix +' '+UTF8ToString(key));
 	},
 
 	ZLJS_SettingsHas__deps: ['$ZLJS'],
 	ZLJS_SettingsHas: function(key)
 	{
-		return (localStorage && localStorage[ZLJS.settings_prefix +' '+Pointer_stringify(key)] !== undefined);
+		return (localStorage && localStorage[ZLJS.settings_prefix +' '+UTF8ToString(key)] !== undefined);
 	},
 
 	ZLJS_SettingsGetMalloc__deps: ['$ZLJS'],
 	ZLJS_SettingsGetMalloc: function(key)
 	{
-		key = Pointer_stringify(key);
+		key = UTF8ToString(key);
 		if (!localStorage || localStorage[ZLJS.settings_prefix +' '+key] === undefined) { return 0; }
 		return ZLJS.malloc_string(localStorage[ZLJS.settings_prefix +' '+key]);
 	},

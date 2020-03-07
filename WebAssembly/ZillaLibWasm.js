@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -1137,24 +1137,26 @@ function ZLJS_WASM_IMPORTS(env)
 		do_lock(f);
 	};
 
-	env.ZLJS_AsyncLoad = function(url, impl, postdata, postlength)
+	env.ZLJS_AsyncLoad = function(url, impl, postdata, postlength, timeout)
 	{
-		var xhr = new XMLHttpRequest();
+		var xhr = new XMLHttpRequest(), ZLFNHTTP = ZL.asm.ZLFNHTTP;
 		xhr.open((postlength ? 'POST' : 'GET'), Pointer_stringify(url), true);
 		xhr.responseType = 'arraybuffer';
+		xhr.timeout = timeout;
 		xhr.onload = function()
 		{
 			if (xhr.status == 200)
 			{
 				var b = malloc_array(new Uint8Array(xhr.response));
-				ZL.asm.ZLFNHTTP(impl, 200, b, xhr.response.byteLength);
+				ZLFNHTTP(impl, 200, b, xhr.response.byteLength);
 				ZL.asm.free(b);
 			}
-			else ZL.asm.ZLFNHTTP(impl, xhr.status, 0, 0);
+			else ZLFNHTTP(impl, xhr.status, 0, 0);
 		};
-		xhr.onerror = function(event)
+		xhr.ontimeout = xhr.onerror = function(event)
 		{
-			ZL.asm.ZLFNHTTP(impl, xhr.status, 0, 0);
+			// this could be called synchronously by xhr.send() so force it to arrive a frame later
+			setTimeout(function() { ZLFNHTTP(impl, xhr.status||-1, 0, 0); });
 		};
 		if (postlength) try { xhr.send(HEAPU8.subarray(postdata, postdata+postlength)); } catch (e) { xhr.send(HEAPU8.buffer.slice(postdata, postdata+postlength)); }
 		else xhr.send(null);
@@ -1162,19 +1164,20 @@ function ZLJS_WASM_IMPORTS(env)
 
 	env.ZLJS_Websocket = function(impl, cmd, param, len)
 	{
+		var w, ZLFNWebSocket = ZL.asm.ZLFNWebSocket;
 		if (cmd == 1) { if (ws) ws.send(Pointer_stringify(param,len)); return; }
 		if (cmd == 2) { if (ws) ws.send(HEAPU8.subarray(param, param+len)); return; }
-		if (cmd >= 3) { ws.close(cmd-3, len?Pointer_stringify(param,len):undefined); ws = undefined; return; }
-		var w = new WebSocket(Pointer_stringify(param));
+		if (cmd >= 3) { if (ws) ws.close(cmd-3, len?Pointer_stringify(param,len):undefined); ws = undefined; return; }
+		try { var w = new WebSocket(Pointer_stringify(param)); } catch (e) { setTimeout(function() { ZLFNWebSocket(impl, 1009); }); return; }
 		w.binaryType = 'arraybuffer';
-		w.onopen = function() { ZL.asm.ZLFNWebSocket(impl, 1); };
+		w.onopen = function() { ZLFNWebSocket(impl, 0); };
 		w.onmessage = function (evt)
 		{
 			var s = typeof evt.data === 'string', v = s ? evt.data : new Uint8Array(evt.data), b = s ? malloc_string(v) : malloc_array(v);
-			ZL.asm.ZLFNWebSocket(impl, s ? 2 : 3, b, v.length);
+			ZLFNWebSocket(impl, s ? 1 : 2, b, v.length);
 			ZL.asm.free(b);
 		};
-		w.onclose = function() { ZL.asm.ZLFNWebSocket(impl, 0); ws = undefined; };
+		w.onclose = function(evt) { ZLFNWebSocket(impl, 3+evt.code); ws = undefined; };
 		ws = w;
 	};
 

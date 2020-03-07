@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2019 Bernhard Schelling
+#  Copyright (C) 2010-2020 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -51,7 +51,7 @@ else
   APPOUTDIR := Debug-wasm
   DBGCFLAGS := -DDEBUG -D_DEBUG -DZILLALOG
   LDFLAGS   :=
-  WOPTFLAGS := -O0
+  WOPTFLAGS := -g -O0
 endif
 
 # Project Build flags
@@ -186,9 +186,9 @@ $(APPOUTDIR)/$(ZillaApp).bc : $(APPOBJS)
 $(APPOUTDIR)/$(ZillaApp).wasm : $(THIS_MAKEFILE) $(APPOUTDIR)/$(ZillaApp).bc $(LIBOUTDIR)/ZillaLib.bc $(SYSOUTDIR)/System.bc
 	$(info Linking $@ ...)
 	@$(LD) $(LDFLAGS) -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(LIBOUTDIR)/ZillaLib.bc $(SYSOUTDIR)/System.bc
-#	D:\dev\emscripten_sdk\wabt\wasm-objdump.exe -x $@ >$@.objdump
-#	D:\dev\emscripten_sdk\wabt\wasm2c $@ -o $@.c
 	@$(WASMOPT) --legalize-js-interface $(WOPTFLAGS) $@ -o $@
+	D:\dev\emscripten_sdk\wabt\wasm-objdump.exe -x $@ >$@.objdump
+	D:\dev\emscripten_sdk\wabt\wasm2c $@ -o $@.c
 
 $(ASSET_ZIP) : $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)))
 	$(info Building $@ with $(words $(ASSET_ALL_STARS)) assets ...)
@@ -290,6 +290,12 @@ LIBSOURCES := $(wildcard $(ZILLALIB_DIR)Source/*.cpp)
 
 DEPSOURCES := \
 	$(wildcard $(ZILLALIB_DIR)Source/zlib/*.c) \
+	$(wildcard $(ZILLALIB_DIR)Source/enet/callbacks.c) \
+	$(wildcard $(ZILLALIB_DIR)Source/enet/host.c) \
+	$(wildcard $(ZILLALIB_DIR)Source/enet/list.c) \
+	$(wildcard $(ZILLALIB_DIR)Source/enet/packet.c) \
+	$(wildcard $(ZILLALIB_DIR)Source/enet/peer.c) \
+	$(wildcard $(ZILLALIB_DIR)Source/enet/protocol.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/libtess2/*.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/stb/*.cpp)
 

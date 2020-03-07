@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -38,7 +38,7 @@ void ZL_SetPointerLock(bool doLockPointer);
 
 //web network interfaces some platforms without sockets have to implement
 #define ZL_HTTPCONNECTION_PLATFORM PP_Resource urlloader; std::vector<char> data;
-#define ZL_WEBSOCKETCONNECTION_PLATFORM PP_Resource websocket; PP_Var data;
+#define ZL_WEBSOCKETCLIENT_PLATFORM PP_Resource websocket; PP_Var data;
 
 //platform specific
 #define vsnprintf __builtin_vsnprintf

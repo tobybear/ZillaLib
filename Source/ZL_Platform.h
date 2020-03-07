@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -79,18 +79,19 @@ bool ZL_AudioOpen();
 #define ZL_HTTPCONNECTION_PLATFORM
 #endif
 #define ZL_HTTPCONNECTION_IMPL_INTERFACE struct ZL_HttpConnection_Impl : ZL_Impl { \
-	ZL_String url; std::vector<char> post_data; unsigned int timeout_msec; bool dostream; \
+	std::vector<char> post_data; unsigned int timeout_msec; bool dostream; \
 	ZL_Signal_v2<int, const ZL_String&> sigReceivedString; \
 	ZL_Signal_v3<int, const char*, size_t> sigReceivedData; \
-	ZL_HttpConnection_Impl(); void Connect(); ZL_HTTPCONNECTION_PLATFORM };
-#ifndef ZL_WEBSOCKETCONNECTION_PLATFORM
-#define ZL_WEBSOCKETCONNECTION_PLATFORM
+	ZL_HttpConnection_Impl(); void Connect(const char* url); ZL_HTTPCONNECTION_PLATFORM };
+#ifndef ZL_WEBSOCKETCLIENT_PLATFORM
+#define ZL_WEBSOCKETCLIENT_PLATFORM
 #endif
-#define ZL_WEBSOCKETCONNECTION_IMPL_INTERFACE struct ZL_WebSocketConnection_Impl : ZL_Impl { ZL_String url; bool websocket_active; \
+#define ZL_WEBSOCKETCLIENT_IMPL_INTERFACE struct ZL_WebSocketClient_Impl : ZL_Impl { \
+	bool websocket_active, started; \
+	ZL_Signal_v0 sigConnected; ZL_Signal_v1<unsigned short> sigDisconnected; \
 	ZL_Signal_v1<const ZL_String&> sigReceivedText; \
-	ZL_Signal_v2<const char*, size_t> sigReceivedBinary; \
-	ZL_Signal_v0 sigConnected; ZL_Signal_v0 sigDisconnected; \
-	ZL_WebSocketConnection_Impl(); void Connect(); void SendText(const char* buf, size_t len); void SendBinary(const void* buf, size_t len); void Disconnect(unsigned short code, const char* buf, size_t len); ZL_WEBSOCKETCONNECTION_PLATFORM };
+	ZL_Signal_v2<const void*, size_t> sigReceivedBinary; \
+	ZL_WebSocketClient_Impl(); void Connect(const char* url); void Send(const void* buf, size_t len, bool is_text); void Disconnect(unsigned short code, const char* buf, size_t len); ZL_WEBSOCKETCLIENT_PLATFORM };
 
 //forward declaration of stuff that is used globally around the library code
 struct ZL_File_Impl;
