@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -21,7 +21,6 @@
 
 #include "ZL_Display.h"
 #include "ZL_Display_Impl.h"
-#include <assert.h>
 
 #undef KMOD_META
 
@@ -67,13 +66,13 @@ void ZL_Display_Process_Event(ZL_Event& event)
 			break;
 		case ZL_EVENT_MOUSEBUTTONDOWN:
 		case ZL_EVENT_MOUSEBUTTONUP:
-			assert(event.button.is_down == (event.type == ZL_EVENT_MOUSEBUTTONDOWN));
+			ZL_ASSERT(event.button.is_down == (event.type == ZL_EVENT_MOUSEBUTTONDOWN));
 			if (use_inputscale) { event.button.x -= window_viewport[0]; event.button.x *= inputscale_x; event.button.y -= window_viewport[1]; event.button.y *= inputscale_y; }
 			event.button.y = ZL_Display::Height - 1 - event.button.y;
 			ZL_Display::PointerX = event.button.x;
 			ZL_Display::PointerY = event.button.y;
 			ZL_Display::MouseDown[event.button.button] = event.button.is_down;
-			if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS)) (event.button.is_down ? ZL_Display::sigPointerDown : ZL_Display::sigPointerUp).call(event.button);
+			if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS) || !event.button.is_down) (event.button.is_down ? ZL_Display::sigPointerDown : ZL_Display::sigPointerUp).call(event.button);
 			break;
 		case ZL_EVENT_MOUSEWHEEL:
 			if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS)) ZL_Display::sigMouseWheel.call(event.wheel);
@@ -1184,7 +1183,7 @@ ZL_Surface ZL_Polygon::GetSurface() const
 
 const ZL_Rectf& ZL_Polygon::GetBoundingBox() const
 {
-	assert(impl); //can only be called on valid polygon instances
+	ZL_ASSERT(impl); //can only be called on valid polygon instances
 	return impl->bbox;
 }
 

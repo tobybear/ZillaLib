@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -470,7 +470,7 @@ static void ProcessSDLEvents()
 					ZL_SDL_FingerCount--;
 					out.type = ZL_EVENT_MOUSEBUTTONUP;
 				}
-				out.button.button = 1;
+				out.button.button = ZL_BUTTON_LEFT;
 				out.button.x = (scalar)in.tfinger.x * (scalar)ZL_SDL_Window->w;
 				out.button.y = (scalar)in.tfinger.y * (scalar)ZL_SDL_Window->h;
 				break;

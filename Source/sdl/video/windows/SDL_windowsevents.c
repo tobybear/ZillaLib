@@ -314,6 +314,27 @@ WIN_ConvertUTF32toUTF8(UINT32 codepoint, char * text)
     return SDL_TRUE;
 }
 
+#ifdef WMMSG_DEBUG
+const LPCSTR GetMsgString(UINT Msg)
+{
+    static const struct { UINT Msg; LPCSTR Str; } arr[] = {
+        #define WMSTR(wm){ wm, #wm }
+        WMSTR(WM_CREATE), WMSTR(WM_COMMAND), WMSTR(WM_INITMENU), WMSTR(WM_INITMENUPOPUP), WMSTR(WM_MENUSELECT), WMSTR(WM_UNINITMENUPOPUP), WMSTR(WM_ACTIVATEAPP), 
+        WMSTR(WM_MOUSEMOVE), WMSTR(WM_ENTERIDLE), WMSTR(WM_SETCURSOR), WMSTR(WM_ACTIVATE), WMSTR(WM_ENTERMENULOOP), WMSTR(WM_EXITMENULOOP), WMSTR(WM_GETMINMAXINFO),
+        WMSTR(WM_CAPTURECHANGED), WMSTR(WM_LBUTTONUP), WMSTR(WM_LBUTTONDBLCLK), WMSTR(WM_RBUTTONDOWN), WMSTR(WM_RBUTTONUP), WMSTR(WM_WINDOWPOSCHANGING), WMSTR(WM_WINDOWPOSCHANGED),
+        WMSTR(WM_SETFOCUS), WMSTR(WM_KILLFOCUS),WMSTR(WM_NCCREATE), WMSTR(WM_NCCALCSIZE), WMSTR(WM_NCACTIVATE), WMSTR(WM_GETTEXT), WMSTR(WM_IME_SETCONTEXT), WMSTR(WM_MOVE),
+        WMSTR(WM_PARENTNOTIFY), WMSTR(WM_MOUSEACTIVATE), WMSTR(WM_SIZE), WMSTR(WM_NCPAINT),  WMSTR(WM_NCDESTROY), WMSTR(WM_DESTROY), WMSTR(WM_SHOWWINDOW), WMSTR(WM_ERASEBKGND),
+        WMSTR(WM_QUERYOPEN), WMSTR(WM_DISPLAYCHANGE), WMSTR(WM_PAINT), WMSTR(WM_GETICON), WMSTR(WM_NCHITTEST), WMSTR(WM_NCMOUSEMOVE), WMSTR(WM_NCMOUSELEAVE), WMSTR(WM_ENABLE),
+        WMSTR(WM_CANCELMODE), WMSTR(WM_IME_NOTIFY), WMSTR(WM_MOUSELEAVE), WMSTR(WM_SYSCOMMAND), WMSTR(WM_NCLBUTTONDOWN), WMSTR(WM_NCMOUSEMOVE), WMSTR(WM_NCLBUTTONDOWN),
+        WMSTR(WM_NCLBUTTONUP), WMSTR(WM_NCLBUTTONDBLCLK), WMSTR(WM_NCRBUTTONDOWN), WMSTR(WM_NCRBUTTONUP), WMSTR(WM_NCRBUTTONDBLCLK), WMSTR(WM_NCMBUTTONDOWN), WMSTR(WM_NCMBUTTONUP),
+        WMSTR(WM_NCMBUTTONDBLCLK), WMSTR(WM_SYSKEYDOWN), WMSTR(WM_KEYUP), WMSTR(WM_SYSKEYDOWN), WMSTR(WM_ENTERSIZEMOVE), WMSTR(WM_EXITSIZEMOVE), WMSTR(WM_LBUTTONDOWN), WMSTR(WM_LBUTTONUP),
+        WMSTR(WM_LBUTTONDBLCLK), WMSTR(WM_RBUTTONDOWN), WMSTR(WM_RBUTTONUP), WMSTR(WM_RBUTTONDBLCLK), WMSTR(WM_MBUTTONDOWN), WMSTR(WM_MBUTTONUP), WMSTR(WM_MBUTTONDBLCLK), {0,NULL}
+        #undef WMSTR
+    };
+    for (int i = 0; arr[i].Str; i++) if (arr[i].Msg == Msg) return arr[i].Str; return "";
+}
+#endif
+
 LRESULT CALLBACK
 WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -341,6 +362,7 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 #ifdef WMMSG_DEBUG
     {
+        printf("[MSG] Msg: 0x%04x [%20s] - wParam: %x (%x / %x) - lParam: %x (%x / %x)\n", msg, GetMsgString(msg), wParam, LOWORD(wParam), HIWORD(wParam), lParam, LOWORD(lParam), HIWORD(lParam));
         char message[1024];
         if (msg > MAX_WMMSG) {
             SDL_snprintf(message, sizeof(message), "Received windows message: %p UNKNOWN (%d) -- 0x%X, 0x%X\n", hwnd, msg, wParam, lParam);
@@ -602,6 +624,13 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             WIN_UpdateClipCursor(data->window);
 
             /* The mouse may have been released during the modal loop */
+        }
+        /* don't break here, fall through to also check the mouse button state */
+#ifdef WM_CAPTURECHANGED
+    /* WM_CAPTURECHANGED and not WM_EXITSIZEMOVE is being sent on Windows 10 when the window title bar is clicked just shortly */
+    case WM_CAPTURECHANGED:
+#endif
+        {
             WIN_CheckAsyncMouseRelease(data);
         }
         break;
