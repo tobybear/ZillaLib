@@ -457,7 +457,7 @@ void ZL_HttpConnection_Impl::Connect(const char* url)
 	ZLJS_AsyncLoad(url, this, &post_data[0], post_data.size(), timeout_msec);
 }
 
-/*ZL_WEBSOCKETCLIENT_IMPL_INTERFACE
+ZL_WEBSOCKETCLIENT_IMPL_INTERFACE
 ZL_WebSocketClient_Impl::ZL_WebSocketClient_Impl() : websocket_active(false), started(false) { }
 extern "C" void ZLFNWebSocket(ZL_WebSocketClient_Impl* impl, int status, char* data, size_t length)
 {
@@ -469,6 +469,6 @@ extern "C" void ZLFNWebSocket(ZL_WebSocketClient_Impl* impl, int status, char* d
 }
 void ZL_WebSocketClient_Impl::Connect(const char* url) { Disconnect(1001, 0, 0); AddRef(); started = true; ZLJS_Websocket(this, 0, url); }
 void ZL_WebSocketClient_Impl::Send(const void* buf, size_t len, bool is_text) { if (started) ZLJS_Websocket(this, (is_text ? 1 : 2), buf, len); }
-void ZL_WebSocketClient_Impl::Disconnect(unsigned short code, const char* buf, size_t len) { if (started) { websocket_active = started = false; ZLJS_Websocket(this, 3+code, buf, len); DelRef(); } }*/
+void ZL_WebSocketClient_Impl::Disconnect(unsigned short code, const char* buf, size_t len) { if (started) { websocket_active = started = false; ZLJS_Websocket(this, 3+code, buf, len); DelRef(); } }
 
 #endif //defined(__wasm__) || defined(__EMSCRIPTEN__)
