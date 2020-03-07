@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -67,9 +67,11 @@ public:
 	typedef char chr;
 
 	ZL_String() { }
-
+	
 	static ZL_String format(const char *format, ...);
 	static ZL_String vformat(const char *format, va_list ap);
+	static void format(ZL_String& target, const char *format, ...);
+	static void vformat(ZL_String& target, const char *format, va_list ap);
 	static ZL_String to_upper(const ZL_String &s) { ZL_String c = s; c.to_upper(); return c; }
 	static ZL_String to_lower(const ZL_String &s) { ZL_String c = s; c.to_lower(); return c; }
 	static ZL_String str_replace(const ZL_String &s, const ZL_String &from, const ZL_String &to) { ZL_String c = s; c.str_replace(from, to); return c; }

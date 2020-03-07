@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -30,23 +30,6 @@
 ZL_String ZL_String::EmptyString = ZL_String();
 static char ZL_String_ConvBuf[32];
 
-ZL_String ZL_String::vformat(const char *format, va_list ap)
-{
-	size_t size = 1024;
-	char stackbuf[1024];
-	std::vector<char> dynamicbuf;
-	char *buf = &stackbuf[0];
-	while (1)
-	{
-		int needed = vsnprintf(buf, size, format, ap);
-		if (needed <= (int)size && needed >= 0) return ZL_String(buf, (size_t) needed);
-		size = (needed > 0) ? (needed+1) : (size*2);
-		dynamicbuf.resize(size);
-		buf = &dynamicbuf[0];
-	}
-	return ZL_String();
-}
-
 ZL_String ZL_String::format(const char *format, ...)
 {
 	size_t size = 1024;
@@ -59,6 +42,49 @@ ZL_String ZL_String::format(const char *format, ...)
 		size = (needed > 0) ? (needed+1) : (size*2);
 		dynamicbuf.resize(size);
 		buf = &dynamicbuf.at(0);
+	}
+}
+
+ZL_String ZL_String::vformat(const char *format, va_list ap)
+{
+	size_t size = 1024;
+	char stackbuf[1024], *buf = stackbuf;
+	ZL_String dynamicbuf;
+	for (va_list i;;)
+	{
+		va_copy(i, ap); int needed = vsnprintf(buf, size, format, i); va_end(i);
+		if (needed >= 0 && needed <= (int)size) return (buf == stackbuf ? ZL_String(buf, needed) : dynamicbuf);
+		size = (needed > 0) ? (needed+1) : (size*2);
+		dynamicbuf.resize(size);
+		buf = &dynamicbuf.at(0);
+	}
+}
+
+void ZL_String::format(ZL_String& target, const char *format, ...)
+{
+	size_t size = target.capacity();
+	if (!size) size = 4;
+	target.resize(size);
+	for (va_list ap;;)
+	{
+		va_start(ap, format); int needed = vsnprintf(&target.at(0), size, format, ap); va_end(ap);
+		if (needed >= 0 && needed <= (int)size) { target.resize(needed); return; }
+		size = (needed > 0) ? (needed+1) : (size*2);
+		target.resize(size);
+	}
+}
+
+void ZL_String::vformat(ZL_String& target, const char *format, va_list ap)
+{
+	size_t size = target.capacity();
+	if (!size) size = 4;
+	target.resize(size);
+	for (va_list i;;)
+	{
+		va_copy(i, ap); int needed = vsnprintf(&target.at(0), size, format, i); va_end(i);
+		if (needed >= 0 && needed <= (int)size) { target.resize(needed); return; }
+		size = (needed > 0) ? (needed+1) : (size*2);
+		target.resize(size);
 	}
 }
 
