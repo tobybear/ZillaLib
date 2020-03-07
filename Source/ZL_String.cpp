@@ -26,6 +26,9 @@
 #if defined(_MSC_VER) && !defined(vsnprintf)
 #define vsnprintf _vsnprintf
 #endif
+#if defined(_MSC_VER) && !defined(va_copy)
+#define va_copy(d,s) ((d) = (s))
+#endif
 
 ZL_String ZL_String::EmptyString = ZL_String();
 static char ZL_String_ConvBuf[32];
