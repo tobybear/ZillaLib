@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -419,26 +419,31 @@ struct ZL_Math
 	//Returns acute angle in degree from 0 to 90
 	static inline scalar AcuteAngleDeg(scalar a) { while(a<0)a+=360;while(a>360)a-=360;if(a>180)a=360-a;if(a>90)a=180-a;return a; }
 
-	//Returns the higher of two scalar values
-	static inline scalar Max(const scalar a, const scalar b) { return (a > b ? a : b); }
+	#ifdef __cplusplus
+	//Returns the higher of two values
+	template <typename T> static inline T Max(const T a, const T b) { return (a > b ? a : b); }
 
-	//Returns the lower of two scalar values
-	static inline scalar Min(const scalar a, const scalar b) { return (a < b ? a : b); }
+	//Returns the lower of two values
+	template <typename T> static inline T Min(const T a, const T b) { return (a < b ? a : b); }
 
-	//Returns the absolute value of a scalar value
-	static inline scalar Abs(const scalar val) { return (val < 0 ? -val : val); }
+	//Returns the absolute value of a value
+	template <typename T> static inline T Abs(const T val) { return (val < 0 ? -val : val); }
 
-	//Returns the sign (-1 or +1) of a scalar value
-	static inline scalar Sign(const scalar val) { return (val < 0 ? s(-1) : 1); }
+	//Returns the sign (-1 or +1) of a value
+	template <typename T> static inline T Sign(const T val) { return (val < 0 ? T(-1) : 1); }
 
-	//Returns the sign (-1 or +1) of a scalar value if its absolute is larger than epsilon, otherwise return 0
-	static inline scalar Sign0(const scalar val, const scalar epsilon = 0) { return (val > epsilon ? 1 : (val < -epsilon ? s(-1) : 0)); }
+	//Returns the sign (-1 or +1) of a value if its absolute is larger than epsilon, otherwise return 0
+	template <typename T> static inline T Sign0(const T val, const T epsilon = 0) { return (val > epsilon ? 1 : (val < -epsilon ? T(-1) : 0)); }
 
 	//Clamp value between min and max
-	static inline scalar Clamp(const scalar val, const scalar min, const scalar max) { return (val > max ? max : (val < min ? min : val)); }
+	template <typename T> static inline T Clamp(const T val, const T min, const T max) { return (val > max ? max : (val < min ? min : val)); }
 
 	//Clamp value between 0 and 1
-	static inline scalar Clamp01(scalar val) { return (val > 1 ? 1 : (val < 0 ? 0 : val)); }
+	template <typename T> static inline T Clamp01(T val) { return (val > 1 ? 1 : (val < 0 ? 0 : val)); }
+
+	//Clamp value between -1 and 1
+	template <typename T> static inline T Clamp1(T val) { return (val > 1 ? 1 : (val < T(-1) ? T(-1) : val)); }
+	#endif
 
 	//Linear interpolate value
 	static inline scalar Lerp(const scalar from, const scalar to, const scalar f) { return from + (to-from) * f; }
