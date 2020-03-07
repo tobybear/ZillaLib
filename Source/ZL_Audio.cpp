@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -95,6 +95,16 @@ void ZL_Audio::UnhookAudioMix(bool (*pFuncAudioMix)(short* buffer, unsigned int 
 	std::vector<bool(*)(short*, unsigned int, bool)>::iterator it = std::find(ZL_AudioMixFuncs->begin(), ZL_AudioMixFuncs->end(), pFuncAudioMix);
 	if (it != ZL_AudioMixFuncs->end()) ZL_AudioMixFuncs->erase(it);
 	if (!ZL_AudioMixFuncs->size()) { delete ZL_AudioMixFuncs; ZL_AudioMixFuncs = NULL; }
+}
+
+void ZL_Audio::LockAudioThread()
+{
+	if (ZL_AudioActive) ZL_MutexLock(ZL_AudioActiveMutex);
+}
+
+void ZL_Audio::UnlockAudioThread()
+{
+	if (ZL_AudioActive) ZL_MutexUnlock(ZL_AudioActiveMutex);
 }
 
 struct ZL_Sound_Impl : ZL_Impl
@@ -251,9 +261,9 @@ bool ZL_AudioPlayingHandle::mix_into(short* buf, unsigned int rem, bool add)
 	const bool allow_direct_write = (!add && factor <= 1.0f && vol == 1.0f); //no need for tmpbuf
 	const unsigned int fixshift = (rescale ? 0 : snd->fixshift);
 	short stmp, *ssrc = buf;
+	unsigned int readscaled = 0, read, write;
 	do //until no bytes are remaining (or the audio stream is finished without loop)
 	{
-		unsigned int readscaled, read, write;
 		if (rescale)
 		{
 			read = (unsigned int)(rem*factor);
@@ -268,7 +278,7 @@ bool ZL_AudioPlayingHandle::mix_into(short* buf, unsigned int rem, bool add)
 			ssrc = (allow_direct_write ? buf : tmpbuf);
 			int got = OGG_READ(snd->decoder, ssrc, read);
 			if (got < 0) break;
-			if (got != read) { read = got; pos = snd->totalsamples; } //no more samples available, loop
+			if ((unsigned int)got != read) { read = got; pos = snd->totalsamples; } //no more samples available, loop
 		}
 		else
 		{

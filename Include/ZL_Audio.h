@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -40,6 +40,10 @@ struct ZL_Audio
 	//  buffer size in bytes is samples multiplied by 4 (16-bit samples, 2 channels)
 	static void HookAudioMix(bool (*pFuncAudioMix)(short* buffer, unsigned int samples, bool need_mix));
 	static void UnhookAudioMix(bool (*pFuncAudioMix)(short* buffer, unsigned int samples, bool need_mix));
+
+	//Use this to acquire the mutex used by the audio thread which calls the custom audio mix callbacks
+	static void LockAudioThread();
+	static void UnlockAudioThread();
 };
 
 #ifdef __IPHONEOS__
