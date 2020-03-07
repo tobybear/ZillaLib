@@ -558,7 +558,6 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 			{
 				if (width)
 				{
-					if (!limitCount) { linewidth += (c ? c->width - c->advance : 0) - cs; }
 					if (linewidth > *width) { *width = linewidth; }
 					linewidth = 0;
 				}
