@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2016 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -117,8 +117,8 @@ struct ZL_Font
 {
 	ZL_Font();
 	ZL_Font(const ZL_FileLink& BitmapFontFile);
-	ZL_Font(const ZL_FileLink& TruetypeFontFile, scalar height, unsigned char outline_width = 0); //supports utf8
-	ZL_Font(const ZL_FileLink& TruetypeFontFile, scalar height, unsigned char outline_left, unsigned char outline_right, unsigned char outline_top, unsigned char outline_bottom); //supports utf8
+	ZL_Font(const ZL_FileLink& TruetypeFontFile, scalar height, bool pixel_exact = true, unsigned char outline_width = 0); //supports utf8
+	ZL_Font(const ZL_FileLink& TruetypeFontFile, scalar height, bool pixel_exact, unsigned char outline_left, unsigned char outline_right, unsigned char outline_top, unsigned char outline_bottom); //supports utf8
 	~ZL_Font();
 	ZL_Font(const ZL_Font &source);
 	ZL_Font &operator=(const ZL_Font &source);
@@ -149,7 +149,7 @@ struct ZL_Font
 	scalar GetLineHeight() const;
 	scalar GetLineHeight(scalar scale) const;
 
-	//Get calculated dimensions of how large a certain drawn text would end up as
+	// Get calculated dimensions of how large a certain drawn text would end up as
 	scalar GetHeight(const char *text) const;
 	scalar GetHeight(const char *text, scalar scale) const;
 	scalar GetWidth(const char *text) const;
@@ -193,11 +193,14 @@ struct ZL_Font
 	void Draw(const ZL_Vector &p, const char *text, scalar scalew, scalar scaleh, ZL_Origin::Type draw_at_origin) const;
 	void Draw(const ZL_Vector &p, const char *text, scalar scalew, scalar scaleh, const ZL_Color &color, ZL_Origin::Type draw_at_origin) const;
 
-	//Create a text buffer using this font
+	// Create a text buffer using this font
 	inline ZL_TextBuffer CreateBuffer(const char *text = NULL) { return ZL_TextBuffer(*this, text); }
 	inline ZL_TextBuffer CreateBuffer(const char *text, scalar max_width, bool word_wrap_newline = false) { return ZL_TextBuffer(*this, text, max_width, word_wrap_newline); }
 	inline ZL_TextBuffer CreateBuffer(scalar multiline_x_align, const char *text) { return ZL_TextBuffer(*this, multiline_x_align, text); }
 	inline ZL_TextBuffer CreateBuffer(scalar multiline_x_align, const char *text, scalar max_width, bool word_wrap_newline = false) { return ZL_TextBuffer(*this, multiline_x_align, text, max_width, word_wrap_newline); }
+
+	// Requests a limit of the number of bytes processed for the next call to GetWidth/GetHeight/GetDimensions/Draw/CreateBuffer
+	void RequestCharLimit(int limitCount);
 
 	private: struct ZL_Font_Impl* impl;
 };

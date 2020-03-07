@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -66,6 +66,12 @@
   #define __WEBAPP__
  #endif
 #endif
+#if defined(__LP64__) || defined(_LP64) || defined(__LLP64__) || defined(__x86_64__) || defined(__ia64__) || defined(_WIN64) || defined(_M_X64)
+#define ZL_IS_64_BIT
+#endif
+#if (defined(__cplusplus) && (__cplusplus > 199711 || _MSC_VER >= 1800))
+#define ZL_HAVE_TYPE_TRAITS
+#endif
 
 //Logging and assert functions that only do something on debug builds and are empty on release builds
 #if defined(ZILLALOG)
@@ -101,7 +107,10 @@
 #define ZL_ASSERTMSGF(cond,fmt,...) ((void)0)
 #endif
 #endif
-#define ZL_STATIC_ASSERT(cond) typedef char static_assertion_##__LINE__[(cond)?1:-1]
+#define ZL_NO_ENTRY ZL_ASSERT(false)
+#define _ZL_STATIC_ASSERTM(A,B) static_assertion_##A##_##B
+#define _ZL_STATIC_ASSERTN(A,B) _ZL_STATIC_ASSERTM(A,B)
+#define ZL_STATIC_ASSERT(cond) typedef char _ZL_STATIC_ASSERTN(__LINE__,__COUNTER__)[(cond)?1:-1]
 #define ZL_STATIC_ASSERTMSG(cond,msg) typedef char static_assertion_##msg[(cond)?1:-1]
 
 //Used type for timing ticks (one tick is one millisecond)

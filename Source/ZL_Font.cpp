@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -22,8 +22,8 @@
 #include "ZL_Font.h"
 #include "ZL_Texture_Impl.h"
 #include "ZL_Platform.h"
+#include "ZL_Data.h"
 #include <vector>
-#include <map>
 #include "stb/stb_truetype.h"
 
 struct ZL_Font_Impl_Settings
@@ -36,15 +36,16 @@ struct ZL_Font_Impl_Settings
 struct ZL_Font_Impl : ZL_Impl, ZL_Font_Impl_Settings
 {
 	scalar fCharSpacing, fLineSpacing, fLineHeight, fSpaceWidth;
+	int limitCount;
 	bool draw_at_baseline;
-	ZL_Font_Impl(bool draw_at_baseline) : fCharSpacing(0), fLineSpacing(0), fLineHeight(0), fSpaceWidth(0), draw_at_baseline(draw_at_baseline) { }
+	ZL_Font_Impl(bool draw_at_baseline) : fCharSpacing(0), fLineSpacing(0), fLineHeight(0), fSpaceWidth(0), limitCount(0), draw_at_baseline(draw_at_baseline) { }
 	virtual ~ZL_Font_Impl() {}
 
 	virtual void DoDraw(scalar x, scalar y, const char *text, scalar scalew, scalar scaleh, const ZL_Color &color) = 0;
 	virtual GLsizei CountBuffer(const char *text, std::vector<int>* &vecTTFTexLastIndex) = 0;
 	virtual void RenderBuffer(const char *text, GLscalar* vertices, GLscalar* texcoords, std::vector<int>* vecTTFTexLastIndex, GLsizei &len, scalar &width, scalar &height) = 0;
 	virtual void DoDrawBuffer(std::vector<int>* vecTTFTexLastIndex, GLsizei len) = 0;
-	virtual void GetDimensions(const char *text, scalar* width, scalar* height = NULL) = 0;
+	virtual void GetDimensions(const char *text, scalar* width, scalar* height = NULL, bool resetLimitCount = true) = 0;
 
 	ZL_Vector GetDrawOffset(const scalar& width, const scalar& height, ZL_Origin::Type draw_at_origin)
 	{
@@ -70,9 +71,11 @@ struct ZL_Font_Impl : ZL_Impl, ZL_Font_Impl_Settings
 		scalar width, height;
 		GetDimensions(text,
 			(draw_at_origin < ZL_Origin::_CUSTOM_START && (draw_at_origin & ZL_Origin::_MASK_LEFT) ? NULL : &width), //width only needed in some cases
-			(draw_at_origin < ZL_Origin::_CUSTOM_START && (draw_at_origin & ZL_Origin::_MASK_TOP) ? NULL : &height)); //height only needed in some cases
+			(draw_at_origin < ZL_Origin::_CUSTOM_START && (draw_at_origin & ZL_Origin::_MASK_TOP) ? NULL : &height), //height only needed in some cases
+			false);
 		ZL_Vector align_offset = GetDrawOffset(width, height, draw_at_origin);
 		DoDraw(x + align_offset.x * scalew, y + align_offset.y * scaleh, text, scalew, scaleh, color);
+		limitCount = 0;
 	}
 
 	void DrawBuffer(const scalar &x, const scalar &y, const scalar &scalew, const scalar &scaleh, const ZL_Color &color, ZL_Origin::Type draw_at_origin, GLscalar* vertices, GLscalar* texcoords, std::vector<int>* vecTTFTexLastIndex, GLsizei len, const scalar &width, const scalar &height)
@@ -172,7 +175,7 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 		int v = 0;
 		ZLGL_TEXCOORDPOINTER(2, GL_SCALAR, 0, texcoords);
 		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, vertices);
-		for (const unsigned char *p = (const unsigned char*)text; *p; p++)
+		for (const unsigned char *p = (const unsigned char*)text, *pEnd = (limitCount ? p + limitCount : (unsigned char*)-1); *p && p < pEnd; p++)
 		{
 			if (*p == '\r') continue;
 			if (*p == '\n') { vbox[4] = vbox[0] = x; vbox[7] = vbox[5] -= (lh + (scaleh * fLineSpacing)); vbox[1] = vbox[3] -= (lh + (scaleh * fLineSpacing)); continue; }
@@ -197,7 +200,7 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 	{
 		if (vecTTFTexLastIndex) { delete vecTTFTexLastIndex; vecTTFTexLastIndex = NULL; }
 		GLsizei cnt = 0;
-		for (const unsigned char *p = (const unsigned char*)text; *p; p++)
+		for (const unsigned char *p = (const unsigned char*)text, *pEnd = (limitCount ? p + limitCount : (unsigned char*)-1); *p && p < pEnd; p++)
 			if (*p > ' ' && (*p-(unsigned char)' '-1) < (unsigned char)(sizeof(CharWidths)/sizeof(CharWidths[0])) && CharWidths[*p-' '-1]) cnt++;
 		return cnt;
 	}
@@ -210,7 +213,7 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 		vbox[0] = vbox[4] = 0;                   //left
 		width = 0;
 		int vv = 0;
-		for (const unsigned char *p = (const unsigned char*)text; *p; p++)
+		for (const unsigned char *p = (const unsigned char*)text, *pEnd = (limitCount ? p + limitCount : (unsigned char*)-1); *p && p < pEnd; p++)
 		{
 			if (*p == '\r') continue;
 			if (*p == '\n') { if (vbox[2] > width) width = vbox[2]; vbox[4] = vbox[0] = 0; vbox[7] = vbox[5] -= (fLineHeight + fLineSpacing); vbox[1] = vbox[3] -= (fLineHeight + fLineSpacing); continue; }
@@ -235,12 +238,12 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 		glDrawArraysUnbuffered(GL_TRIANGLES, 0, len * 6);
 	}
 
-	void GetDimensions(const char *text, scalar* width, scalar* height)
+	void GetDimensions(const char *text, scalar* width, scalar* height, bool resetLimitCount)
 	{
 		GLscalar cs = 0, linewidth;
 		if (width) *width = 0, linewidth = 0, cs = fCharSpacing;
 		if (height) *height = fLineHeight;
-		for (const unsigned char *p = (const unsigned char*)text; *p; p++)
+		for (const unsigned char *p = (const unsigned char*)text, *pEnd = (limitCount ? p + limitCount : (unsigned char*)-1); *p && p < pEnd; p++)
 		{
 			if (*p == '\n')
 			{
@@ -258,15 +261,14 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 			}
 		}
 		if (width) *width = (linewidth - cs > *width ? linewidth - cs : *width);
+		if (resetLimitCount) limitCount = 0;
 	}
 };
 
 #ifdef ZL_VIDEO_WEAKCONTEXT
-#include <algorithm>
-struct ZL_FontTTF_Impl;
-struct ZL_TextBuffer_Impl;
-static std::vector<ZL_FontTTF_Impl*> *pLoadedTTFFonts = NULL;
-static std::vector<ZL_TextBuffer_Impl*> *pActiveTTFTextBuffers = NULL;
+//#include <algorithm>
+static std::vector<struct ZL_FontTTF_Impl*> *pLoadedTTFFonts = NULL;
+static std::vector<struct ZL_TextBuffer_Impl*> *pActiveTTFTextBuffers = NULL;
 #endif
 
 struct ZL_FontTTF_Impl : ZL_Font_Impl
@@ -275,13 +277,15 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 	stbtt_fontinfo font;
 	float stbtt_scale;
 	std::vector<GLuint> gltexids;
-	struct Char { signed char tex; GLscalar offx, offy, width, TextureCoordinates[8]; };
-	std::map<unsigned short, Char> chars;
-	Char *pLastChar;
+	struct Char { signed char tex; GLscalar offx, offy, advance, width, TextureCoordinates[8]; };
+	ZL_TMap<unsigned short, Char> chars;
+	GLscalar last_char_coord1, last_char_coord2, last_char_coord5;
+	bool last_char;
+	bool pixel_exact;
 	unsigned char oll, olr, olt, olb;
 
-	ZL_FontTTF_Impl(const ZL_FileLink& file, scalar height, unsigned char oll, unsigned char olr, unsigned char olt, unsigned char olb)
-		: ZL_Font_Impl(true), ttf_buffer(NULL), pLastChar(NULL), oll(oll), olr(olr), olt(olt), olb(olb)
+	ZL_FontTTF_Impl(const ZL_FileLink& file, scalar height, bool pixel_exact, unsigned char oll, unsigned char olr, unsigned char olt, unsigned char olb)
+		: ZL_Font_Impl(true), ttf_buffer(NULL), last_char(false), pixel_exact(pixel_exact), oll(oll), olr(olr), olt(olt), olb(olb)
 	{
 		ZL_File f = file.Open();
 		ZL_File_Impl* fileimpl = ZL_ImplFromOwner<ZL_File_Impl>(f);
@@ -307,8 +311,9 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 		fLineHeight = height;
 		fLineSpacing = s((int)(fLineHeight / 7));
 		int iSpaceWidth = 10;
-		stbtt_GetCodepointHMetrics(&font, ' ', &iSpaceWidth, 0);
+		stbtt_GetCodepointHMetrics(&font, ' ', &iSpaceWidth, NULL);
 		fSpaceWidth = s(stbtt_scale * s(iSpaceWidth));
+		if (pixel_exact) fSpaceWidth = (GLscalar)(int)(fSpaceWidth + .5f);
 		#ifdef ZL_VIDEO_WEAKCONTEXT
 		if (!pLoadedTTFFonts) pLoadedTTFFonts = new std::vector<ZL_FontTTF_Impl*>();
 		pLoadedTTFFonts->push_back(this);
@@ -328,14 +333,15 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 	const Char& MakeChar(unsigned short cd)
 	{
 		int bmp_w, bmp_h, off_x, off_y;
-		unsigned char *bitmap = stbtt_GetCodepointBitmap(&font, stbtt_scale, stbtt_scale, cd, &bmp_w, &bmp_h, &off_x, &off_y);
+		int glyph = stbtt_FindGlyphIndex(&font, cd), advanceWidth, leftSideBearing;
+		unsigned char *bitmap = stbtt_GetGlyphBitmap(&font, stbtt_scale, stbtt_scale, glyph, &bmp_w, &bmp_h, &off_x, &off_y);
+
 		if (!bitmap || !bmp_w)
 		{
 			Char c;
 			memset(&c, 0, sizeof(Char));
 			c.tex = -1;
-			chars[cd] = c;
-			return chars[cd];
+			return chars.Put(cd, c);
 		}
 
 		#ifndef ZL_VIDEO_DIRECT3D
@@ -348,7 +354,7 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 
 		GLuint gltexid, x, y, tex_w = bmp_w + oll + olr, tex_h = bmp_h + olt + olb;
 		bool textnextline;
-		if (!pLastChar || ((textnextline = ((pLastChar->TextureCoordinates[2] + s(tex_w)/s(512)) >= 1)) && (pLastChar->TextureCoordinates[1] + s(tex_h)/s(512)) >= 1))
+		if (!last_char || ((textnextline = ((last_char_coord2 + s(tex_w)/s(512)) >= 1)) && (last_char_coord1 + s(tex_h)/s(512)) >= 1))
 		{
 			glGenTextures(1, &gltexid);
 			glBindTexture(GL_TEXTURE_2D, gltexid);
@@ -365,8 +371,8 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 		{
 			gltexid = gltexids.back();
 			glBindTexture(GL_TEXTURE_2D, gltexid);
-			x = (GLuint)(textnextline ? 0 : pLastChar->TextureCoordinates[2] * 512.0f + 1);
-			y = (GLuint)(textnextline ? pLastChar->TextureCoordinates[1] * 512.0f + 1 : pLastChar->TextureCoordinates[5] * 512.0f);
+			x = (GLuint)(textnextline ? 0 : last_char_coord2 * 512.0f + 1);
+			y = (GLuint)(textnextline ? last_char_coord1 * 512.0f + 1 : last_char_coord5 * 512.0f);
 		}
 
 		glPixelStorei(GL_UNPACK_ALIGNMENT, (!(tex_w&7) ? 8 : (!(tex_w&3) ? 4 : (!(tex_w&1) ? 2 : 1))));
@@ -398,19 +404,26 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 
 		//ZL_Application::Log("FONT", "Char %c at off %d, %d with size %d, %d (glyoff: %d, %d)", (char)cd, x, y, bmp_w, bmp_h, off_x, off_y);
 
+		stbtt_GetGlyphHMetrics(&font, glyph, &advanceWidth, &leftSideBearing);
+
 		Char c;
 		c.tex = (signed char)(gltexids.size()-1);
 		c.width = (GLscalar)tex_w;
-		c.offx = (GLscalar)off_x-oll;
+		c.advance = (GLscalar)(stbtt_scale * (GLscalar)advanceWidth);
+		c.offx = (GLscalar)(stbtt_scale * (GLscalar)leftSideBearing)-oll;
 		c.offy = (GLscalar)off_y-olt;
+		if (pixel_exact)
+		{
+			c.advance = (GLscalar)(int)(c.advance + .5f);
+			c.offx = (GLscalar)(int)(c.offx + .5f);
+		}
 		GLscalar *pTexCoord = c.TextureCoordinates;
 		pTexCoord[0] = pTexCoord[4] = (GLscalar)x / s(512);
-		pTexCoord[5] = pTexCoord[7] = (GLscalar)y / s(512);
-		pTexCoord[2] = pTexCoord[6] = (GLscalar)(x + tex_w) / s(512);
-		pTexCoord[1] = pTexCoord[3] = (GLscalar)(y + fLineHeight + (olt+olb)) / s(512);
-		chars[cd] = c;
-		pLastChar = &chars[cd];
-		return chars[cd];
+		last_char_coord5 = pTexCoord[5] = pTexCoord[7] = (GLscalar)y / s(512);
+		last_char_coord2 = pTexCoord[2] = pTexCoord[6] = (GLscalar)(x + tex_w) / s(512);
+		last_char_coord1 = pTexCoord[1] = pTexCoord[3] = (GLscalar)(y + fLineHeight + (olt+olb)) / s(512);
+		last_char = true;
+		return chars.Put(cd, c);
 	}
 
 	#define UCS(txt, sz, cd) (txt[0] < 0xc2 ? sz=1,cd=txt[0] : \
@@ -428,20 +441,20 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 		vecTTFTexLastIndex->resize(gltexids.size());
 		if (gltexids.size()) { texoffsetbegin = &vecTTFTexLastIndex->operator[](0); texoffsetend = &vecTTFTexLastIndex->back(); }
 		else texoffsetbegin = texoffsetend = NULL;
-		for (const unsigned char *p = (const unsigned char*)text; *p; p += sz)
+		for (const unsigned char *p = (const unsigned char*)text, *pEnd = (limitCount ? p + limitCount : (unsigned char*)-1); *p && p < pEnd; p += sz)
 		{
 			if (*p <= ' ') { sz = 1; continue; }
 			UCS(p, sz, cd);
 			if (!cd) continue;
-			std::map<unsigned short, Char>::iterator it = chars.find(cd);
 			signed char tex;
-			if (it == chars.end())
+			const Char& c = chars.Get(cd);
+			if (&c == &chars.NotFoundValue)
 			{
 				tex = MakeChar(cd).tex;
 				if (gltexids.size() != vecTTFTexLastIndex->size())
 					{ vecTTFTexLastIndex->resize(gltexids.size()); texoffsetbegin = &vecTTFTexLastIndex->operator[](0); texoffsetend = &vecTTFTexLastIndex->back(); }
 			}
-			else tex = it->second.tex;
+			else tex = c.tex;
 			if (tex < 0) continue;
 			for (int *texoffset = texoffsetbegin + tex + 1; texoffset <= texoffsetend; ++texoffset) (*texoffset)++;
 			cnt++;
@@ -455,24 +468,23 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 		unsigned char sz;
 		unsigned short cd;
 		width = 0;
-		for (const unsigned char *p = (const unsigned char*)text; *p; p += sz)
+		for (const unsigned char *p = (const unsigned char*)text, *pEnd = (limitCount ? p + limitCount : (unsigned char*)-1); *p && p < pEnd; p += sz)
 		{
 			if (*p == '\r') { sz = 1; continue; }
 			if (*p == '\n') { sz = 1; if (x - fCharSpacing + olr > width) width = x - fCharSpacing + olr; x = 0; y -= (fLineHeight + fLineSpacing); continue; }
 			if (*p <= ' ' ) { sz = 1; x += fSpaceWidth + fCharSpacing; continue; }
 			UCS(p, sz, cd);
 			if (!cd) continue;
-			const Char& c = chars[cd];
+			const Char& c = chars.Get(cd);
 			if (c.tex < 0) { x += fSpaceWidth + fCharSpacing; continue; }
 			int vv = 12 * (vecTTFTexLastIndex->operator[](c.tex)++);
 			memcpy(&texcoords[vv+0], c.TextureCoordinates+0, sizeof(texcoords[0])*6);
 			memcpy(&texcoords[vv+6], c.TextureCoordinates+2, sizeof(texcoords[0])*6);
-			if (c.offx && p > (const unsigned char*)text) x += c.offx;
-			vertices[vv+0] = vertices[vv+4] = vertices[vv+ 8] = x;                   //left
-			vertices[vv+2] = vertices[vv+6] = vertices[vv+10] = x + c.width;         //right
-			vertices[vv+5] = vertices[vv+9] = vertices[vv+11] = y - c.offy;          //top
-			vertices[vv+1] = vertices[vv+3] = vertices[vv+ 7] = vertices[vv+5] - lh; //bottom
-			x += c.width + fCharSpacing - olr;
+			vertices[vv+0] = vertices[vv+4] = vertices[vv+ 8] = x + c.offx;             //left
+			vertices[vv+2] = vertices[vv+6] = vertices[vv+10] = vertices[vv] + c.width; //right
+			vertices[vv+5] = vertices[vv+9] = vertices[vv+11] = y - c.offy;             //top
+			vertices[vv+1] = vertices[vv+3] = vertices[vv+ 7] = vertices[vv+5] - lh;    //bottom
+			x += c.advance + fCharSpacing;
 		}
 		height = 0 - (y - fLineHeight);
 		if (x - fCharSpacing + olr > width) width = x - fCharSpacing + olr;
@@ -498,21 +510,21 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 		ZLGL_COLOR(color);
 		ZLGL_TEXCOORDPOINTER(2, GL_SCALAR, 0, texcoords);
 		ZLGL_VERTEXTPOINTER(2, GL_SCALAR, 0, vertices);
-		GLscalar cs = (scalew * fCharSpacing), lh = (scaleh * (fLineHeight+(olt+olb))), olrs = (scalew * olr);
+		GLscalar cs = fCharSpacing, lh = (scaleh * (fLineHeight+(olt+olb)));
 		int v = 0;
 		signed char last_tex = -1;
 		unsigned char sz;
 		unsigned short cd;
-		for (const unsigned char *p = (const unsigned char*)text; *p; p += sz)
+		for (const unsigned char *p = (const unsigned char*)text, *pEnd = (limitCount ? p + limitCount : (unsigned char*)-1); *p && p < pEnd; p += sz)
 		{
 			if (*p == '\r') { sz = 1; continue; }
 			if (*p == '\n') { sz = 1; x = xleft; y -= ((fLineHeight+fLineSpacing)*scaleh); continue; }
-			if (*p <= ' ' ) { sz = 1; x += (scalew * fSpaceWidth) + cs; continue; }
+			if (*p <= ' ' ) { sz = 1; x += (fSpaceWidth + cs) * scalew; continue; }
 			UCS(p, sz, cd);
 			if (!cd) continue;
-			std::map<unsigned short, Char>::iterator it = chars.find(cd);
-			const Char& c = (it == chars.end() ? MakeChar(cd) : it->second);
-			if (c.tex < 0) { x += (scalew * fSpaceWidth) + cs; continue; }
+			const Char& it = chars.Get(cd);
+			const Char& c = (&it == &chars.NotFoundValue ? MakeChar(cd) : it);
+			if (c.tex < 0) { x += (fSpaceWidth + cs) * scalew; continue; }
 			if (last_tex != c.tex)
 			{
 				if (v) { glDrawArraysUnbuffered(GL_TRIANGLES, 0, 6*v); v = 0; }
@@ -522,41 +534,50 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 			int vv = 12 * v++;
 			memcpy(&texcoords[vv+0], c.TextureCoordinates+0, sizeof(texcoords[0])*6);
 			memcpy(&texcoords[vv+6], c.TextureCoordinates+2, sizeof(texcoords[0])*6);
-			if (c.offx && p > (const unsigned char*)text) x += (c.offx*scalew);
-			vertices[vv+0] = vertices[vv+4] = vertices[vv+ 8] = x;                    //left
-			vertices[vv+2] = vertices[vv+6] = vertices[vv+10] = x + (c.width*scalew); //right
-			vertices[vv+5] = vertices[vv+9] = vertices[vv+11] = y - (c.offy*scaleh);  //top
-			vertices[vv+1] = vertices[vv+3] = vertices[vv+ 7] = vertices[vv+5] - lh;  //bottom
-			x = vertices[vv+2] + cs - olrs;
+			vertices[vv+0] = vertices[vv+4] = vertices[vv+ 8] = x + (c.offx*scalew);               //left
+			vertices[vv+2] = vertices[vv+6] = vertices[vv+10] = vertices[vv+0] + (c.width*scalew); //right
+			vertices[vv+5] = vertices[vv+9] = vertices[vv+11] = y - (c.offy*scaleh);               //top
+			vertices[vv+1] = vertices[vv+3] = vertices[vv+ 7] = vertices[vv+5] - lh;               //bottom
 			if (v == VBSIZE) { glDrawArraysUnbuffered(GL_TRIANGLES, 0, 6*VBSIZE); v = 0; }
+			x += (c.advance + cs) * scalew;
 		}
 		if (v) glDrawArraysUnbuffered(GL_TRIANGLES, 0, 6*v);
 	}
 
-	void GetDimensions(const char *text, scalar* width, scalar* height)
+	void GetDimensions(const char *text, scalar* width, scalar* height, bool resetLimitCount)
 	{
 		GLscalar cs = 0, linewidth;
 		if (width) *width = linewidth = 0, cs = fCharSpacing;
 		if (height) *height = fLineHeight;
 		unsigned char sz;
 		unsigned short cd;
-		for (const unsigned char *p = (const unsigned char*)text; *p; p += sz)
+		const Char* c = NULL;
+		for (const unsigned char *p = (const unsigned char*)text, *pEnd = (limitCount ? p + limitCount : (unsigned char*)-1);; p += sz)
 		{
-			if (*p == '\n')
+			if (!*p || p >= pEnd || *p == '\n')
 			{
+				if (width)
+				{
+					if (!limitCount) { linewidth += (c ? c->width - c->advance : 0) - cs; }
+					if (linewidth > *width) { *width = linewidth; }
+					linewidth = 0;
+				}
+				if (!*p || p >= pEnd)
+				{
+					if (resetLimitCount) limitCount = 0;
+					return;
+				}
 				if (height) { *height += fLineHeight + fLineSpacing; }
-				if (width) { if (linewidth - cs > *width) { *width = linewidth - cs; } linewidth = 0; }
-				sz = 1; continue;
+				sz = 1; c = NULL; continue;
 			}
 			if (*p == '\r' || !width) { sz = 1; continue; }
-			if (*p <= ' ') { sz = 1; linewidth += fSpaceWidth + cs; continue; }
+			if (*p <= ' ') { linewidth += fSpaceWidth + cs; sz = 1; c = NULL; continue; }
 			UCS(p, sz, cd);
 			if (!cd) continue;
-			std::map<unsigned short, Char>::iterator it = chars.find(cd);
-			const Char& c = (it == chars.end() ? MakeChar(cd) : it->second);
-			linewidth += (c.tex < 0 ? fSpaceWidth : (linewidth ? c.offx : 0) + c.width - olr) + cs;
+			const Char& it = chars.Get(cd);
+			c = (&it == &chars.NotFoundValue ? &MakeChar(cd) : &it);
+			linewidth += (c->tex < 0 ? fSpaceWidth : c->advance) + cs;
 		}
-		if (width) *width = (linewidth - cs > *width ? linewidth - cs : *width);
 	}
 };
 
@@ -567,12 +588,12 @@ ZL_Font::ZL_Font(const ZL_FileLink& BitmapFontFile) : impl(new ZL_FontBitmap_Imp
 	if (!((ZL_FontBitmap_Impl*)impl)->tex) { delete (ZL_FontBitmap_Impl*)impl; impl = NULL; }
 }
 
-ZL_Font::ZL_Font(const ZL_FileLink& TruetypeFontFile, scalar height, unsigned char ol) : impl(new ZL_FontTTF_Impl(TruetypeFontFile, height, ol, ol, ol, ol))
+ZL_Font::ZL_Font(const ZL_FileLink& TruetypeFontFile, scalar height, bool pixel_exact, unsigned char ol) : impl(new ZL_FontTTF_Impl(TruetypeFontFile, height, pixel_exact, ol, ol, ol, ol))
 {
 	if (!impl->fLineHeight) { delete (ZL_FontTTF_Impl*)impl; impl = NULL; }
 }
 
-ZL_Font::ZL_Font(const ZL_FileLink& TruetypeFontFile, scalar height, unsigned char oll, unsigned char olr, unsigned char olt, unsigned char olb) : impl(new ZL_FontTTF_Impl(TruetypeFontFile, height, oll, olr, olt, olb))
+ZL_Font::ZL_Font(const ZL_FileLink& TruetypeFontFile, scalar height, bool pixel_exact, unsigned char oll, unsigned char olr, unsigned char olt, unsigned char olb) : impl(new ZL_FontTTF_Impl(TruetypeFontFile, height, pixel_exact, oll, olr, olt, olb))
 {
 	if (!impl->fLineHeight) { delete (ZL_FontTTF_Impl*)impl; impl = NULL; }
 }
@@ -707,6 +728,8 @@ void ZL_Font::Draw(const ZL_Vector &p, const char *text, scalar scalew, scalar s
 void ZL_Font::Draw(const ZL_Vector &p, const char *text, scalar scalew, scalar scaleh, const ZL_Color &color, ZL_Origin::Type draw_at_origin) const
 { if (impl) impl->Draw(p.x, p.y, text, scalew, scaleh, color, draw_at_origin); }
 
+void ZL_Font::RequestCharLimit(int limitCount) { impl->limitCount = limitCount; }
+
 /* alternative using parameter struct for 2 or more options instead of that many overloaded draw methods
 void Draw(const ZL_Vector &p, const char *text, scalar scale) const;
 void Draw(const ZL_Vector &p, const char *text, const ZL_FontDrawDef &def) const;
@@ -773,6 +796,7 @@ struct ZL_TextBuffer_Impl : ZL_Impl
 	{
 		if (!text || !text[0] || !fnt) { Render(text); return; }
 		scalar check_width;
+		fnt->limitCount = 0;
 		fnt->GetDimensions(text, &check_width);
 		if (check_width*fntSettings->scale.x <= max_width) { Render(text); return; }
 
@@ -815,6 +839,7 @@ struct ZL_TextBuffer_Impl : ZL_Impl
 			fnt->RenderBuffer(text, vertices, texcoords, vecTTFTexLastIndex, len, width, height);
 			//ZL_LOG3("FONT", "Rendered Text Buffer: %s - Len: %d - vec: %d", text, len, (vecTTFTexLastIndex != NULL));
 		}
+		fnt->limitCount = 0;
 		#ifdef ZL_VIDEO_WEAKCONTEXT
 		if (vecTTFTexLastIndex)
 		{
@@ -1075,8 +1100,8 @@ void RecreateAllFontTexturesOnContextLost()
 	ZL_LOG1("TEXTURE", "RecreateAllFontTexturesIfContextLost with %d fonts to reload", pLoadedTTFFonts->size());
 	for (std::vector<ZL_FontTTF_Impl*>::iterator itTTFFont = pLoadedTTFFonts->begin(); itTTFFont != pLoadedTTFFonts->end(); ++itTTFFont)
 	{
-		(*itTTFFont)->pLastChar = NULL;
-		(*itTTFFont)->chars.clear();
+		(*itTTFFont)->last_char = false;
+		(*itTTFFont)->chars.Clear();
 		(*itTTFFont)->gltexids.clear();
 	}
 	ZL_LOG1("TEXTURE", "RecreateAllFontTexturesIfContextLost with %d ttf buffers to reload", (pActiveTTFTextBuffers ? pActiveTTFTextBuffers->size() : 0));

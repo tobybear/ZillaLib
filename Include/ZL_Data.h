@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2020 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -31,6 +31,7 @@
 #include <map>
 #include "ZL_Math.h"
 #include "ZL_File.h"
+#include "ZL_Application.h"
 
 //JSON format parser and writer
 struct ZL_Json
@@ -207,13 +208,23 @@ struct ZL_Compression
 	static bool Decompress(const void* CompressedBuffer, size_t CompressedSize, const void* DecompressedBuffer, size_t* DecompressedSize);
 };
 
-//Calculate checksum
+//Calculate checksums
 struct ZL_Checksum
 {
 	static unsigned int CRC32(const void* Data, size_t DataSize);
 	static unsigned int Fast(const void* Data, size_t DataSize);
 	static unsigned int Fast4(const void* Data, size_t DataSize); //DataSize must be 4 byte aligned
 };
+
+inline size_t ZL_Hash(i64 x) { x *= 0xff51afd7ed558ccd; return (size_t)(x ^ (x >> 32)); }
+inline size_t ZL_Hash(u64 x) { x *= 0xff51afd7ed558ccd; return (size_t)(x ^ (x >> 32)); }
+inline size_t ZL_Hash(int x) { x *= 0x85ebca6b; return (size_t)(x ^ (x >> 12)); }
+inline size_t ZL_Hash(unsigned int x) { x *= 0x85ebca6b; return (size_t)(x ^ (x >> 12)); }
+#ifdef ZL_IS_64_BIT
+inline size_t ZL_Hash(const void* x) { return ZL_Hash((u64)x); ZL_STATIC_ASSERT(sizeof(x) == 8); }
+#else
+inline size_t ZL_Hash(const void* x) { return ZL_Hash((unsigned int)x); ZL_STATIC_ASSERT(sizeof(x) == 4); }
+#endif
 
 //A name that is a checksum of a string for easy lookups and comparison (does not keep the string itself, just the 4 byte checksum)
 struct ZL_NameID
@@ -227,6 +238,137 @@ struct ZL_NameID
 	bool operator!=(const ZL_NameID &b) const { return (IDValue!=b.IDValue); }
 	bool operator<(const ZL_NameID& b) const { return (IDValue<b.IDValue); }
 	unsigned int IDValue;
+};
+
+//A hash map, TKey needs a ZL_Hash function, a == operator, and a ! operator that returns true when memory is zeroed, both TKey and TVal need to be trivially copyable
+template <typename TKey, typename TVal> struct ZL_TMap
+{
+	TVal NotFoundValue;
+
+	ZL_TMap() : NotFoundValue(TVal()), len(0), cap(0), keys(NULL), vals(NULL)
+	{
+		#ifdef ZL_HAVE_TYPE_TRAITS
+		ZL_STATIC_ASSERTMSG(std::is_trivially_copyable<TKey>::value, Map_key_type_needs_to_be_trivially_copyable);
+		ZL_STATIC_ASSERTMSG(std::is_trivially_copyable<TVal>::value, Map_value_type_needs_to_be_trivially_copyable);
+		#endif
+	}
+	~ZL_TMap() { free(keys); free(vals); }
+
+	TVal& Get(TKey key)
+	{
+		ZL_ASSERT(!!key);
+		if (len == 0) return NotFoundValue;
+		for (size_t i = (size_t)ZL_Hash(key);; i++)
+		{
+			if (keys[i &= cap - 1] == key) return vals[i];
+			if (!keys[i]) return NotFoundValue;
+		}
+	}
+
+	TVal& Put(TKey key, const TVal& val)
+	{
+		ZL_ASSERT(!!key);
+		if (2*len >= cap) Grow(2*cap);
+		for (size_t i = (size_t)ZL_Hash(key);; i++)
+		{
+			if (!keys[i &= cap - 1]) { len++; keys[i] = key; return vals[i] = val; }
+			if (keys[i] == key) return vals[i] = val;
+		}
+	}
+
+	bool Remove(TKey key)
+	{
+		ZL_ASSERT(!!key);
+		if (len == 0) return false;
+		for (size_t i = (size_t)ZL_Hash(key);; i++)
+		{
+			if (keys[i &= cap - 1] == key) { keys[i] = 0; len--; return true; }
+			if (!keys[i]) return false;
+		}
+	}
+
+	void Clear() { memset(keys, len = 0, cap * sizeof(TKey)); }
+
+private:
+	size_t len, cap;
+	TKey *keys;
+	TVal *vals;
+
+	void Grow(size_t new_cap)
+	{
+		TKey *oldKeys = keys;
+		TVal *oldVals = vals;
+		size_t oldCap = cap;
+		len  = 0;
+		cap  = (new_cap < 16 ? 16 : new_cap);
+		keys = (TKey *)calloc(cap, sizeof(TKey));
+		vals = (TVal *)malloc(cap * sizeof(TVal));
+		for (size_t i = 0; i < oldCap; i++) if (!!oldKeys[i]) Put(oldKeys[i], oldVals[i]);
+		free(oldKeys);
+		free(oldVals);
+	}
+};
+
+//A hash set, TKey needs to be trivially copyable, a ZL_Hash function and a == operator, and also needs a ! operator that returns true when memory is zeroed
+template <typename TKey> struct ZL_TSet
+{
+	ZL_TSet() : len(0), cap(0), keys(NULL)
+	{
+		#ifdef ZL_HAVE_TYPE_TRAITS
+		ZL_STATIC_ASSERTMSG(std::is_trivial<TKey>::value, Set_key_type_needs_to_be_trivially_copyable);
+		#endif
+	}
+	~ZL_TSet() { free(keys); }
+
+	bool Get(TKey key)
+	{
+		ZL_ASSERT(!!key);
+		if (len == 0) return false;
+		for (size_t i = (size_t)ZL_Hash(key);; i++)
+		{
+			if (keys[i &= cap - 1] == key) return true;
+			if (!keys[i]) return false;
+		}
+	}
+
+	bool Put(TKey key)
+	{
+		ZL_ASSERT(!!key);
+		if (2*len >= cap) Grow(2*cap);
+		for (size_t i = (size_t)ZL_Hash(key);; i++)
+		{
+			if (!keys[i &= cap - 1]) { len++; keys[i] = key; return true; }
+			if (keys[i] == key) return false;
+		}
+	}
+
+	bool Remove(TKey key)
+	{
+		ZL_ASSERT(!!key);
+		if (len == 0) return false;
+		for (size_t i = (size_t)ZL_Hash(key);; i++)
+		{
+			if (keys[i &= cap - 1] == key) { keys[i] = 0; len--; return true; }
+			if (!keys[i]) return false;
+		}
+	}
+
+	void Clear() { memset(keys, len = 0, cap * sizeof(TKey)); }
+
+private:
+	size_t len, cap;
+	TKey *keys;
+
+	void Grow(size_t new_cap)
+	{
+		TKey *oldKeys = keys;
+		size_t oldCap = cap;
+		len  = 0;
+		cap  = (new_cap < 16 ? 16 : new_cap);
+		keys = (TKey *)calloc(cap, sizeof(TKey));
+		for (size_t i = 0; i < oldCap; i++) if (!!oldKeys[i]) Put(oldKeys[i]);
+		free(oldKeys);
+	}
 };
 
 #endif //__ZL_DATA__
