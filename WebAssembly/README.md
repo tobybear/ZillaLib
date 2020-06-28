@@ -24,12 +24,12 @@ We need only clang and wasm-ld from LLVM 8.0.0 or newer which is available on [t
 On Windows it's much simpler to use 7zip to just extract `clang.exe` and `wasm-ld.exe` instead of installing the whole suite.
 
 ## Getting System Libraries
-The system libraries are maintained in the [Emscripten project](https://github.com/emscripten-core/emscripten/tree/incoming/system).  
-Just download the [GitHub archive](https://github.com/emscripten-core/emscripten/archive/incoming.zip) and extract only the `System` directory from it.
+The system libraries are maintained in the [Emscripten project](https://github.com/emscripten-core/emscripten/tree/master/system).  
+Just download the [GitHub archive](https://github.com/emscripten-core/emscripten/archive/master.zip) and extract only the `System` directory from it.
 
 ## Getting Python
 If you already have Python (any version) on your system, you're good to go.  
-Otherwise if you're on Windows, there's a simple portable ZIP [here](https://s3.amazonaws.com/mozilla-games/emscripten/packages/python_2.7.5.3_64bit.zip).
+Otherwise if you're on Windows, there's a simple portable ZIP [here](https://storage.googleapis.com/webassembly/emscripten-releases-builds/deps/python-3.7.4-embed-amd64-patched.zip).
 
 ## Getting wasm-opt
 The tool wasm-opt from Binaryen is needed for finalization of the output and it also provides a 15% size reduction of the generated .wasm files.  

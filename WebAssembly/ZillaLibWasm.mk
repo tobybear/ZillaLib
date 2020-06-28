@@ -20,6 +20,7 @@
 #
 
 sp := $(*NOTEXIST*) $(*NOTEXIST*)
+THIS_MAKEFILE = $(subst ?, ,$(lastword $(subst *, ,$(subst $(SPACE),?,$(subst : /,:/,$(patsubst %:,*%:,$(subst :,: ,$(subst \,/,$(subst $(SPACE)/,*/,$(MAKEFILE_LIST))))))))))
 THIS_MAKEFILE := $(patsubst ./%,%,$(subst \,/,$(lastword $(MAKEFILE_LIST))))
 ISWIN := $(findstring :,$(firstword $(subst \, ,$(subst /, ,$(abspath .)))))
 ZILLALIB_DIR = $(or $(subst |,/,$(subst <,,$(subst <.|,,<$(subst /,|,$(dir $(subst $(sp),/,$(strip $(subst /,$(sp),$(dir $(THIS_MAKEFILE)))))))))),$(if $(subst ./,,$(dir $(THIS_MAKEFILE))),,../))
@@ -44,7 +45,7 @@ ifeq ($(BUILD),RELEASE)
   APPOUTDIR := Release-wasm
   DBGCFLAGS := -DNDEBUG
   LDFLAGS   := -strip-all -gc-sections
-  WOPTFLAGS := -O3
+  WOPTFLAGS := -O3 --converge
 else
   LIBOUTDIR := $(dir $(THIS_MAKEFILE))build-debug
   SYSOUTDIR := $(dir $(THIS_MAKEFILE))build
@@ -109,21 +110,30 @@ WASMOPT := "$(WASMOPT)"
 PYTHON  := "$(PYTHON_NOQUOTE)"
 7ZIP    := $(if $(7ZIP),"$(7ZIP)")
 
-# Python one liner to delete all .o files when the dependency files were created empty due to compile error
-CMD_DEL_OLD_OBJ := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.path.getsize(a)==0 and os.path.exists(a.rstrip('d')+'o') and os.remove(a.rstrip('d')+'o') for a in sys.argv[1:]]"
+# Python one liner to delete multiple files with existance check and no stdout output
 CMD_DEL_FILES   := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.remove(a) for a in sys.argv[1:]]"
+
+# Python one liner to make directories with parent directories
 CMD_MAKE_DIRS   := $(PYTHON) -c "import sys,os;os.path.exists(sys.argv[1]) or os.makedirs(sys.argv[1])"
+
+# Python one liner to pack a zip out of asset files
 CMD_MAKE_ZIP    := $(PYTHON) -c "import sys,zipfile;z=zipfile.ZipFile(sys.argv[1],'w');[z.write(f) for f in sys.argv[2:]]"
-CMD_APP_JS      := $(PYTHON) -c "import sys,os,base64;open(sys.argv[1],'wb').write(''.join([os.path.exists(a) and 'ZL.'+(i==0 and 'wasm' or 'files')+'='+chr(39)+base64.b64encode(open(a,'rb').read())+chr(39)+';'+chr(10) for i, a in enumerate(sys.argv[3:])])+open(sys.argv[2],'r').read())"
-CMD_ASSET_JS    := $(PYTHON) -c "import sys,os,base64;open(sys.argv[1],'wb').write('ZL.files='+chr(39)+base64.b64encode(open(sys.argv[2],'rb').read())+chr(39)+';'+chr(10))"
-CMD_MAKE_GZ     := $(PYTHON) -c "import sys,gzip;gzip.GzipFile('','wb',9,open(sys.argv[1],'wb'),0).write(open(sys.argv[2],'r').read())"
+
+# Python one liner generate an output loader js file with base64 encoded wasm file and asset file appended to the top
+CMD_APP_JS      := $(PYTHON) -c "import sys,os,base64;open(sys.argv[1],'w').write(''.join([os.path.exists(a) and 'ZL.'+(i==0 and 'wasm' or 'files')+'='+chr(39)+(base64.b64encode(open(a,'rb').read()) if sys.version_info[0]<3 else base64.b64encode(open(a,'rb').read()).decode())+chr(39)+';'+chr(10) for i, a in enumerate(sys.argv[3:])])+open(sys.argv[2],'r').read())"
+
+# Python one liner generate a js file with only the base64 encoded asset file
+CMD_ASSET_JS    := $(PYTHON) -c "import sys,os,base64;open(sys.argv[1],'w').write('ZL.files='+chr(39)+(base64.b64encode(open(sys.argv[2],'rb').read()) if sys.version_info[0]<3 else base64.b64encode(open(sys.argv[2],'rb').read()).decode('ascii'))+chr(39)+';'+chr(10))"
+
+# Python one liner to gzip a file
+CMD_MAKE_GZ     := $(PYTHON) -c "import sys,gzip;gzip.GzipFile('','wb',9,open(sys.argv[1],'wb'),0).write(open(sys.argv[2],'rb').read())"
 
 # Disable DOS PATH warning when using Cygwin based tools Windows
 CYGWIN ?= nodosfilewarning
 export CYGWIN
 
 ifeq ($(MSVC),1)
-CMD_MSVC_FILTER := $(PYTHON) -u -c "import re,sys,subprocess;r1=re.compile(':(\\d+):');p=subprocess.Popen(sys.argv[1:],shell=False,stdout=subprocess.PIPE,stderr=subprocess.STDOUT); [sys.stderr.write(r1.sub('(\\1) :',l).rstrip()+chr(10)) for l in iter(p.stdout.readline, b'')]; sys.stderr.write(chr(10));sys.exit(p.wait())"
+CMD_MSVC_FILTER := $(PYTHON) -u -c "import re,sys,subprocess;r1=re.compile(':(\\d+):');p=subprocess.Popen(sys.argv[1:],shell=False,stdout=subprocess.PIPE,stderr=subprocess.STDOUT); [sys.stderr.write(r1.sub('(\\1) :',l.decode()).rstrip()+chr(10)) for l in iter(p.stdout.readline, b'')]; sys.stderr.write(chr(10));sys.exit(p.wait())"
 all:;+@$(CMD_MSVC_FILTER) "$(MAKE)" --no-print-directory -f "$(THIS_MAKEFILE)" -j 4 "MSVC=0"
 else #!MSVC
 
@@ -162,13 +172,9 @@ ZILLAAPPSCRIPT := $(subst > <,><,$(foreach F,$(patsubst $(APPOUTDIR)/%.js.gz,%.j
 all: $(APPOUTJSS) $(APPOUTDIR)/$(ZillaApp).html
 .PHONY: clean cleanall run web
 
-define MAKEAPPOBJ
+MAKEAPPOBJ = $(APPOUTDIR)/$(basename $(notdir $(1))).o: $(1) ; $$(call COMPILEMMD,$$@,$$<,$(2),$(3) $$(APPFLAGS))
 
-$(APPOUTDIR)/$(basename $(notdir $(1))).o: $(1) ; $$(call COMPILEMMD,$$@,$$<,$(2),$(3) $$(APPFLAGS))
-
-endef
 APPOBJS := $(addprefix $(APPOUTDIR)/,$(notdir $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(APPSOURCES)))))
-$(shell $(CMD_DEL_OLD_OBJ) $(APPOBJS:%.o=%.d))
 -include $(APPOBJS:%.o=%.d)
 $(foreach F,$(filter %.cpp,$(APPSOURCES)),$(eval $(call MAKEAPPOBJ,$(F),$$(CXX),$$(CXXFLAGS))))
 $(foreach F,$(filter %.c  ,$(APPSOURCES)),$(eval $(call MAKEAPPOBJ,$(F),$$(CC),$$(CCFLAGS))))
@@ -187,8 +193,6 @@ $(APPOUTDIR)/$(ZillaApp).wasm : $(THIS_MAKEFILE) $(APPOUTDIR)/$(ZillaApp).bc $(L
 	$(info Linking $@ ...)
 	@$(LD) $(LDFLAGS) -o $@ $(APPOUTDIR)/$(ZillaApp).bc $(LIBOUTDIR)/ZillaLib.bc $(SYSOUTDIR)/System.bc
 	@$(WASMOPT) --legalize-js-interface $(WOPTFLAGS) $@ -o $@
-	D:\dev\emscripten_sdk\wabt\wasm-objdump.exe -x $@ >$@.objdump
-	D:\dev\emscripten_sdk\wabt\wasm2c $@ -o $@.c
 
 $(ASSET_ZIP) : $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)))
 	$(info Building $@ with $(words $(ASSET_ALL_STARS)) assets ...)
@@ -290,12 +294,6 @@ LIBSOURCES := $(wildcard $(ZILLALIB_DIR)Source/*.cpp)
 
 DEPSOURCES := \
 	$(wildcard $(ZILLALIB_DIR)Source/zlib/*.c) \
-	$(wildcard $(ZILLALIB_DIR)Source/enet/callbacks.c) \
-	$(wildcard $(ZILLALIB_DIR)Source/enet/host.c) \
-	$(wildcard $(ZILLALIB_DIR)Source/enet/list.c) \
-	$(wildcard $(ZILLALIB_DIR)Source/enet/packet.c) \
-	$(wildcard $(ZILLALIB_DIR)Source/enet/peer.c) \
-	$(wildcard $(ZILLALIB_DIR)Source/enet/protocol.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/libtess2/*.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/stb/*.cpp)
 
@@ -307,7 +305,6 @@ WASM_CC_LIBOBJS  := $(addprefix $(LIBOUTDIR)/,$(patsubst   %.c,%.o,$(filter   %.
 WASM_CPP_DEPOBJS := $(addprefix $(LIBOUTDIR)/,$(patsubst %.cpp,%.o,$(filter %.cpp,$(DEPSOURCES))))
 WASM_CC_DEPOBJS  := $(addprefix $(LIBOUTDIR)/,$(patsubst   %.c,%.o,$(filter   %.c,$(DEPSOURCES))))
 
-$(shell $(CMD_DEL_OLD_OBJ) $(WASM_CPP_LIBOBJS:%.o=%.d) $(WASM_CC_LIBOBJS:%.o=%.d))
 -include $(WASM_CPP_LIBOBJS:%.o=%.d) $(WASM_CC_LIBOBJS:%.o=%.d)
 $(WASM_CPP_LIBOBJS) : $(LIBOUTDIR)/%.o : $(ZILLALIB_DIR)%.cpp ; $(call COMPILEMMD,$@,$<,$(CXX),$(CXXFLAGS) $(LIBFLAGS))
 $(WASM_CC_LIBOBJS)  : $(LIBOUTDIR)/%.o : $(ZILLALIB_DIR)%.c   ; $(call COMPILEMMD,$@,$<,$(CC),$(CCFLAGS) $(LIBFLAGS))

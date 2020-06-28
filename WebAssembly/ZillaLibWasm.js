@@ -95,7 +95,7 @@ function Pointer_stringify(ptr, length)
 	if (length === 0 || !ptr) return '';
 	for (var hasUtf = 0, t, i = 0;;)
 	{
-		t = HEAPU8[(((ptr)+(i))>>0)];
+		t = HEAPU8[((ptr)+(i))>>0];
 		hasUtf |= t;
 		if (t == 0 && !length) break;
 		i++;
@@ -163,7 +163,7 @@ function SYSCALLS_WASM_IMPORTS(env, wasi)
 			if (curr < len) break; // nothing more to read
 		}
 		//console.log('__wasi_fd_read -     ret: ' + ret);
-		HEAP32[pOutResult>>2] = ret;
+		HEAPU32[pOutResult>>2] = ret;
 		return 0;
 	};
 
@@ -174,8 +174,8 @@ function SYSCALLS_WASM_IMPORTS(env, wasi)
 		if (whence == 2) PAYLOAD_CURSOR = PAYLOAD.length - offset_low; //end
 		if (PAYLOAD_CURSOR < 0) PAYLOAD_CURSOR = 0;
 		if (PAYLOAD_CURSOR > PAYLOAD.length) PAYLOAD_CURSOR = PAYLOAD.length;
-		HEAP32[(pOutResult+0)>>2] = PAYLOAD_CURSOR;
-		HEAP32[(pOutResult+4)>>2] = 0;
+		HEAPU32[(pOutResult+0)>>2] = PAYLOAD_CURSOR;
+		HEAPU32[(pOutResult+4)>>2] = 0;
 		//console.log('__wasi_fd_seek - fd: ' + fd + ' - offset_high: ' + offset_high + ' - offset_low: ' + offset_low + ' - pOutResult: ' + pOutResult + ' - whence: ' +whence + ' - seek to: ' + PAYLOAD_CURSOR);
 		return 0;
 	};
@@ -194,7 +194,7 @@ function SYSCALLS_WASM_IMPORTS(env, wasi)
 			//console.log('__wasi_fd_write - fd: ' + fd + ' - ['+i+'][len:'+len+']: ' + Pointer_stringify(ptr, len));
 		}
 		ZL.print(str);
-		HEAP32[pOutResult>>2] = ret;
+		HEAPU32[pOutResult>>2] = ret;
 		return 0;
 	};
 
@@ -1050,7 +1050,7 @@ function ZLJS_WASM_IMPORTS(env)
 			ZL.asm.ZLFNKey(true, e.keyCode, e.shiftKey, e.ctrlKey, e.altKey, e.metaKey);
 			var f;
 			if (e.char !== undefined) { if (!e.char) cancelEvent(e); }
-			else if (!e.keyIdentifier || (!(f = e.keyIdentifier.match(/^U\+(\S+)$/))) || Math.floor('0x'+f[1]) < 32) cancelEvent(e);
+			else if (!e.keyIdentifier || (!(f = e.keyIdentifier.match(/^U\+(\S+)$/))) || ('0x'+f[1]|0) < 32) cancelEvent(e);
 		});
 		windEvent('keyup', function(e)
 		{
@@ -1263,8 +1263,8 @@ function ZLJS_WASM_IMPORTS(env)
 var env =
 {
 	sbrk: _sbrk,
-	time: function(ptr) { var ret = (Date.now()/1000)|0; if (ptr) HEAP32[ptr>>2] = ret; return ret; },
-	gettimeofday: function(ptr) { var now = Date.now(); HEAP32[ptr>>2]=(now/1000)|0; HEAP32[(ptr+4)>>2]=((now % 1000)*1000)|0; },
+	time: function(ptr) { var ret = (Date.now()/1000)|0; if (ptr) HEAPU32[ptr>>2] = ret; return ret; },
+	gettimeofday: function(ptr) { var now = Date.now(); HEAPU32[ptr>>2]=(now/1000)|0; HEAPU32[(ptr+4)>>2]=((now % 1000)*1000)|0; },
 	__assert_fail:  function(condition, filename, line, func) { abort('CRASH', 'Assert ' + Pointer_stringify(condition) + ', at: ' + (filename ? Pointer_stringify(filename) : 'unknown filename'), line, (func ? Pointer_stringify(func) : 'unknown function')); },
 	__cxa_uncaught_exception: function() { abort('CRASH', 'Uncaught exception!'); },
 	__cxa_pure_virtual: function() { abort('CRASH', 'pure virtual'); },
@@ -1331,13 +1331,13 @@ WASM_HEAP = wasmHeapBase;
 WASM_MEMORY = env.memory = new WebAssembly.Memory({initial: wasmMemInitial>>16, maximum: WASM_HEAP_MAX>>16 });
 updateGlobalBufferViews();
 
-WebAssembly.instantiate(wasmBytes, {env:env,wasi_unstable:wasi}).then(function (output)
+WebAssembly.instantiate(wasmBytes, {env:env,wasi_unstable:wasi,wasi_snapshot_preview1:wasi,wasi:wasi}).then(function (output)
 {
 	ZL.asm = output.instance.exports;
 
 	var argc = 1, argv = wasmStackTop, exe = 'zl';
-	stringToUTF8Array(exe, HEAP8, (HEAP32[(argv+0)>>2] = (argv+8)), 256);
-	HEAP32[(argv+4) >> 2] = 0;
+	stringToUTF8Array(exe, HEAP8, (HEAPU32[(argv+0)>>2] = (argv+8)), 256);
+	HEAPU32[(argv+4) >> 2] = 0;
 
 	ZL.asm.__wasm_call_ctors();
 	ZL.asm.main(argc, argv, 0);
