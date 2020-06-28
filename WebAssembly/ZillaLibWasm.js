@@ -135,7 +135,7 @@ function SYSCALLS_WASM_IMPORTS(env, wasi)
 	var PAYLOAD = (ZL.files ? Base64Decode(ZL.files) : new Uint8Array(0));
 	delete ZL.files;
 
-	env.__syscall5 = function(which, varargs) // open (only used to open payload)
+	env.__sys_open = env.__syscall5 = function(which, varargs) // open (only used to open payload)
 	{
 		PAYLOAD_CURSOR = 0;
 		//var getVarArgs;
@@ -204,7 +204,7 @@ function SYSCALLS_WASM_IMPORTS(env, wasi)
 		return 0;
 	};
 
-	env.__syscall221 = env.__syscall54 = function(which, varargs) // fcntl64, ioctl
+	env.__sys_fcntl64 = env.__sys_ioctl = env.__syscall221 = env.__syscall54 = function(which, varargs) // fcntl64, ioctl
 	{
 		return 0;
 	};
@@ -1286,7 +1286,7 @@ env.sqrt = env.sqrtf = Math.sqrt;
 env.atan = env.atanf = Math.atan;
 env.atan2 = env.atan2f = Math.atan2;
 env.fabs = env.fabsf = env.abs = Math.abs;
-env.round  = env.roundf = env.rint  = env.rintf = Math.round;
+env.round = env.roundf = env.rint = env.rintf = Math.round;
 
 ZLJS_WASM_IMPORTS(env);
 GL_WASM_IMPORTS(env);
@@ -1331,10 +1331,12 @@ WASM_HEAP = wasmHeapBase;
 WASM_MEMORY = env.memory = new WebAssembly.Memory({initial: wasmMemInitial>>16, maximum: WASM_HEAP_MAX>>16 });
 updateGlobalBufferViews();
 
+// Instantiate the wasm module by passing the prepared env and wasi objects containing import functions for the wasm module
 WebAssembly.instantiate(wasmBytes, {env:env,wasi_unstable:wasi,wasi_snapshot_preview1:wasi,wasi:wasi}).then(function (output)
 {
+	// Store the list of the functions exported by the wasm module in ZL.asm
 	ZL.asm = output.instance.exports;
-
+	// Store the argument list with 1 entry at the far end of the stack to pass to main
 	var argc = 1, argv = wasmStackTop, exe = 'zl';
 	stringToUTF8Array(exe, HEAP8, (HEAPU32[(argv+0)>>2] = (argv+8)), 256);
 	HEAPU32[(argv+4) >> 2] = 0;
@@ -1345,6 +1347,7 @@ WebAssembly.instantiate(wasmBytes, {env:env,wasi_unstable:wasi,wasi_snapshot_pre
 })
 .catch(function (err)
 {
+	// On an exception, if the err is 'abort' the error was already processed in the abort function above
 	if (err !== 'abort') abort('BOOT', 'WASM instiantate error: ' + err + (err.stack ? "\n" + err.stack : ''));
 });
 

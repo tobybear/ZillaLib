@@ -19,7 +19,7 @@
 #  3. This notice may not be removed or altered from any source distribution.
 #
 
-import sys,re,os,string,subprocess,fnmatch,SimpleHTTPServer,SocketServer
+import sys,re,os,string,subprocess,fnmatch
 wasm_dir = os.path.dirname(os.path.realpath(sys.argv.pop(0))).replace('\\', '/')
 def get_makefile_str(param,m='Makefile',d=''): return ((re.findall(param+'\s*=\s*(.*?)\s*(?:\n|\r|$)',open(m).read())or[d])[0] if os.path.exists(m) else d)
 def get_makefile_int(param,m='Makefile',d=0): return (int((re.findall(param+'\s*=\s*(\d+)',open(m).read())or[str(d)])[0]) if os.path.exists(m) else d)
@@ -32,10 +32,13 @@ if cmd == 'RUN' or cmd == 'WEB':
 	for ln in sys.argv:
 		if re.match('-REL', ln, re.I): outdir = 'Release-wasm';sys.argv.pop(sys.argv.index(ln));break
 	if sys.argv and os.path.exists(sys.argv[0]): outdir = sys.argv.pop(0)
-	htmlfile = (fnmatch.filter(os.walk(outdir).next()[2], "*.htm*") or [''])[0]
+	for root, dirs, files in os.walk(outdir):
+		htmlfile = (fnmatch.filter(files, "*.htm*") or [''])[0]
+		break
 	if sys.argv and os.path.exists(outdir+os.sep+sys.argv[0]): htmlfile = sys.argv.pop(0)
 
 	if cmd == 'WEB':
+		import SimpleHTTPServer,SocketServer
 		HTTPRequestCount = 0
 		class OurHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
 			def send_header(self, keyword, value):
@@ -58,7 +61,7 @@ if cmd == 'RUN' or cmd == 'WEB':
 
 	browsercmd = get_makefile_str('BROWSER', wasm_dir+'/ZillaAppLocalConfig.mk');
 	if browsercmd == '':
-		def tryurl(p): a=1;exec "try:subprocess.call([p, htmlurl])\nexcept:a=0";return a
+		def tryurl(p): a=1;exec("try:subprocess.call([p, htmlurl])\nexcept:a=0");return a
 		try:os.startfile(htmlurl)
 		except:(tryurl('xdg-open') or tryurl('gnome-open') or tryurl('exo-open') or tryurl('open'))
 	else:
@@ -66,18 +69,18 @@ if cmd == 'RUN' or cmd == 'WEB':
 		except:
 			sys.stderr.write("\nCould not run browser with command line '"+browsercmd+"'\nSet custom path in "+wasm_dir+"/ZillaAppLocalConfig.mk with BROWSER = "+('D:' if sys.platform == 'win32' else '')+"/path/to/browser/browser"+('.exe' if sys.platform == 'win32' else '')+"\n\n")
 			sys.exit(1)
-	print "Opening",htmlurl,"with",browsercmd
+	sys.stdout.write("Opening " + htmlurl + " with " +browsercmd)
 
 	if cmd == 'WEB':
 		MaxRequestCount = (2 if outdir == 'Release-wasm' and get_makefile_int('ZLWASM_ASSETS_EMBED') else 3)
-		print 'Serving', MaxRequestCount, 'files from directory', outdir, 'at port', httpdport
+		sys.stdout.write('Serving ' + MaxRequestCount + ' files from directory ' + outdir + ' at port ' + httpdport)
 		try:
 			while HTTPRequestCount < MaxRequestCount: httpd.handle_request()
 		except:pass
 	sys.exit(0)
 
 else:
-	print "No command in arguments specified."
-	print "Valid commands are: RUN, WEB"
-	print "RUN: run browser to output HTML"
-	print "WEB: start webserver in output dir run browser to output HTML"
+	sys.stdout.write("No command in arguments specified.")
+	sys.stdout.write("Valid commands are: RUN, WEB")
+	sys.stdout.write("RUN: run browser to output HTML")
+	sys.stdout.write("WEB: start webserver in output dir run browser to output HTML")

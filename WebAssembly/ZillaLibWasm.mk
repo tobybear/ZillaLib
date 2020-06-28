@@ -219,7 +219,7 @@ $(if $(ZLWASM_ASSETS_EMBED),,$(ASSET_JS).gz) : $(ASSET_JS)
 
 $(APPOUTDIR)/$(ZillaApp).html : $(dir $(THIS_MAKEFILE))ZillaLibWasm.html
 	$(info $(if $(wildcard $@),Warning: Template $^ is newer than $@ - delete the local build file to have it regenerated,Generating $@ ...))
-	@$(if $(wildcard $@),,$(PYTHON) -c "open('$@','wb').write(file('$^','rb').read().replace('{{ZILLAAPP}}','$(ZillaApp)').replace('{{ZILLAAPPSCRIPT}}','$(subst ",'+chr(34)+',$(ZILLAAPPSCRIPT))'))")
+	@$(if $(wildcard $@),,$(PYTHON) -c "open('$@','w').write(open('$^','r').read().replace('{{ZILLAAPP}}','$(ZillaApp)').replace('{{ZILLAAPPSCRIPT}}','$(subst ",'+chr(34)+',$(ZILLAAPPSCRIPT))'))")
 
 run web : $(if $(RUNWITHOUTBUILD),,all)
 	@$(PYTHON) "$(dir $(THIS_MAKEFILE))ZillaLibWasm.py" $@ "$(APPOUTDIR)" "$(ZillaApp).html"
