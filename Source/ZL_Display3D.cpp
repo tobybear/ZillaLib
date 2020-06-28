@@ -2449,7 +2449,7 @@ bool ZL_Display3D::InitShadowMapping()
 				unsigned int MMSMRules = MO_UNLIT | (MM&MO_SKELETALMESH);
 				if (UseMasked)         MMSMRules |= MO_MASKED | (UseCustomMask ? (MM&(MM_UVFUNC|MM_DIFFUSEMAP|MM_DIFFUSEFUNC)) : MM_DIFFUSEMAP);
 				if (UseCustomPosition) MMSMRules |= (MM&(MM_VERTEXFUNC|MM_POSITIONFUNC));
-				unsigned int MMSMGlobal = MMSMRules | (UseCustomPosition|UseCustomMask ? (MM & MMDEF_REQUESTS) : 0);
+				unsigned int MMSMGlobal = MMSMRules | ((UseCustomPosition|UseCustomMask) ? (MM & MMDEF_REQUESTS) : 0);
 				const char *VS[1+COUNT_OF(SharedRules)+COUNT_OF(VSGlobalRules)+COUNT_OF(VSRules)], *FS[COUNT_OF(SharedRules)+COUNT_OF(FSRules)];
 				GLsizei VSCount = 0;
 				if (MMSMRules & MM_VERTEXFUNC) VS[VSCount++] = "#define " Z3D_SHADOWMAP "\n";
