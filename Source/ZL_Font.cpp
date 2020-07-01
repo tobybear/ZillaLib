@@ -110,7 +110,7 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 		std::vector<ZL_FontCharRect> rects;
 		int LineCount = 0;
 		int bpp = Bitmap.BytesPerPixel, pitch = Bitmap.w * bpp;
-		for (unsigned char *pStart = Bitmap.pixels + (tex->h-1) * pitch + bpp - 1, *pEnd = pStart - tex->h * pitch, *pLineMin = pStart, *pLineMax = pStart; pLineMax != pEnd; pLineMax -= pitch)
+		for (unsigned char *pStart = Bitmap.pixels + (tex->h-1) * pitch + bpp - 1, *pEnd = pStart - tex->h * pitch, *pLineMin = pStart, *pLineMax = pStart; pLineMax >= pEnd; pLineMax -= pitch)
 		{
 			bool IsSplitRow = true;
 			if (pLineMax >= Bitmap.pixels) for (unsigned char *p = pLineMax, *pLineEnd = pLineMax + pitch; p != pLineEnd; p += bpp) if (*p) { IsSplitRow = false;  break; }
@@ -120,11 +120,11 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 			for (unsigned char *pCharMin = pLineMin, *pCharMax = pLineMin, *pLineEnd = pLineMin + pitch; pCharMax <= pLineEnd; pCharMax += bpp)
 			{
 				bool IsSplitColumn = true;
-				for (unsigned char *p = pCharMax; pCharMax < pLineEnd && p >= pLineMax; p -= pitch) if (*p) { IsSplitColumn = false; break; }
+				for (unsigned char *p = pCharMax; pCharMax < pLineEnd && p >= pLineMax + pitch; p -= pitch) if (*p) { IsSplitColumn = false; break; }
 				if (!IsSplitColumn) continue;
 				if (pCharMin == pCharMax) { pCharMin = pCharMax+bpp; continue; }
 
-				ZL_FontCharRect r = { (int)(pCharMin - pLineMin)/bpp, (int)(pCharMax - pLineMin)/bpp, (int)(pLineMin - Bitmap.pixels) / pitch + 1, (int)(pLineMax - Bitmap.pixels) / pitch + 1 };
+				ZL_FontCharRect r = { (int)(pCharMin - pLineMin)/bpp, (int)(pCharMax - pLineMin)/bpp, (int)(pLineMin - pEnd) / pitch, (int)(pLineMax - pEnd) / pitch };
 				rects.push_back(r);
 
 				pCharMin = pCharMax+bpp;
@@ -133,25 +133,33 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 			pLineMin = pLineMax-pitch;
 		}
 
-		int LineHeight = (tex->h / (LineCount ? LineCount : 1));
-		fLineHeight = s(LineHeight);
+		////Uncomment this to disable bilinear filtering on bitmap font texture
+		//tex->SetTextureFilter(GL_NEAREST, GL_NEAREST);
 
-		fSpaceWidth = s(rects[0].right - rects[0].left);
+		ZL_FontCharRect spaceRect = rects[0];
+		int spaceHeight = spaceRect.top - spaceRect.bottom;
+		bool exact = ((LineCount * (spaceHeight + 1) - 1) == (spaceRect.top - rects.back().bottom));
+
+		int LineHeight = (exact ? (spaceHeight + 1) : (tex->h / (LineCount ? LineCount : 1)));
+		fLineHeight = s(LineHeight-1);
+		fSpaceWidth = s(spaceRect.right - spaceRect.left);
+
 		GLuint iCharCount = (rects.size() >= 0x7F-' '-1 ? 0x100-' '-1 : (GLuint)(rects.size()-1));
 		memset(CharWidths, 0, sizeof(CharWidths));
 		for (GLuint i = 1; i < rects.size(); i++)
 		{
 			ZL_FontCharRect &rect = rects[i];
-			rect.right++;
 			GLuint iCharIndex = (i >= 0x7F-' '-1 ? iCharCount - (GLuint)(rects.size() - i) : i-1);
 			CharWidths[iCharIndex] = s(rect.right - rect.left);
-			rect.top = ((rect.top+(LineHeight/2))/LineHeight)*LineHeight;
-			rect.bottom = rect.top - LineHeight;
+			int charLine = (spaceRect.top - ((rect.bottom + rect.top) / 2)) / LineHeight;
+			rect.top    = spaceRect.top    - charLine * LineHeight;
+			rect.bottom = spaceRect.bottom - charLine * LineHeight;
+
 			GLscalar *pTexCoord = TextureCoordinates[iCharIndex];
-			pTexCoord[0] = pTexCoord[4] = (GLscalar)(rect.left ? rect.left*2-1 : 0)     / (tex->wTex*2);
-			pTexCoord[2] = pTexCoord[6] = (GLscalar)(rect.right*2-1)                    / (tex->wTex*2);
-			pTexCoord[1] = pTexCoord[3] = (GLscalar)(rect.bottom ? rect.bottom*2-1 : 0) / (tex->hTex*2);
-			pTexCoord[5] = pTexCoord[7] = (GLscalar)(rect.top*2-1)                      / (tex->hTex*2);
+			pTexCoord[0] = pTexCoord[4] = ((GLscalar)rect.left   / tex->wTex);
+			pTexCoord[2] = pTexCoord[6] = ((GLscalar)rect.right  / tex->wTex);
+			pTexCoord[1] = pTexCoord[3] = ((GLscalar)rect.bottom / tex->hTex);
+			pTexCoord[5] = pTexCoord[7] = ((GLscalar)rect.top    / tex->hTex);
 		}
 		free(Bitmap.pixels);
 	}
