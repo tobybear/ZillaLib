@@ -71,6 +71,7 @@
     <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/WebAssembly/ZillaLibWasm.mk" "ZillaApp=$(ProjectName)" run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>__wasm__</NMakePreprocessorDefinitions>
+    <IncludePath>$(ZillaLibDir)/Include</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='WebAssembly-Release'">
     <OutDir>Release-wasm\</OutDir>
@@ -80,6 +81,7 @@
     <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/WebAssembly/ZillaLibWasm.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>__wasm__</NMakePreprocessorDefinitions>
+    <IncludePath>$(ZillaLibDir)/Include</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Debug'">
     <OutDir>Debug-emscripten\</OutDir>
@@ -89,6 +91,7 @@
     <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
+    <IncludePath>$(ZillaLibDir)/Include</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Release'">
     <OutDir>Release-emscripten\</OutDir>
@@ -98,6 +101,7 @@
     <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/Emscripten/ZillaLibEmscripten.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
+    <IncludePath>$(ZillaLibDir)/Include</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='NACL-Debug'">
     <OutDir>Debug-nacl\</OutDir>
@@ -107,6 +111,7 @@
     <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
+    <IncludePath>$(ZillaLibDir)/Include</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='NACL-Release'">
     <OutDir>Release-nacl\</OutDir>
@@ -116,6 +121,7 @@
     <LocalDebuggerCommand>$(ZillaLibDir)/Tools/make.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>--no-print-directory -f "$(ZillaLibDir)/NACL/ZillaLibNACL.mk" "ZillaApp=$(ProjectName)" BUILD=RELEASE run RUNWITHOUTBUILD=1</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
+    <IncludePath>$(ZillaLibDir)/Include</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Android-Debug'">
     <OutDir>Android\bin\</OutDir>
@@ -125,6 +131,7 @@
     <LocalDebuggerCommand>$(ZillaLibDir)\Tools\make.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>-f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=1 "ZillaApp=$(ProjectName)" -k install pauseatend</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
+    <IncludePath>$(ZillaLibDir)/Include</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Android-Release'">
     <OutDir>Android\bin\</OutDir>
@@ -134,6 +141,7 @@
     <LocalDebuggerCommand>$(ZillaLibDir)\Tools\make.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>-f "$(ZillaLibDir)\Android\ZillaLibAndroid.mk" ZLDEBUG=0 "ZillaApp=$(ProjectName)" -k install pauseatend</LocalDebuggerCommandArguments>
     <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
+    <IncludePath>$(ZillaLibDir)/Include</IncludePath>
   </PropertyGroup>
   <PropertyGroup>
     <IntDir>$(OutDir)</IntDir>
