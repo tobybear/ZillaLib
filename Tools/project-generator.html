@@ -1199,6 +1199,12 @@ function generate_project_zip(form)
 		}
 		vcprojx += '  </ItemGroup>'+nl;
 		vcprojx += '  <Import Project="$(ZillaLibDir)/ZillaApp-vs.props" />'+nl;
+		vcprojx += '  <PropertyGroup Condition="\'$(Configuration)|$(Platform)\'==\'WebAssembly-Debug|Win32\'">'+n1;
+		vcprojx += '    <IncludePath>$(ZillaLibDir)/Include</IncludePath>'+n1;
+		vcprojx += '  </PropertyGroup>'+n1;
+		vcprojx += '  <PropertyGroup Condition="\'$(Configuration)|$(Platform)\'==\'WebAssembly-Release|Win32\'">'+n1;
+		vcprojx += '    <IncludePath>$(ZillaLibDir)/Include</IncludePath>'+n1;
+		vcprojx += '  </PropertyGroup>'+n1;
 		vcprojx += '  <ItemGroup>'+nl;
 		for (var srcfile in srcfiles)
 		{
