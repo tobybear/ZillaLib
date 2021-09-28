@@ -121,11 +121,7 @@ endif
 .PHONY: all clean run gdb
 all: $(APPOUTBIN) $(ASSET_ZIP)
 
-define MAKEAPPOBJ
-
-$(APPOUTDIR)/$(basename $(notdir $(1)))$(OBJEXT): $(1) ; $$(call COMPILE,$$@,$$<,$(2),$(GCCMFLAG) $(3) $$(APPFLAGS) -MMD -MP)
-
-endef
+MAKEAPPOBJ = $(APPOUTDIR)/$(basename $(notdir $(1)))$(OBJEXT): $(1) ; $$(call COMPILE,$$@,$$<,$(2),$(GCCMFLAG) $(3) $$(APPFLAGS) -MMD -MP)
 
 APPOBJS := $(addprefix $(APPOUTDIR)/,$(notdir $(patsubst %.c,%$(OBJEXT),$(patsubst %.cpp,%$(OBJEXT),$(APPSOURCES)))))
 $(shell $(CMD_DEL_OLD_OBJ) $(APPOBJS:%.o=%.d))

@@ -62,7 +62,7 @@ DEPFLAGS := -Wno-unused-value -Wno-dangling-else
 
 # Global compiler flags
 CXXFLAGS := $(DBGCFLAGS) -Ofast -std=c++11 -fno-rtti -Wno-writable-strings -Wno-unknown-pragmas
-CCFLAGS  := $(DBGCFLAGS) -Ofast -std=c99
+CCFLAGS  := $(DBGCFLAGS) -Ofast -std=c11
 
 # Flags for wasm-ld
 LDFLAGS += -no-entry -allow-undefined -import-memory
@@ -71,14 +71,15 @@ LDFLAGS += -export=ZLFNDraw -export=ZLFNText -export=ZLFNKey -export=ZLFNMove -e
 LDFLAGS += -export=ZLFNWheel -export=ZLFNWindow -export=ZLFNAudio -export=ZLFNHTTP -export=ZLFNWebSocket
 
 # Global compiler flags for Wasm targeting
-CLANGFLAGS := -target wasm32 -nostdinc
+CLANGFLAGS := -target wasm32-unknown-emscripten -nostdinc
 CLANGFLAGS += -D__EMSCRIPTEN__ -D_LIBCPP_ABI_VERSION=2
 CLANGFLAGS += -fvisibility=hidden -fno-builtin -fno-exceptions -fno-threadsafe-statics
-CLANGFLAGS += -isystem$(SYSTEM_ROOT)/include/libcxx
+CLANGFLAGS += -isystem$(SYSTEM_ROOT)/$(if $(wildcard $(SYSTEM_ROOT)/include/libcxx),include/libcxx,lib/libcxx/include) # due to change in 2.0.13
 CLANGFLAGS += -isystem$(SYSTEM_ROOT)/include/compat
 CLANGFLAGS += -isystem$(SYSTEM_ROOT)/include
-CLANGFLAGS += -isystem$(SYSTEM_ROOT)/include/libc
+CLANGFLAGS += -isystem$(SYSTEM_ROOT)/$(if $(wildcard $(SYSTEM_ROOT)/include/libc),include/libc,lib/libc/musl/include) # due to change in 2.0.13
 CLANGFLAGS += -isystem$(SYSTEM_ROOT)/lib/libc/musl/arch/emscripten
+CLANGFLAGS += $(if $(wildcard $(SYSTEM_ROOT)/lib/libc/musl/arch/generic),-isystem$(SYSTEM_ROOT)/lib/libc/musl/arch/generic) # for 2.0.13 and newer
 
 # Flags that don't seem to have an influence on Wasm builds
 #CLANGFLAGS += -fomit-frame-pointer -ffunction-sections -fdata-sections
@@ -245,13 +246,15 @@ ifeq ($(if $(ZillaApp),$(if $(filter B,$(MAKEFLAGS)),$(wildcard $(LIBOUTDIR)/Zil
 
 #if System.bc exists, don't even bother checking sources, build once and forget for now
 ifeq ($(if $(wildcard $(SYSOUTDIR)/System.bc),1,0),0)
-SYS_ADDS := dlmalloc.c libcxx/*.cpp libcxxabi/src/cxa_guard.cpp compiler-rt/lib/builtins/*.c libc/wasi-helpers.c
+SYS_ADDS := dlmalloc.c libcxxabi/src/cxa_guard.cpp compiler-rt/lib/builtins/*.c libc/wasi-helpers.c pthread/library_pthread_stub.c
+SYS_ADDS += libcxx/$(if $(wildcard $(SYSTEM_ROOT)/lib/libcxx/src/*.cpp),src/)*.cpp # due to change in 2.0.13
 SYS_MUSL := complex crypt ctype dirent errno fcntl fenv internal locale math misc mman multibyte prng regex select stat stdio stdlib string termios unistd
 
 SYS_IGNORE := iostream.cpp strstream.cpp locale.cpp thread.cpp exception.cpp
 SYS_IGNORE += abs.c acos.c acosf.c acosl.c asin.c asinf.c asinl.c atan.c atan2.c atan2f.c atan2l.c atanf.c atanl.c ceil.c ceilf.c ceill.c cos.c cosf.c cosl.c exp.c expf.c expl.c 
 SYS_IGNORE += fabs.c fabsf.c fabsl.c floor.c floorf.c floorl.c log.c logf.c logl.c pow.c powf.c powl.c rintf.c round.c roundf.c sin.c sinf.c sinl.c sqrt.c sqrtf.c sqrtl.c tan.c tanf.c tanl.c
 SYS_IGNORE += syscall.c wordexp.c initgroups.c getgrouplist.c popen.c _exit.c alarm.c usleep.c faccessat.c iconv.c
+SYS_IGNORE += gcc_personality_v0.c # 1.39.20 and newer only
 
 SYSSOURCES := $(filter-out $(SYS_IGNORE:%=\%/%),$(wildcard $(addprefix $(SYSTEM_ROOT)/lib/,$(SYS_ADDS) $(SYS_MUSL:%=libc/musl/src/%/*.c))))
 SYSSOURCES := $(subst $(SYSTEM_ROOT)/lib/,,$(SYSSOURCES))
@@ -265,29 +268,30 @@ ifeq ($(if $(SYS_MISSING),1,0),1)
   $(error SYSSOURCES missing the following files in $(SYSTEM_ROOT)/lib: $(SYS_MISSING))
 endif
 
-SYS_OLDFILES := $(filter-out $(subst /,!,$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SYSSOURCES)))),$(notdir $(wildcard $(SYSOUTDIR)/temp/*.o)))
+SYSTMPDIR := $(SYSOUTDIR)/temp
+SYS_OLDFILES := $(filter-out $(subst /,!,$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SYSSOURCES)))),$(notdir $(wildcard $(SYSTMPDIR)/*.o)))
 ifeq ($(if $(SYS_OLDFILES),1,0),1)
-  $(shell $(CMD_DEL_FILES) $(addprefix $(SYSOUTDIR)/temp/,$(SYS_OLDFILES)) $(SYSOUTDIR)/System.bc)
+  $(shell $(CMD_DEL_FILES) $(addprefix $(SYSTMPDIR)/,$(SYS_OLDFILES)) $(SYSOUTDIR)/System.bc)
 endif
 
 SYSCXXFLAGS := -Ofast -std=c++11 -fno-threadsafe-statics -fno-rtti -I$(SYSTEM_ROOT)/lib/libcxxabi/include
 SYSCXXFLAGS += -DNDEBUG -D_LIBCPP_BUILDING_LIBRARY -D_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
 
-SYSCCFLAGS := -Ofast -std=gnu99 -fno-threadsafe-statics
+SYSCCFLAGS := -Ofast -std=gnu11 -fno-threadsafe-statics
 SYSCCFLAGS += -DNDEBUG -Dunix -D__unix -D__unix__
 SYSCCFLAGS += -isystem$(SYSTEM_ROOT)/lib/libc/musl/src/internal
 SYSCCFLAGS += -Wno-dangling-else -Wno-ignored-attributes -Wno-bitwise-op-parentheses -Wno-logical-op-parentheses -Wno-shift-op-parentheses -Wno-string-plus-int -Wno-unknown-pragmas -Wno-shift-count-overflow -Wno-return-type -Wno-macro-redefined -Wno-unused-result -Wno-pointer-sign
 
-WASM_CPP_SYSOBJS := $(addprefix $(SYSOUTDIR)/temp/,$(subst /,!,$(patsubst %.cpp,%.o,$(filter %.cpp,$(SYSSOURCES)))))
-WASM_CC_SYSOBJS  := $(addprefix $(SYSOUTDIR)/temp/,$(subst /,!,$(patsubst   %.c,%.o,$(filter   %.c,$(SYSSOURCES)))))
-$(WASM_CPP_SYSOBJS) : ; $(call COMPILE,$@,$(subst !,/,$(patsubst $(SYSOUTDIR)/temp/%.o,$(SYSTEM_ROOT)/lib/%.cpp,$@)),$(CXX),$(SYSCXXFLAGS))
-$(WASM_CC_SYSOBJS)  : ; $(call COMPILE,$@,$(subst !,/,$(patsubst $(SYSOUTDIR)/temp/%.o,$(SYSTEM_ROOT)/lib/%.c,$@)),$(CC),$(SYSCCFLAGS))
+WASM_CPP_SYSOBJS := $(addprefix $(SYSTMPDIR)/,$(subst /,!,$(patsubst %.cpp,%.o,$(filter %.cpp,$(SYSSOURCES)))))
+WASM_CC_SYSOBJS  := $(addprefix $(SYSTMPDIR)/,$(subst /,!,$(patsubst   %.c,%.o,$(filter   %.c,$(SYSSOURCES)))))
+$(WASM_CPP_SYSOBJS) : ; $(call COMPILE,$@,$(subst !,/,$(patsubst $(SYSTMPDIR)/%.o,$(SYSTEM_ROOT)/lib/%.cpp,$@)),$(CXX),$(SYSCXXFLAGS))
+$(WASM_CC_SYSOBJS)  : ; $(call COMPILE,$@,$(subst !,/,$(patsubst $(SYSTMPDIR)/%.o,$(SYSTEM_ROOT)/lib/%.c,$@)),$(CC),$(SYSCCFLAGS))
 
 $(SYSOUTDIR)/System.bc : $(WASM_CPP_SYSOBJS) $(WASM_CC_SYSOBJS)
 	$(info Creating archive $@ ...)
 	@$(if $(wildcard $(dir $@)),,$(shell $(CMD_MAKE_DIRS) $(dir $@)))
-	@$(LD) $(if $(ISWIN),"$(SYSOUTDIR)/temp/*.o",$(SYSOUTDIR)/temp/*.o) -r -o $@
-	@$(if $(ISWIN),rmdir /S /Q,rm -rf) "$(SYSOUTDIR)/temp"
+	@$(LD) $(if $(ISWIN),"$(SYSTMPDIR)/*.o",$(SYSTMPDIR)/*.o) -r -o $@
+	@$(if $(ISWIN),rmdir /S /Q,rm -rf) "$(SYSTMPDIR)"
 endif #need System.bc
 
 LIBSOURCES := $(wildcard $(ZILLALIB_DIR)Source/*.cpp)

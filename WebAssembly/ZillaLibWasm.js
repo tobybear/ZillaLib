@@ -1285,7 +1285,7 @@ env.asin = env.asinf = Math.asin;
 env.sqrt = env.sqrtf = Math.sqrt;
 env.atan = env.atanf = Math.atan;
 env.atan2 = env.atan2f = Math.atan2;
-env.fabs = env.fabsf = env.abs = Math.abs;
+env.fabs = env.fabsf = env.abs = env.fabsl = Math.abs;
 env.round = env.roundf = env.rint = env.rintf = Math.round;
 
 ZLJS_WASM_IMPORTS(env);

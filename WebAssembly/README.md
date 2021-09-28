@@ -25,7 +25,7 @@ On Windows it's much simpler to use 7zip to just extract `clang.exe` and `wasm-l
 
 ## Getting System Libraries
 The system libraries are maintained in the [Emscripten project](https://github.com/emscripten-core/emscripten/tree/master/system).  
-Just download the [GitHub archive](https://github.com/emscripten-core/emscripten/archive/master.zip) and extract only the `System` directory from it.
+Just download the [GitHub archive](https://github.com/emscripten-core/emscripten/archive/refs/heads/main.zip) and extract only the `System` directory from it.
 
 ## Getting Python
 If you already have Python (any version) on your system, you're good to go.  
