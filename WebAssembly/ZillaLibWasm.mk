@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2020 Bernhard Schelling
+#  Copyright (C) 2010-2021 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -22,9 +22,10 @@
 sp := $(*NOTEXIST*) $(*NOTEXIST*)
 THIS_MAKEFILE = $(subst ?, ,$(lastword $(subst *, ,$(subst $(SPACE),?,$(subst : /,:/,$(patsubst %:,*%:,$(subst :,: ,$(subst \,/,$(subst $(SPACE)/,*/,$(MAKEFILE_LIST))))))))))
 THIS_MAKEFILE := $(patsubst ./%,%,$(subst \,/,$(lastword $(MAKEFILE_LIST))))
+ISUNIX := $(if $(patsubst /%,,$(PWD)X),,1)# detects linux/macos/cygwin
 ISWIN := $(findstring :,$(firstword $(subst \, ,$(subst /, ,$(abspath .)))))
 ZILLALIB_DIR = $(or $(subst |,/,$(subst <,,$(subst <.|,,<$(subst /,|,$(dir $(subst $(sp),/,$(strip $(subst /,$(sp),$(dir $(THIS_MAKEFILE)))))))))),$(if $(subst ./,,$(dir $(THIS_MAKEFILE))),,../))
-sub_checkexe_run = $(if $(1),$(if $(shell "$(1)" $(2) 2>$(if $(ISWIN),nul,/dev/null)),$(1),),)
+sub_checkexe_run = $(if $(1),$(if $(shell "$(1)" $(2) 2>$(if $(ISUNIX),/dev/null,nul)),$(1),),)
 -include $(dir $(THIS_MAKEFILE))ZillaAppLocalConfig.mk
 ifeq ($(and $(LLVM_ROOT),$(SYSTEM_ROOT),$(WASMOPT)),)
   $(info )
@@ -139,7 +140,7 @@ all:;+@$(CMD_MSVC_FILTER) "$(MAKE)" --no-print-directory -f "$(THIS_MAKEFILE)" -
 else #!MSVC
 
 #------------------------------------------------------------------------------------------------------
-ifdef ZillaApp
+ifneq ($(ZillaApp),)
 #------------------------------------------------------------------------------------------------------
 
 ZL_IS_APP_MAKE = 1
@@ -206,8 +207,8 @@ $(APPOUTDIR)/$(ZillaApp).js : $(APPGLUEJS) $(APPOUTDIR)/$(ZillaApp).wasm $(if $(
 
 $(APPOUTDIR)/%.js.gz : $(APPOUTDIR)/%.js
 	$(info Compressing $^ to $@ ...)
-	@$(if $(wildcard $@),$(if $(ISWIN),del "$(subst /,\,$@)" ,rm "$@" >/dev/null),)
-	@$(if $(7ZIP),$(7ZIP) a -bd -si -tgzip -mx9 $@ <$^ >$(if $(ISWIN),nul,/dev/null),$(CMD_MAKE_GZ) $@ $^)
+	@$(if $(wildcard $@),$(if $(ISUNIX),rm "$@" >/dev/null,del "$(subst /,\,$@)"),)
+	@$(if $(7ZIP),$(7ZIP) a -bd -si -tgzip -mx9 $@ <$^ >$(if $(ISUNIX),/dev/null,nul),$(CMD_MAKE_GZ) $@ $^)
 
 $(if $(ZLWASM_ASSETS_EMBED),,$(ASSET_JS)) : $(ASSET_ZIP)
 	$(info Generating $@ from $^ ...)
@@ -215,8 +216,8 @@ $(if $(ZLWASM_ASSETS_EMBED),,$(ASSET_JS)) : $(ASSET_ZIP)
 
 $(if $(ZLWASM_ASSETS_EMBED),,$(ASSET_JS).gz) : $(ASSET_JS)
 	$(info Compressing $^ to $@ ...)
-	@$(if $(wildcard $@),$(if $(ISWIN),del "$(subst /,\,$@)" ,rm "$@" >/dev/null),)
-	@$(if $(7ZIP),$(7ZIP) a -bd -si -tgzip -mx9 $@ <$^ >$(if $(ISWIN),nul,/dev/null),$(CMD_MAKE_GZ) $@ $^)
+	@$(if $(wildcard $@),$(if $(ISUNIX),rm "$@" >/dev/null,del "$(subst /,\,$@)"),)
+	@$(if $(7ZIP),$(7ZIP) a -bd -si -tgzip -mx9 $@ <$^ >$(if $(ISUNIX),/dev/null,nul),$(CMD_MAKE_GZ) $@ $^)
 
 $(APPOUTDIR)/$(ZillaApp).html : $(dir $(THIS_MAKEFILE))ZillaLibWasm.html
 	$(info $(if $(wildcard $@),Warning: Template $^ is newer than $@ - delete the local build file to have it regenerated,Generating $@ ...))
@@ -241,12 +242,10 @@ clean:
 endif #!ZillaApp
 #------------------------------------------------------------------------------------------------------
 
-#if we're building not the library itself and are being called with B flag (always-make), build the library only if its output doesn't exist at all
-ifeq ($(if $(ZillaApp),$(if $(filter B,$(MAKEFLAGS)),$(wildcard $(LIBOUTDIR)/ZillaLib.bc))),)
-
-#if System.bc exists, don't even bother checking sources, build once and forget for now
-ifeq ($(if $(wildcard $(SYSOUTDIR)/System.bc),1,0),0)
+#Makefile code to build System.bc
+ifdef SystemBuild
 SYS_ADDS := dlmalloc.c libcxxabi/src/cxa_guard.cpp compiler-rt/lib/builtins/*.c libc/wasi-helpers.c pthread/library_pthread_stub.c
+SYS_ADDS += $(if $(wildcard $(SYSTEM_ROOT)/lib/pthread/pthread_self_stub.c),pthread/pthread_self_stub.c) # due to change in 2.0.32
 SYS_ADDS += $(if $(wildcard $(SYSTEM_ROOT)/lib/libc/emscripten_pthread.c),libc/emscripten_pthread.c) # needed for 2.0.13 until 2.0.25
 SYS_ADDS += libcxx/$(if $(wildcard $(SYSTEM_ROOT)/lib/libcxx/src/*.cpp),src/)*.cpp # due to change in 2.0.13
 SYS_MUSL := complex crypt ctype dirent errno fcntl fenv internal locale math misc mman multibyte prng regex select stat stdio stdlib string termios unistd
@@ -292,9 +291,14 @@ $(SYSOUTDIR)/System.bc : $(WASM_CPP_SYSOBJS) $(WASM_CC_SYSOBJS)
 	$(info Creating archive $@ ...)
 	@$(if $(wildcard $(dir $@)),,$(shell $(CMD_MAKE_DIRS) $(dir $@)))
 	@$(LD) $(if $(ISWIN),"$(SYSTMPDIR)/*.o",$(SYSTMPDIR)/*.o) -r -o $@
-	@$(if $(ISWIN),rmdir /S /Q,rm -rf) "$(SYSTMPDIR)"
-endif #need System.bc
+	@$(if $(ISUNIX),rm -rf,rd /S /Q) "$(SYSTMPDIR)"
+else
+$(SYSOUTDIR)/System.bc : $(wildcard $(SYSTEM_ROOT)/lib/*/*)
+	@"$(MAKE)" --no-print-directory -f "$(THIS_MAKEFILE)" "ZillaApp=" "SystemBuild=1" -B "$(SYSOUTDIR)/System.bc"
+endif #SystemBuild
 
+#if we're building not the library itself and are being called with B flag (always-make), build the library only if its output doesn't exist at all
+ifeq ($(if $(ZillaApp),$(if $(filter B,$(MAKEFLAGS)),$(wildcard $(LIBOUTDIR)/ZillaLib.bc))),)
 LIBSOURCES := $(wildcard $(ZILLALIB_DIR)Source/*.cpp)
 
 DEPSOURCES := \

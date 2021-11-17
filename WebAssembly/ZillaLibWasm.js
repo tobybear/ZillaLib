@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2020 Bernhard Schelling
+  Copyright (C) 2010-2021 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -135,7 +135,7 @@ function SYSCALLS_WASM_IMPORTS(env, wasi)
 	var PAYLOAD = (ZL.files ? Base64Decode(ZL.files) : new Uint8Array(0));
 	delete ZL.files;
 
-	env.__sys_open = env.__syscall5 = function(which, varargs) // open (only used to open payload)
+	env.__sys_open = env.__syscall_open = env.__syscall5 = function(which, varargs) // open (only used to open payload)
 	{
 		PAYLOAD_CURSOR = 0;
 		//var getVarArgs;
@@ -204,7 +204,7 @@ function SYSCALLS_WASM_IMPORTS(env, wasi)
 		return 0;
 	};
 
-	env.__sys_fcntl64 = env.__sys_ioctl = env.__syscall221 = env.__syscall54 = function(which, varargs) // fcntl64, ioctl
+	env.__sys_fcntl64 = env.__syscall_fcntl64 = env.__sys_ioctl = env.__syscall_ioctl = env.__syscall221 = env.__syscall54 = function(which, varargs) // fcntl64, ioctl
 	{
 		return 0;
 	};
