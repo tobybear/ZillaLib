@@ -146,13 +146,13 @@ struct ZL_Vector3
 	inline scalar GetAbsAngle() const { scalar d=VecNorm().x;return(d<0?PI-sacos(-d):sacos(d)); }
 
 	//Returns relative (nearest) angle in rad from 0 to PI from this to another vector
-	inline scalar GetRelAbsAngle(const ZL_Vector3 &v) const { scalar d=DotP(v);return(d<0?PI-sacos(-d):sacos(d)); }
+	inline scalar GetRelAbsAngle(const ZL_Vector3 &v) const { scalar d=DotP(v);return sacos(d<-1?-1:d>1?1:d); }
 
 	//Returns angle in degree from 0 to 180 related to world coordinates (1,0)
 	inline scalar GetAbsAngleDeg() const { scalar d=VecNorm().x;return(d<0?PI-sacos(-d):sacos(d))*PIUNDER180; }
 
 	//Returns relative (nearest) angle in degree from 0 to 180 from this to another vector
-	inline scalar GetRelAbsAngleDeg(const ZL_Vector3 &v) const { scalar d=DotP(v);return(d<0?PI-sacos(-d):sacos(d))*PIUNDER180; }
+	inline scalar GetRelAbsAngleDeg(const ZL_Vector3 &v) const { scalar d=DotP(v);return sacos(d<-1?-1:d>1?1:d)*PIUNDER180; }
 
 	//Find good arbitrary axis vectors to represent U and V axes of a plane, using this vector as the normal of the plane.
 	inline void FindAxisVectors(ZL_Vector3* u, ZL_Vector3* v) const { float az = sabs(z); *u = (az > sabs(x) && az > sabs(y) ? ZL_Vector3(1,0,0) : ZL_Vector3(0,0,1)); *u = (*u - *this * (*u | *this)).Norm(); *v = *u ^ *this; }

@@ -429,6 +429,9 @@ struct ZL_Math
 	//Returns the absolute value of a value
 	template <typename T> static inline T Abs(const T val) { return (val < 0 ? -val : val); }
 
+	//Returns the squared value
+	template <typename T> static inline T Square(const T val) { return (val * val); }
+
 	//Returns the sign (-1 or +1) of a value
 	template <typename T> static inline T Sign(const T val) { return (val < 0 ? T(-1) : 1); }
 
