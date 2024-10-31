@@ -455,6 +455,7 @@ static PP_Bool HandleInputEvent(PP_Instance instance, PP_Resource input_event)
 			e.type = (type == PP_INPUTEVENT_TYPE_KEYDOWN ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
 			e.key.is_down = (type == PP_INPUTEVENT_TYPE_KEYDOWN);
 			e.key.key = nacl_zlkey_table[key & 255];
+			e.key.code = e.key.key;
 			e.key.mod = (mod & PP_INPUTEVENT_MODIFIER_SHIFTKEY ? ZLKMOD_SHIFT : 0) +
 			            (mod & PP_INPUTEVENT_MODIFIER_CONTROLKEY ? ZLKMOD_CTRL : 0) +
 			            (mod & PP_INPUTEVENT_MODIFIER_ALTKEY ? ZLKMOD_ALT : 0) +
@@ -699,7 +700,7 @@ void nacl_audio_callback(void* sample_buffer, uint32_t buffer_size_in_bytes, PP_
 void nacl_audio_callback(void* sample_buffer, uint32_t buffer_size_in_bytes, void*) { ZL_PlatformAudioMix((short*)sample_buffer, buffer_size_in_bytes); }
 #endif
 
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(void* config)
 {
 	ZL_LOG0("NACL AUDIO", "Starting audio");
 	#ifdef PPB_AUDIO_CONFIG_INTERFACE_1_1

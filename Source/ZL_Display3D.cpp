@@ -2066,6 +2066,7 @@ ZL_Mesh ZL_Mesh::BuildExtrudePixels(scalar Scale, scalar Depth, const ZL_FileLin
 	return ZL_ImplMakeOwner<ZL_Mesh>(ZL_Mesh_Impl::Make((ZL_Mesh_Impl::VAMASK_NORMAL|ZL_Mesh_Impl::VAMASK_TEXCOORD|ZL_Mesh_Impl::VAMASK_TANGENT|ZL_Mesh_Impl::VAMASK_COLOR), &Indices[0], (GLsizei)Indices.size(), &Verts[0], (GLsizei)(Verts.size()/12), ZL_ImplFromOwner<ZL_Material_Impl>(Material)), false);
 }
 
+#ifdef ZL_USE_TESSELATE
 #include "libtess2/tesselator.h"
 static ZL_Mesh_Impl* ZL_Mesh_Impl_BuildExtrudeContour(void (*AddContours)(TESStesselator* t, void* userdata), void* userdata, size_t TotalNumPoints, const ZL_Vector3 Normal, scalar Depth, ZL_Mesh::IntersectMode intersect, const ZL_Material& Material)
 {
@@ -2229,6 +2230,7 @@ void ZL_SkeletalMesh::DrawDebug(const ZL_Matrix& Matrix, const ZL_Camera& Camera
 ZL_IMPL_OWNER_INHERITED_IMPLEMENTATIONS(ZL_MeshAnimated)
 ZL_MeshAnimated::ZL_MeshAnimated(const ZL_FileLink& ModelFile, const ZL_Material& Material) { impl = ZL_MeshAnimated_Impl::OBJLoadAnimation(ModelFile, ZL_ImplFromOwner<ZL_Material_Impl>(Material)); }
 ZL_MeshAnimated& ZL_MeshAnimated::SetFrame(unsigned int FrameIndex) { if (impl) static_cast<ZL_MeshAnimated_Impl*>(impl)->SetFrame(FrameIndex); return *this; }
+#endif
 
 ZL_IMPL_OWNER_INHERITED_IMPLEMENTATIONS(ZL_ParticleEmitter)
 #define PIMPL static_cast<ZL_ParticleEmitter_Impl*>(impl)

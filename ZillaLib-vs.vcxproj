@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="UserMacros">
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '11.0' Or '$(PlatformToolsetVersion)' == '110' Or '$(MSBuildToolsVersion)' ==  '4.0'">2012</VisualStudioYear>
@@ -6,6 +6,7 @@
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '14.0' Or '$(PlatformToolsetVersion)' == '140' Or '$(MSBuildToolsVersion)' == '14.0'">2015</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '15.0' Or '$(PlatformToolsetVersion)' == '141' Or '$(MSBuildToolsVersion)' == '15.0'">2017</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '16.0' Or '$(PlatformToolsetVersion)' == '142' Or '$(MSBuildToolsVersion)' == '16.0'">2019</VisualStudioYear>
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '17.0' Or '$(PlatformToolsetVersion)' == '143' Or '$(MSBuildToolsVersion)' == '17.0'">2022</VisualStudioYear>
   </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -24,43 +25,12 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="WebAssembly-Debug|Win32">
-      <Configuration>WebAssembly-Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="WebAssembly-Release|Win32">
-      <Configuration>WebAssembly-Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Emscripten-Debug|Win32">
-      <Configuration>Emscripten-Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Emscripten-Release|Win32">
-      <Configuration>Emscripten-Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="NACL-Debug|Win32">
-      <Configuration>NACL-Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="NACL-Release|Win32">
-      <Configuration>NACL-Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Android-Debug|Win32">
-      <Configuration>Android-Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Android-Release|Win32">
-      <Configuration>Android-Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectName>ZillaLib</ProjectName>
     <RootNamespace>ZillaLib</RootNamespace>
     <ProjectGuid>{2177A217-7A21-77A2-177A-2177A2177777}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <Import Project="ZillaLib-vs.props" Condition="exists('ZillaLib-vs.props')" />
@@ -97,6 +67,18 @@
     <ConfigurationType Condition="'$(SolutionFileName)'=='ZillaLib-vs.sln'">Makefile</ConfigurationType>
     <ConfigurationType Condition="'$(SolutionFileName)'!='ZillaLib-vs.sln'">Utility</ConfigurationType>
   </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <PlatformToolset>v110</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <PlatformToolset>v110</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <PlatformToolset>v110</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <PlatformToolset>v110</PlatformToolset>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -117,60 +99,11 @@
     <OutDir>Release-vs$(VisualStudioYear)x64\</OutDir>
     <TargetName>ZillaLib</TargetName>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='WebAssembly-Debug'">
-    <OutDir>WebAssembly\build-debug\</OutDir>
-    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f WebAssembly/ZillaLibWasm.mk MSVC=1</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f WebAssembly/ZillaLibWasm.mk MSVC=1</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f WebAssembly/ZillaLibWasm.mk clean</NMakeCleanCommandLine>
-    <NMakePreprocessorDefinitions>__wasm__</NMakePreprocessorDefinitions>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='WebAssembly-Release'">
-    <OutDir>WebAssembly\build\</OutDir>
-    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f WebAssembly/ZillaLibWasm.mk BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f WebAssembly/ZillaLibWasm.mk BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f WebAssembly/ZillaLibWasm.mk BUILD=RELEASE clean</NMakeCleanCommandLine>
-    <NMakePreprocessorDefinitions>__wasm__</NMakePreprocessorDefinitions>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Debug'">
-    <OutDir>Emscripten\build-debug\</OutDir>
-    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk MSVC=1</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f Emscripten/ZillaLibEmscripten.mk MSVC=1</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk clean</NMakeCleanCommandLine>
-    <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Emscripten-Release'">
-    <OutDir>Emscripten\build\</OutDir>
-    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f Emscripten/ZillaLibEmscripten.mk BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f Emscripten/ZillaLibEmscripten.mk BUILD=RELEASE clean</NMakeCleanCommandLine>
-    <NMakePreprocessorDefinitions>__EMSCRIPTEN__</NMakePreprocessorDefinitions>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='NACL-Debug'">
-    <OutDir>NACL\build-debug\</OutDir>
-    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk MSVC=1</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f NACL/ZillaLibNACL.mk MSVC=1</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk clean</NMakeCleanCommandLine>
-    <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='NACL-Release'">
-    <OutDir>NACL\build\</OutDir>
-    <NMakeBuildCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk BUILD=RELEASE MSVC=1</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>Tools\make.exe -B --no-print-directory -f NACL/ZillaLibNACL.mk BUILD=RELEASE MSVC=1</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>Tools\make.exe --no-print-directory -f NACL/ZillaLibNACL.mk BUILD=RELEASE clean</NMakeCleanCommandLine>
-    <NMakePreprocessorDefinitions>__native_client__</NMakePreprocessorDefinitions>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Android-Debug'">
     <OutDir>Android\build-debug\</OutDir>
     <NMakeBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=1</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=1 -B</NMakeReBuildCommandLine>
     <NMakeCleanCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=1 clean</NMakeCleanCommandLine>
-    <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Android-Release'">
-    <OutDir>Android\build\</OutDir>
-    <NMakeBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=0</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=0 -B</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>Tools\make.exe -f Android\ZillaLibAndroid.mk ZLDEBUG=0 clean</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>ANDROID</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup>
@@ -212,7 +145,7 @@
       <AdditionalIncludeDirectories>./Include;./Source/zlib;./Source/sdl/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_HAS_EXCEPTIONS=0;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
@@ -234,14 +167,43 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Source\libtess2\tesselator.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\stb\stb_truetype.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Source\zlib\miniz.c" />
-    <ClCompile Include="Source\enet\callbacks.c" />
-    <ClCompile Include="Source\enet\host.c" />
-    <ClCompile Include="Source\enet\list.c" />
-    <ClCompile Include="Source\enet\packet.c" />
-    <ClCompile Include="Source\enet\peer.c" />
-    <ClCompile Include="Source\enet\protocol.c" />
-    <ClCompile Include="Source\enet\win32.c" />
+    <ClCompile Include="Source\enet\callbacks.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\enet\host.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\enet\list.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\enet\packet.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\enet\peer.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\enet\protocol.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\enet\win32.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Source\sdl\audio\SDL_audio.c" />
     <ClCompile Include="Source\sdl\events\SDL_clipboardevents.c" />
     <ClCompile Include="Source\sdl\audio\directsound\SDL_directsound.c" />
@@ -273,19 +235,27 @@
     <ClCompile Include="Source\sdl\video\windows\SDL_windowsopengl.c" />
     <ClCompile Include="Source\sdl\video\windows\SDL_windowsvideo.c" />
     <ClCompile Include="Source\sdl\video\windows\SDL_windowswindow.c" />
-    <ClCompile Include="Source\libtess2\tesselator.c" />
-    <ClCompile Include="Source\stb\stb_image.cpp" />
-    <ClCompile Include="Source\stb\stb_vorbis.cpp" />
-    <ClCompile Include="Source\stb\stb_truetype.cpp" />
+    <ClCompile Include="Source\stb\stb_image.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Source\stb\stb_vorbis.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Source\ZL_Application.cpp" />
     <ClCompile Include="Source\ZL_Display.cpp" />
-    <ClCompile Include="Source\ZL_Display3D.cpp" />
+    <ClCompile Include="Source\ZL_Display3D.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Source\ZL_File.cpp" />
     <ClCompile Include="Source\ZL_File_ZIP.cpp" />
     <ClCompile Include="Source\ZL_Font.cpp" />
     <ClCompile Include="Source\ZL_Input.cpp" />
     <ClCompile Include="Source\ZL_Math.cpp" />
-    <ClCompile Include="Source\ZL_Network.cpp" />
+    <ClCompile Include="Source\ZL_Network.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Source\ZL_Particles.cpp" />
     <ClInclude Include="Source\zlib\zlib.h" />
     <ClInclude Include="Source\ZL_Platform.h" />
@@ -336,16 +306,24 @@
     <ClCompile Include="Source\ZL_Audio.cpp" />
     <ClCompile Include="Source\ZL_String.cpp" />
     <ClCompile Include="Source\ZL_Surface.cpp" />
-    <ClCompile Include="Source\ZL_SynthImc.cpp" />
+    <ClCompile Include="Source\ZL_SynthImc.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Source\ZL_Texture_Impl.cpp" />
     <ClCompile Include="Source\ZL_Thread.cpp" />
     <ClCompile Include="Source\ZL_Timer.cpp" />
-    <ClCompile Include="Source\ZL_Data.cpp" />
+    <ClCompile Include="Source\ZL_Data.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClInclude Include="Source\ZL_Display_Impl.h" />
     <ClInclude Include="Source\ZL_File_Impl.h" />
     <ClInclude Include="Source\ZL_Impl.h" />
     <ClInclude Include="Source\sdl\include\SDL_stdinc.h" />
-    <ClInclude Include="Source\libtess2\tesselator.h" />
+    <ClInclude Include="Source\libtess2\tesselator.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="Include\ZL_Application.h" />
     <ClInclude Include="Include\ZL_Display.h" />
     <ClInclude Include="Include\ZL_Display3D.h" />
@@ -355,14 +333,20 @@
     <ClInclude Include="Include\ZL_Input.h" />
     <ClInclude Include="Include\ZL_Math.h" />
     <ClInclude Include="Include\ZL_Math3D.h" />
-    <ClInclude Include="Include\ZL_Network.h" />
+    <ClInclude Include="Include\ZL_Network.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="Include\ZL_Particles.h" />
     <ClInclude Include="Include\ZL_Scene.h" />
     <ClInclude Include="Include\ZL_Signal.h" />
     <ClInclude Include="Include\ZL_Audio.h" />
     <ClInclude Include="Include\ZL_String.h" />
     <ClInclude Include="Include\ZL_Surface.h" />
-    <ClInclude Include="Include\ZL_SynthImc.h" />
+    <ClInclude Include="Include\ZL_SynthImc.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="Include\ZL_Thread.h" />
     <ClInclude Include="Include\ZL_Timer.h" />
     <ClInclude Include="Include\ZL_Data.h" />

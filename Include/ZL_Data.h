@@ -11,16 +11,18 @@
   freely, subject to the following restrictions:
 
   1. The origin of this software must not be misrepresented; you must not
-     claim that you wrote the original software. If you use this software
-     in a product, an acknowledgment in the product documentation would be
-     appreciated but is not required.
+	 claim that you wrote the original software. If you use this software
+	 in a product, an acknowledgment in the product documentation would be
+	 appreciated but is not required.
   2. Altered source versions must be plainly marked as such, and must not be
-     misrepresented as being the original software.
+	 misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
 
 #ifndef __ZL_DATA__
 #define __ZL_DATA__
+
+#ifdef ZL_USE_DATA
 
 #if defined(_MSC_VER) && (_MSC_VER <= 1200)
 #pragma warning(disable:4786) //'Some STL template class' : identifier was truncated to '255' characters in the debug information
@@ -217,16 +219,6 @@ struct ZL_Checksum
 	static void SHA1(const void* Data, size_t DataSize, unsigned char OutResult[20]);
 };
 
-inline size_t ZL_Hash(i64 x) { x *= 0xff51afd7ed558ccd; return (size_t)(x ^ (x >> 32)); }
-inline size_t ZL_Hash(u64 x) { x *= 0xff51afd7ed558ccd; return (size_t)(x ^ (x >> 32)); }
-inline size_t ZL_Hash(int x) { x *= 0x85ebca6b; return (size_t)(x ^ (x >> 12)); }
-inline size_t ZL_Hash(unsigned int x) { x *= 0x85ebca6b; return (size_t)(x ^ (x >> 12)); }
-#ifdef ZL_IS_64_BIT
-inline size_t ZL_Hash(const void* x) { return ZL_Hash((u64)x); ZL_STATIC_ASSERT(sizeof(x) == 8); }
-#else
-inline size_t ZL_Hash(const void* x) { return ZL_Hash((unsigned int)x); ZL_STATIC_ASSERT(sizeof(x) == 4); }
-#endif
-
 //A name that is a checksum of a string for easy lookups and comparison (does not keep the string itself, just the 4 byte checksum)
 struct ZL_NameID
 {
@@ -240,6 +232,18 @@ struct ZL_NameID
 	bool operator<(const ZL_NameID& b) const { return (IDValue<b.IDValue); }
 	unsigned int IDValue;
 };
+
+#endif
+
+inline size_t ZL_Hash(i64 x) { x *= 0xff51afd7ed558ccd; return (size_t)(x ^ (x >> 32)); }
+inline size_t ZL_Hash(u64 x) { x *= 0xff51afd7ed558ccd; return (size_t)(x ^ (x >> 32)); }
+inline size_t ZL_Hash(int x) { x *= 0x85ebca6b; return (size_t)(x ^ (x >> 12)); }
+inline size_t ZL_Hash(unsigned int x) { x *= 0x85ebca6b; return (size_t)(x ^ (x >> 12)); }
+#ifdef ZL_IS_64_BIT
+inline size_t ZL_Hash(const void* x) { return ZL_Hash((u64)x); ZL_STATIC_ASSERT(sizeof(x) == 8); }
+#else
+inline size_t ZL_Hash(const void* x) { return ZL_Hash((unsigned int)x); ZL_STATIC_ASSERT(sizeof(x) == 4); }
+#endif
 
 //A hash map, TKey needs a ZL_Hash function, a == operator, and a ! operator that returns true when memory is zeroed, both TKey and TVal need to be trivially copyable
 template <typename TKey, typename TVal> struct ZL_TMap

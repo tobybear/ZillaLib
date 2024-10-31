@@ -30,6 +30,7 @@
 #include <string.h>
 #include <vector>
 
+#ifdef ZL_USE_SYNTHIMC
 static ZL_MutexHandle ZL_ImcMutex = ZL_MutexNone;
 static std::vector<ZL_SynthImcTrack_Impl*> *ActiveTracks = NULL;
 static bool mix_music(short *stream, unsigned int samples, bool mix);
@@ -314,3 +315,4 @@ static void RenderToBuffer(short** psBuffer, unsigned int* piPCMLength)
 	}
 }
 */
+#endif

@@ -333,7 +333,8 @@ struct ZL_KeyboardEvent
 {
 	bool is_down;       // key is down
 	bool is_repeat;     // some platforms report repeated keydowns on long press
-	ZL_Key key;         // Key ID
+	ZL_Key key;         // Key ID (scancode)
+	int code;			// keycode
 	unsigned short mod; // current key modifiers (ZLKMOD)
 };
 

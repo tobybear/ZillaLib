@@ -543,6 +543,7 @@ void OnKey(int VirtualKey, bool down)
 	e.type = (down ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
 	e.key.is_down = down;
 	e.key.key = key;
+	e.key.code = key;
 	if      (key == ZLK_LSHIFT)   (down ? keymodstatus |= ZLKMOD_LSHIFT : keymodstatus &= ~ZLKMOD_LSHIFT);
 	else if (key == ZLK_RSHIFT)   (down ? keymodstatus |= ZLKMOD_RSHIFT : keymodstatus &= ~ZLKMOD_RSHIFT);
 	else if (key == ZLK_LCTRL)    (down ? keymodstatus |= ZLKMOD_LCTRL  : keymodstatus &= ~ZLKMOD_LCTRL );
@@ -1035,7 +1036,7 @@ void ZL_JoystickHandleClose(ZL_JoystickData* joystick)
 }
 
 //Audio
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(void* config)
 {
 	auto workItemDelegate = [](IAsyncAction^ workItem)
 	{

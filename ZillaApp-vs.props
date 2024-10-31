@@ -5,6 +5,7 @@
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '14.0' Or '$(PlatformToolsetVersion)' == '140' Or '$(MSBuildToolsVersion)' == '14.0'">2015</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '15.0' Or '$(PlatformToolsetVersion)' == '141' Or '$(MSBuildToolsVersion)' == '15.0'">2017</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '16.0' Or '$(PlatformToolsetVersion)' == '142' Or '$(MSBuildToolsVersion)' == '16.0'">2019</VisualStudioYear>
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '17.0' Or '$(PlatformToolsetVersion)' == '143' Or '$(MSBuildToolsVersion)' == '17.0'">2022</VisualStudioYear>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <Import Project="ZillaLib-vs.props" Condition="exists('ZillaLib-vs.props')" />
@@ -15,6 +16,7 @@
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2015'">v140$(PlatformToolsetPostfix)</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2017'">v141$(PlatformToolsetPostfix)</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2019'">v142$(PlatformToolsetPostfix)</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2022'">v143$(PlatformToolsetPostfix)</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -46,18 +48,6 @@
   <PropertyGroup Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB'">
     <LinkIncremental>false</LinkIncremental>
     <GenerateManifest>false</GenerateManifest>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>Debug-vs$(VisualStudioYear)\</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|Win32'">
-    <OutDir>Release-vs$(VisualStudioYear)\</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>Debug-vs$(VisualStudioYear)x64\</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|x64'">
-    <OutDir>Release-vs$(VisualStudioYear)x64\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(DataAssets)'!='' And ('$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB')">
     <LocalDebuggerCommand>$(OutDir)$(TargetName)_WithData.exe</LocalDebuggerCommand>
@@ -171,7 +161,6 @@
       <Culture>0x0807</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>$(ZillaLibDir)/$(OutDir)ZillaLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreSpecificDefaultLibraries>libcmt;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -214,7 +203,6 @@
       <Culture>0x0807</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>$(ZillaLibDir)/$(OutDir)ZillaLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
       <GenerateMapFile>true</GenerateMapFile>

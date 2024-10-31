@@ -29,12 +29,12 @@
 //Global audio system functions (needs at least a call to ZL_Audio::Init to use any other audio system)
 struct ZL_Audio
 {
-	static bool Init();
+	static bool Init(void* config = NULL);
 	static void SetGlobalSpeedFactor(scalar factor);
 
-	//Cusotom sound generators for custom music mixing, sound generation, etc.
+	//Custom sound generators for custom music mixing, sound generation, etc.
 	//  buffer is a pointer to the audio buffer (16 bit signed interleaved stereo)
-	//  samples is the number of samples to be rendererd (per channel)
+	//  samples is the number of samples to be rendered (per channel)
 	//  when need_mix is true, new samples need to be added to the buffer (clamped to avoid overflow)
 	//  when need_mix is false, new samples need to be direcly written (or buffer needs to be zeroed before mixing)
 	//  buffer size in bytes is samples multiplied by 4 (16-bit samples, 2 channels)

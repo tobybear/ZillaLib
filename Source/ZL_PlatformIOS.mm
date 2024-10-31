@@ -120,6 +120,7 @@ static void ZL_KeyEvent(ZL_Key key, bool is_down, int modstate)
 	e.type = (is_down ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
 	e.key.is_down = is_down;
 	e.key.key = key;
+	e.key.code = key;
 	e.key.mod = modstate;
 	ZL_Display_Process_Event(e);
 }
@@ -631,7 +632,7 @@ static OSStatus ZL_AudioOutputCallback(void *inRefCon, AudioUnitRenderActionFlag
 	return noErr;
 }
 
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(void* config)
 {
 	AudioComponentDescription desc;
 	memset(&desc, 0, sizeof(AudioComponentDescription));

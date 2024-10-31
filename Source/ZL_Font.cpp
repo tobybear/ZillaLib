@@ -24,7 +24,10 @@
 #include "ZL_Platform.h"
 #include "ZL_Data.h"
 #include <vector>
+
+#ifdef ZL_USE_TTF
 #include "stb/stb_truetype.h"
+#endif
 
 struct ZL_Font_Impl_Settings
 {
@@ -272,6 +275,8 @@ struct ZL_FontBitmap_Impl : ZL_Font_Impl
 		if (resetLimitCount) limitCount = 0;
 	}
 };
+
+#ifdef ZL_USE_TTF
 
 #ifdef ZL_VIDEO_WEAKCONTEXT
 //#include <algorithm>
@@ -587,6 +592,7 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 		}
 	}
 };
+#endif
 
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_Font)
 
@@ -595,6 +601,7 @@ ZL_Font::ZL_Font(const ZL_FileLink& BitmapFontFile) : impl(new ZL_FontBitmap_Imp
 	if (!((ZL_FontBitmap_Impl*)impl)->tex) { delete (ZL_FontBitmap_Impl*)impl; impl = NULL; }
 }
 
+#ifdef ZL_USE_TTF
 ZL_Font::ZL_Font(const ZL_FileLink& TruetypeFontFile, scalar height, bool pixel_exact, unsigned char ol) : impl(new ZL_FontTTF_Impl(TruetypeFontFile, height, pixel_exact, ol, ol, ol, ol))
 {
 	if (!impl->fLineHeight) { delete (ZL_FontTTF_Impl*)impl; impl = NULL; }
@@ -604,6 +611,7 @@ ZL_Font::ZL_Font(const ZL_FileLink& TruetypeFontFile, scalar height, bool pixel_
 {
 	if (!impl->fLineHeight) { delete (ZL_FontTTF_Impl*)impl; impl = NULL; }
 }
+#endif
 
 ZL_Font& ZL_Font::SetColor(const ZL_Color& color)
 {

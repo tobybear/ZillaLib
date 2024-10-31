@@ -25,6 +25,8 @@
 #include "ZL_Math.h"
 #include "ZL_Audio.h"
 
+#ifdef ZL_USE_SYNTHIMC
+
 struct TImcSongData;
 
 struct ZL_SynthImcTrack
@@ -142,5 +144,6 @@ struct TImcSongData
 	const unsigned char      *ImcSongChannelEnvCounter; //[8];
 	const bool               *ImcSongChannelStopNote; //[8];
 };
+#endif
 
 #endif //__ZL_SYNTHIMC__

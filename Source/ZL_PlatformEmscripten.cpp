@@ -115,6 +115,7 @@ extern "C" void ZLFNKey(bool is_down, int key_code, bool shift, bool ctrl, bool 
 	e.type = (is_down ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
 	e.key.is_down = is_down;
 	e.key.key = dom_zlkey_table[key_code & 255];
+	e.key.code = e.key.key;
 	e.key.mod = (shift ? ZLKMOD_SHIFT : 0) + (ctrl ? ZLKMOD_CTRL : 0) + (alt ? ZLKMOD_ALT : 0) + (meta ? ZLKMOD_META : 0);
 	ZL_Display_Process_Event(e); //process event asap, might change fullscreen, lock mouse or open window (requires call in user events call stack)
 	if (e.key.is_down)
@@ -287,7 +288,7 @@ extern "C" bool ZLFNAudio(float* sample_buffer, unsigned int samples)
 	return true;
 }
 
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(void* config)
 {
 	ZL_LOG0("AUDIO", "Starting audio");
 	ZLJS_StartAudio();

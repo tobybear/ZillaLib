@@ -784,11 +784,13 @@ void ZL_PostProcess::Apply(scalar uni1, scalar uni2) { }
 
 // ------------------------------------------------------------------------------------------
 
-
+#ifdef ZL_USE_TESSELATE
 #include "libtess2/tesselator.h"
+
 #include "ZL_Impl.h"
 #include "ZL_Surface.h"
 #include "ZL_Texture_Impl.h"
+
 struct ZL_Polygon_Impl : ZL_Impl
 {
 	struct TessElementPair { GLenum Mode; GLushort IdxEnd; TessElementPair(GLenum Mode, GLushort IdxEnd) : Mode(Mode), IdxEnd(IdxEnd) {} };
@@ -1207,3 +1209,4 @@ size_t ZL_Polygon::GetBorders(const std::vector<PointList>& contours, std::vecto
 bool ZL_Polygon::GetBorder(const std::vector<PointList>& contours, std::vector<ZL_Vector>& out, IntersectMode intersect)         { ZL_Polygon_Impl impl(false, true); impl.AddVectorContour(contours, intersect);      return impl.GetBorder(out);  }
 size_t ZL_Polygon::GetBorders(const std::vector<ZL_Vector>*const* contours, int cnum, std::vector<PointList>& out, IntersectMode intersect) { ZL_Polygon_Impl impl(false, true); impl.AddMultiContour(contours, cnum, intersect); return impl.GetBorders(out); }
 bool ZL_Polygon::GetBorder(const std::vector<ZL_Vector>*const* contours, int cnum, std::vector<ZL_Vector>& out, IntersectMode intersect)    { ZL_Polygon_Impl impl(false, true); impl.AddMultiContour(contours, cnum, intersect); return impl.GetBorder(out); }
+#endif

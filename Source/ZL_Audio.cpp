@@ -11,11 +11,11 @@
   freely, subject to the following restrictions:
 
   1. The origin of this software must not be misrepresented; you must not
-     claim that you wrote the original software. If you use this software
-     in a product, an acknowledgment in the product documentation would be
-     appreciated but is not required.
+	 claim that you wrote the original software. If you use this software
+	 in a product, an acknowledgment in the product documentation would be
+	 appreciated but is not required.
   2. Altered source versions must be plainly marked as such, and must not be
-     misrepresented as being the original software.
+	 misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
 
@@ -29,6 +29,7 @@
 #include <vector>
 #include <string.h>
 
+#ifdef ZL_USE_VORBIS
 #include "stb/stb_vorbis.h"
 //#include "tremor/ivorbisfile.h"
 #if (defined(STB_VORBIS_INCLUDE_STB_VORBIS_H) && defined(_OV_FILE_H_))
@@ -45,6 +46,10 @@ static size_t ogg_read_func(void *ptr, size_t size, size_t num, void *src) { ret
 static int ogg_seek_func(void *src, ogg_int64_t offset, int mode) { return ZL_RWseek((ZL_RWops*)src, (int)offset, mode); }
 static long ogg_tell_func(void *src) { return (long)ZL_RWtell((ZL_RWops*)src); }
 #endif
+#else
+#define OGG_READ(H, buffer, samples) (stb_vorbis_get_samples_short_interleaved((stb_vorbis*)(H), ((stb_vorbis_info*)(H))->channels, (short*)(buffer), (int)(samples))*((stb_vorbis_info*)(H))->channels)
+#define OGG_SEEKRESET(H) stb_vorbis_seek((stb_vorbis*)(H),0) //stb_vorbis_seek_start((stb_vorbis*)(H));
+#endif
 
 struct ZL_AudioPlayingHandle
 {
@@ -59,12 +64,12 @@ static std::vector<bool(*)(short*, unsigned int, bool)> *ZL_AudioMixFuncs = NULL
 static ZL_MutexHandle ZL_AudioActiveMutex;
 static float audio_global_factor = 1.0f;
 
-bool ZL_Audio::Init()
+bool ZL_Audio::Init(void* config)
 {
 	if (ZL_AudioActive) return false;
 	ZL_AudioActive = new std::vector<ZL_AudioPlayingHandle>();
 	ZL_MutexInit(ZL_AudioActiveMutex);
-	if (!ZL_AudioOpen()) { ZL_MutexDestroy(ZL_AudioActiveMutex); delete ZL_AudioActive; ZL_AudioActive = NULL; return false; }
+	if (!ZL_AudioOpen(config)) { ZL_MutexDestroy(ZL_AudioActiveMutex); delete ZL_AudioActive; ZL_AudioActive = NULL; return false; }
 	return true;
 }
 
@@ -179,7 +184,9 @@ struct ZL_Sound_Impl : ZL_Impl
 			if (it->snd == this) { it = ZL_AudioActive->erase(it); numactive--; }
 			else ++it;
 		ZL_MutexUnlock(ZL_AudioActiveMutex);
+#ifdef ZL_USE_VORBIS
 		if (numactive < old_numactive && decoder) OGG_SEEKRESET(decoder);
+#endif
 	}
 
 	void Pause()
@@ -252,7 +259,6 @@ bool ZL_PlatformAudioMix(short *stream, unsigned int bytes)
 
 bool ZL_AudioPlayingHandle::mix_into(short* buf, unsigned int rem, bool add)
 {
-	short tmpbuf[128];
 	float factor = audio_global_factor * snd->audiofactor, fdelta = 1.0f;
 	const float vol = snd->audiovol;
 	if (snd->fixshift) factor /= s(1<<snd->fixshift);
@@ -272,8 +278,10 @@ bool ZL_AudioPlayingHandle::mix_into(short* buf, unsigned int rem, bool add)
 		}
 		else read = rem;
 
+#ifdef ZL_USE_VORBIS
 		if (snd->decoder)
 		{
+			short tmpbuf[128];
 			if (!allow_direct_write && read > (unsigned int)COUNT_OF(tmpbuf)) read = (unsigned int)COUNT_OF(tmpbuf);
 			ssrc = (allow_direct_write ? buf : tmpbuf);
 			int got = OGG_READ(snd->decoder, ssrc, read);
@@ -281,6 +289,7 @@ bool ZL_AudioPlayingHandle::mix_into(short* buf, unsigned int rem, bool add)
 			if ((unsigned int)got != read) { read = got; pos = snd->totalsamples; } //no more samples available, loop
 		}
 		else
+#endif
 		{
 			if (read > (snd->totalsamples - pos)) read = (snd->totalsamples - pos);
 			ssrc = (snd->audiodata + pos);
@@ -359,7 +368,9 @@ bool ZL_AudioPlayingHandle::mix_into(short* buf, unsigned int rem, bool add)
 		if (pos >= snd->totalsamples)
 		{
 			pos = 0;
+#ifdef ZL_USE_VORBIS
 			if (snd->decoder) OGG_SEEKRESET(snd->decoder);
+#endif
 			if (!loop && !rem) return true;
 		}
 		if (!loop && !pos && write) break;
@@ -470,6 +481,7 @@ static ZL_Sound_Impl* ZL_Sound_Load(ZL_File_Impl* file_impl, bool stream)
 	}
 	return ah;
 	#endif
+	return NULL;
 }
 
 ZL_Sound ZL_SoundLoadFromBuffer(short* audiodata, unsigned int totalsamples, unsigned int fixshift)

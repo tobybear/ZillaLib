@@ -94,6 +94,7 @@ DSOUND_Load(void)
 static int
 SetDSerror(const char *function, int code)
 {
+#ifdef SDL_DSOUND_ERRORS
     static const char *error;
     static char errbuf[1024];
 
@@ -142,6 +143,8 @@ SetDSerror(const char *function, int code)
                      error);
     }
     return SDL_SetError("%s", errbuf);
+#endif
+	return 0; //tf
 }
 
 

@@ -77,42 +77,58 @@ static void InitExtensionEntries();
 static void ProcessSDLEvents();
 
 static SDL_Window* ZL_SDL_Window = NULL;
+#ifdef ZL_USE_DATA
 static ZL_String jsonConfigFile;
 static ZL_Json jsonConfig;
+#endif
 static SDL_FingerID ZL_SDL_FingerIDs[32];
 static char ZL_SDL_FingerCount, ZL_SDL_Mouse_IgnoreMotion, ZL_SDL_Mouse_IgnoreButton;
 
 void ZL_SettingsInit(const char* FallbackConfigFilePrefix)
 {
+#ifdef ZL_USE_DATA
 	jsonConfigFile.erase();
 	jsonConfigFile << FallbackConfigFilePrefix << ".cfg";
 	if (ZL_File::Exists(jsonConfigFile)) jsonConfig = ZL_Json(ZL_File(jsonConfigFile));
+#endif
 }
 
 const ZL_String ZL_SettingsGet(const char* Key)
 {
+#ifdef ZL_USE_DATA
 	ZL_Json field = jsonConfig.GetByKey(Key);
 	return (!field ? ZL_String() : ZL_String(field.GetString()));
+#endif
+	return "";
 }
 
 void ZL_SettingsSet(const char* Key, const ZL_String& Value)
 {
+#ifdef ZL_USE_DATA
 	jsonConfig[Key].SetString(Value);
+#endif
 }
 
 void ZL_SettingsDel(const char* Key)
 {
+#ifdef ZL_USE_DATA
 	jsonConfig.Erase(Key);
+#endif
 }
 
 bool ZL_SettingsHas(const char* Key)
 {
+#ifdef ZL_USE_DATA
 	return jsonConfig.HasKey(Key);
+#endif
+	return false;
 }
 
 void ZL_SettingsSynchronize()
 {
+#ifdef ZL_USE_DATA
 	ZL_File(jsonConfigFile, "w").SetContents(jsonConfig);
+#endif
 }
 
 void ZL_OpenExternalUrl(const char* url)
@@ -479,6 +495,7 @@ static void ProcessSDLEvents()
 				out.type = (in.type == SDL_KEYDOWN ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
 				out.key.is_down = (in.key.state == SDL_PRESSED);
 				out.key.key = (ZL_Key)in.key.keysym.scancode;
+				out.key.code = (int32_t)in.key.keysym.sym;
 				out.key.mod = in.key.keysym.mod;
 				if (in.type == SDL_KEYDOWN && (out.key.key == ZLK_TAB || out.key.key == ZLK_RETURN || out.key.key == ZLK_KP_ENTER || out.key.key == ZLK_BACKSPACE))
 				{
@@ -643,7 +660,7 @@ static void ZL_SdlAudioMix(void *udata, Uint8 *stream, int len)
 	ZL_PlatformAudioMix((short*)stream, (unsigned int)len);
 }
 
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(void* config)
 {
 	if (SDL_AudioInit(NULL) < 0) return false;
 	SDL_AudioSpec desired;
@@ -653,6 +670,10 @@ bool ZL_AudioOpen()
 	desired.samples = 1024; //Used to be 4096, PCs are faster now
 	desired.callback = ZL_SdlAudioMix;
 	desired.userdata = NULL;
+	if (config) {
+		desired = *((SDL_AudioSpec*)config);
+		if (!desired.callback) desired.callback = ZL_SdlAudioMix;
+	}
 	if (SDL_OpenAudio(&desired, NULL) < 0) return false;
 	SDL_PauseAudio(0);
 	return true;

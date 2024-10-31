@@ -146,16 +146,10 @@
     <ClCompile Include="Source\sdl\video\windows\SDL_windowswindow.c">
       <Filter>Dependencies\SDL</Filter>
     </ClCompile>
-    <ClCompile Include="Source\libtess2\tesselator.c">
-      <Filter>Dependencies\LIBTESS2</Filter>
-    </ClCompile>
     <ClCompile Include="Source\stb\stb_image.cpp">
       <Filter>Dependencies\STB</Filter>
     </ClCompile>
     <ClCompile Include="Source\stb\stb_vorbis.cpp">
-      <Filter>Dependencies\STB</Filter>
-    </ClCompile>
-    <ClCompile Include="Source\stb\stb_truetype.cpp">
       <Filter>Dependencies\STB</Filter>
     </ClCompile>
     <ClCompile Include="Source\ZL_Display.cpp">
@@ -238,6 +232,12 @@
     </ClCompile>
     <ClCompile Include="Source\ZL_Application.cpp">
       <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\libtess2\tesselator.c">
+      <Filter>Dependencies\LIBTESS2</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\stb\stb_truetype.cpp">
+      <Filter>Dependencies\STB</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

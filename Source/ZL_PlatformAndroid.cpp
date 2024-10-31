@@ -403,6 +403,7 @@ extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeKey(JNIE
 	e.type = (action ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
 	e.key.is_down = (action ? 1 : 0);
 	e.key.key = zlk;
+	e.key.code = zlk;
 	e.key.mod = ZL_Android_KeyModState;
 	QueueEvent(e);
 }
@@ -658,7 +659,7 @@ static void SLESShutdown()
 	if (SLESBuffer[0]) { free(SLESBuffer[0]); SLESBuffer[0] = NULL; }
 }
 
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(void* config)
 {
 	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "ZL_AudioOpen");
 	return SLESInit();

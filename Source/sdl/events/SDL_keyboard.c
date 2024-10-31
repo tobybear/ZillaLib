@@ -274,6 +274,7 @@ static const SDL_Keycode SDL_default_keymap[SDL_NUM_SCANCODES] = {
     SDLK_SLEEP,
 };
 
+#ifdef SDL_SCANCODE_NAMES
 static const char *SDL_scancode_names[SDL_NUM_SCANCODES] = {
     NULL, NULL, NULL, NULL,
     "A",
@@ -505,6 +506,7 @@ static const char *SDL_scancode_names[SDL_NUM_SCANCODES] = {
     "Eject",
     "Sleep",
 };
+#endif
 
 /* Taken from SDL_iconv() */
 char *
@@ -596,7 +598,9 @@ SDL_SetKeymap(int start, SDL_Keycode * keys, int length)
 void
 SDL_SetScancodeName(SDL_Scancode scancode, const char *name)
 {
+#ifdef SDL_SCANCODE_NAMES
     SDL_scancode_names[scancode] = name;
+#endif
 }
 
 SDL_Window *
@@ -886,28 +890,29 @@ SDL_GetScancodeFromKey(SDL_Keycode key)
 const char *
 SDL_GetScancodeName(SDL_Scancode scancode)
 {
-    const char *name;
     if (scancode < SDL_SCANCODE_UNKNOWN || scancode >= SDL_NUM_SCANCODES) {
           SDL_InvalidParamError("scancode");
           return "";
     }
 
-    name = SDL_scancode_names[scancode];
+#ifdef SDL_SCANCODE_NAMES
+    const char* name = SDL_scancode_names[scancode];
     if (name)
         return name;
     else
-        return "";
+#endif
+		return "";
 }
 
 SDL_Scancode SDL_GetScancodeFromName(const char *name)
 {
-    int i;
-
     if (!name || !*name) {
             SDL_InvalidParamError("name");
         return SDL_SCANCODE_UNKNOWN;
     }
 
+#ifdef SDL_SCANCODE_NAMES
+    int i;
     for (i = 0; i < SDL_arraysize(SDL_scancode_names); ++i) {
         if (!SDL_scancode_names[i]) {
             continue;
@@ -916,7 +921,7 @@ SDL_Scancode SDL_GetScancodeFromName(const char *name)
             return (SDL_Scancode)i;
         }
     }
-
+#endif
     SDL_InvalidParamError("name");
     return SDL_SCANCODE_UNKNOWN;
 }
