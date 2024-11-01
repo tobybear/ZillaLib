@@ -403,7 +403,6 @@ extern "C" JNIEXPORT void JNICALL Java_org_zillalib_ZillaActivity_NativeKey(JNIE
 	e.type = (action ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
 	e.key.is_down = (action ? 1 : 0);
 	e.key.key = zlk;
-	e.key.code = zlk;
 	e.key.mod = ZL_Android_KeyModState;
 	QueueEvent(e);
 }

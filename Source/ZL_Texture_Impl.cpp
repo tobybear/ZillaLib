@@ -11,22 +11,24 @@
   freely, subject to the following restrictions:
 
   1. The origin of this software must not be misrepresented; you must not
-     claim that you wrote the original software. If you use this software
-     in a product, an acknowledgment in the product documentation would be
-     appreciated but is not required.
+	 claim that you wrote the original software. If you use this software
+	 in a product, an acknowledgment in the product documentation would be
+	 appreciated but is not required.
   2. Altered source versions must be plainly marked as such, and must not be
-     misrepresented as being the original software.
+	 misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
 
 #include "ZL_Texture_Impl.h"
 #include <map>
 #include <assert.h>
-#ifdef ZL_USE_IMAGE
+#ifdef ZL_USE_STBIMAGE
+#define STBI_NO_STDIO
 #include "stb/stb_image.h"
 #endif
 #ifdef ZL_USE_QOI
 #define QOI_NO_STDIO
+#define QOI_NO_ENCODER
 #define QOI_IMPLEMENTATION
 #include "qoi/qoi.h"
 #endif
@@ -34,7 +36,7 @@
 static int  zlrwops_read(void *user, char *data, int size) { return (int)ZL_RWread((ZL_RWops*)user, data, 1, size); }
 static void zlrwops_skip(void *user, int n) { ZL_RWseektell((ZL_RWops*)user, n, RW_SEEK_CUR); }
 static int  zlrwops_eof(void *user) { return ZL_RWeof((ZL_RWops*)user); }
-#ifdef ZL_USE_IMAGE
+#ifdef ZL_USE_STBIMAGE
 static const stbi_io_callbacks stbi_zlrwops_callbacks = { zlrwops_read, zlrwops_skip, zlrwops_eof };
 #endif
 static std::map<ZL_FileLink, ZL_Texture_Impl*>* pLoadedTextures = NULL;
@@ -95,7 +97,7 @@ static bool LoadBitmapData(ZL_BitmapSurface* surface, ZL_File_Impl* fileimpl, in
 	delete[] data;
 #endif
 
-#ifdef ZL_USE_IMAGE
+#ifdef ZL_USE_STBIMAGE
 	surface->pixels = stbi_load_from_callbacks(&stbi_zlrwops_callbacks, fileimpl->src, &surface->w, &surface->h, &surface->BytesPerPixel, RequestBytesPerPixel);
 	if (!surface->pixels || !surface->w || !surface->h) { ZL_LOG2("TEXTURE", "Cannot load image file: %s (err: %s)", fileimpl->filename.c_str(), stbi_failure_reason()); return false; }
 	//ZL_LOG4("SURFACE", "Loaded bitmap: %s - x: %d - y: %d - bpp: %d", fileimpl->filename.c_str(), surface->w, surface->h, surface->BytesPerPixel);

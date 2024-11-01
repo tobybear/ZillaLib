@@ -11,11 +11,11 @@
   freely, subject to the following restrictions:
 
   1. The origin of this software must not be misrepresented; you must not
-     claim that you wrote the original software. If you use this software
-     in a product, an acknowledgment in the product documentation would be
-     appreciated but is not required.
+	 claim that you wrote the original software. If you use this software
+	 in a product, an acknowledgment in the product documentation would be
+	 appreciated but is not required.
   2. Altered source versions must be plainly marked as such, and must not be
-     misrepresented as being the original software.
+	 misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
 
@@ -115,7 +115,6 @@ extern "C" void ZLFNKey(bool is_down, int key_code, bool shift, bool ctrl, bool 
 	e.type = (is_down ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
 	e.key.is_down = is_down;
 	e.key.key = dom_zlkey_table[key_code & 255];
-	e.key.code = e.key.key;
 	e.key.mod = (shift ? ZLKMOD_SHIFT : 0) + (ctrl ? ZLKMOD_CTRL : 0) + (alt ? ZLKMOD_ALT : 0) + (meta ? ZLKMOD_META : 0);
 	ZL_Display_Process_Event(e); //process event asap, might change fullscreen, lock mouse or open window (requires call in user events call stack)
 	if (e.key.is_down)

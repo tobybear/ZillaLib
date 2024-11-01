@@ -11,11 +11,11 @@
   freely, subject to the following restrictions:
 
   1. The origin of this software must not be misrepresented; you must not
-     claim that you wrote the original software. If you use this software
-     in a product, an acknowledgment in the product documentation would be
-     appreciated but is not required.
+	 claim that you wrote the original software. If you use this software
+	 in a product, an acknowledgment in the product documentation would be
+	 appreciated but is not required.
   2. Altered source versions must be plainly marked as such, and must not be
-     misrepresented as being the original software.
+	 misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
 
@@ -495,7 +495,7 @@ static void ProcessSDLEvents()
 				out.type = (in.type == SDL_KEYDOWN ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
 				out.key.is_down = (in.key.state == SDL_PRESSED);
 				out.key.key = (ZL_Key)in.key.keysym.scancode;
-				out.key.code = (int32_t)in.key.keysym.sym;
+//				out.key.code = (int32_t)in.key.keysym.sym;
 				out.key.mod = in.key.keysym.mod;
 				if (in.type == SDL_KEYDOWN && (out.key.key == ZLK_TAB || out.key.key == ZLK_RETURN || out.key.key == ZLK_KP_ENTER || out.key.key == ZLK_BACKSPACE))
 				{

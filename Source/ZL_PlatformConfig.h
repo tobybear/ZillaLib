@@ -40,8 +40,8 @@
 // set this define to enable support for TTF fonts
 #define ZL_USE_TTF
 
-// set this define to include support for image files
-#define ZL_USE_IMAGE
+// set this define to include support for stbimage loader
+#define ZL_USE_STBIMAGE
 
 // set this define to include support for JSON, XML, Checksum, Base64, Compression
 // #define ZL_USE_DATA

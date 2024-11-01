@@ -11,11 +11,11 @@
   freely, subject to the following restrictions:
 
   1. The origin of this software must not be misrepresented; you must not
-     claim that you wrote the original software. If you use this software
-     in a product, an acknowledgment in the product documentation would be
-     appreciated but is not required.
+	 claim that you wrote the original software. If you use this software
+	 in a product, an acknowledgment in the product documentation would be
+	 appreciated but is not required.
   2. Altered source versions must be plainly marked as such, and must not be
-     misrepresented as being the original software.
+	 misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
 
@@ -455,15 +455,14 @@ static PP_Bool HandleInputEvent(PP_Instance instance, PP_Resource input_event)
 			e.type = (type == PP_INPUTEVENT_TYPE_KEYDOWN ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
 			e.key.is_down = (type == PP_INPUTEVENT_TYPE_KEYDOWN);
 			e.key.key = nacl_zlkey_table[key & 255];
-			e.key.code = e.key.key;
 			e.key.mod = (mod & PP_INPUTEVENT_MODIFIER_SHIFTKEY ? ZLKMOD_SHIFT : 0) +
-			            (mod & PP_INPUTEVENT_MODIFIER_CONTROLKEY ? ZLKMOD_CTRL : 0) +
-			            (mod & PP_INPUTEVENT_MODIFIER_ALTKEY ? ZLKMOD_ALT : 0) +
-			            (mod & PP_INPUTEVENT_MODIFIER_METAKEY ? ZLKMOD_META : 0) +
-			            (mod & PP_INPUTEVENT_MODIFIER_CAPSLOCKKEY ? ZLKMOD_CAPS : 0) +
-			            (mod & PP_INPUTEVENT_MODIFIER_NUMLOCKKEY ? ZLKMOD_NUM : 0) +
-			            (mod & PP_INPUTEVENT_MODIFIER_ISKEYPAD ? ZLKMOD_MODE : 0) +
-			            (mod & PP_INPUTEVENT_MODIFIER_ISAUTOREPEAT ? ZLKMOD_RESERVED : 0);
+						(mod & PP_INPUTEVENT_MODIFIER_CONTROLKEY ? ZLKMOD_CTRL : 0) +
+						(mod & PP_INPUTEVENT_MODIFIER_ALTKEY ? ZLKMOD_ALT : 0) +
+						(mod & PP_INPUTEVENT_MODIFIER_METAKEY ? ZLKMOD_META : 0) +
+						(mod & PP_INPUTEVENT_MODIFIER_CAPSLOCKKEY ? ZLKMOD_CAPS : 0) +
+						(mod & PP_INPUTEVENT_MODIFIER_NUMLOCKKEY ? ZLKMOD_NUM : 0) +
+						(mod & PP_INPUTEVENT_MODIFIER_ISKEYPAD ? ZLKMOD_MODE : 0) +
+						(mod & PP_INPUTEVENT_MODIFIER_ISAUTOREPEAT ? ZLKMOD_RESERVED : 0);
 			ZL_Display_Process_Event(e);
 			if (e.key.is_down && e.key.key == ZLK_BACKSPACE) { e.type = ZL_EVENT_TEXTINPUT; e.text.text[0] = '\b'; e.text.text[1] = 0; ZL_Display_Process_Event(e); }
 			}break;
@@ -638,7 +637,7 @@ bool ZL_CreateWindow(const char*, int width, int height, int displayflags)
 	{
 		//Create context
 		int32_t attribs[] = { PP_GRAPHICS3DATTRIB_ALPHA_SIZE, 0, PP_GRAPHICS3DATTRIB_DEPTH_SIZE, (displayflags & ZL_DISPLAY_DEPTHBUFFER ? 16 : 0), PP_GRAPHICS3DATTRIB_STENCIL_SIZE, 0,
-		                      PP_GRAPHICS3DATTRIB_SAMPLES, 4, PP_GRAPHICS3DATTRIB_SAMPLE_BUFFERS, 1, PP_GRAPHICS3DATTRIB_WIDTH, NACL_Width, PP_GRAPHICS3DATTRIB_HEIGHT, NACL_Height, PP_GRAPHICS3DATTRIB_NONE };
+							  PP_GRAPHICS3DATTRIB_SAMPLES, 4, PP_GRAPHICS3DATTRIB_SAMPLE_BUFFERS, 1, PP_GRAPHICS3DATTRIB_WIDTH, NACL_Width, PP_GRAPHICS3DATTRIB_HEIGHT, NACL_Height, PP_GRAPHICS3DATTRIB_NONE };
 		if (!(context3d = ppb_graphics3d_interface->Create(instance_, NULL, attribs)) || !ppb_instance_interface->BindGraphics(instance_, context3d))
 		{
 			ZL_LOG0("NACL", "Failed to start graphics - No OpenGL available");

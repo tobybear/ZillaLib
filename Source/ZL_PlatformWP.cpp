@@ -11,11 +11,11 @@
   freely, subject to the following restrictions:
 
   1. The origin of this software must not be misrepresented; you must not
-     claim that you wrote the original software. If you use this software
-     in a product, an acknowledgment in the product documentation would be
-     appreciated but is not required.
+	 claim that you wrote the original software. If you use this software
+	 in a product, an acknowledgment in the product documentation would be
+	 appreciated but is not required.
   2. Altered source versions must be plainly marked as such, and must not be
-     misrepresented as being the original software.
+	 misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
 
@@ -543,7 +543,6 @@ void OnKey(int VirtualKey, bool down)
 	e.type = (down ? ZL_EVENT_KEYDOWN : ZL_EVENT_KEYUP);
 	e.key.is_down = down;
 	e.key.key = key;
-	e.key.code = key;
 	if      (key == ZLK_LSHIFT)   (down ? keymodstatus |= ZLKMOD_LSHIFT : keymodstatus &= ~ZLKMOD_LSHIFT);
 	else if (key == ZLK_RSHIFT)   (down ? keymodstatus |= ZLKMOD_RSHIFT : keymodstatus &= ~ZLKMOD_RSHIFT);
 	else if (key == ZLK_LCTRL)    (down ? keymodstatus |= ZLKMOD_LCTRL  : keymodstatus &= ~ZLKMOD_LCTRL );
