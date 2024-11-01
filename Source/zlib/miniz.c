@@ -1421,7 +1421,7 @@ MINIZ_EXPORT void *mz_zip_extract_archive_file_to_heap_v2(const char *pZip_filen
 
 #endif /* MINIZ_NO_ARCHIVE_APIS */
 
-#if defined(MINIZ_IMPLEMENTATION) && !defined(MINIZ_HEADER_FILE_ONLY)
+#if defined(MINIZ_IMPLEMENTATION) || !defined(MINIZ_HEADER_FILE_ONLY)
 /**************************************************************************
  *
  * Copyright 2013-2014 RAD Game Tools and Valve Software
