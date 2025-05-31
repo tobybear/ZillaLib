@@ -1336,6 +1336,8 @@ WebAssembly.instantiate(wasmBytes, {env:env,wasi_unstable:wasi,wasi_snapshot_pre
 {
 	// Store the list of the functions exported by the wasm module in ZL.asm
 	ZL.asm = output.instance.exports;
+	ZL.malloc_string = malloc_string;
+	ZL.malloc_array = malloc_array;
 	// Store the argument list with 1 entry at the far end of the stack to pass to main
 	var argc = 1, argv = wasmStackTop, exe = 'zl';
 	stringToUTF8Array(exe, HEAP8, (HEAPU32[(argv+0)>>2] = (argv+8)), 256);

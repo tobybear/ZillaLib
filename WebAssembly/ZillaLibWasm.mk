@@ -279,6 +279,7 @@ SYSCXXFLAGS += -DNDEBUG -D_LIBCPP_BUILDING_LIBRARY -D_LIBCPP_DISABLE_VISIBILITY_
 
 SYSCCFLAGS := -Ofast -std=gnu11 -fno-threadsafe-statics
 SYSCCFLAGS += -DNDEBUG -Dunix -D__unix -D__unix__
+SYSCCFLAGS += -isystem$(SYSTEM_ROOT)/lib/libc/musl/src/include
 SYSCCFLAGS += -isystem$(SYSTEM_ROOT)/lib/libc/musl/src/internal
 SYSCCFLAGS += -Wno-dangling-else -Wno-ignored-attributes -Wno-bitwise-op-parentheses -Wno-logical-op-parentheses -Wno-shift-op-parentheses -Wno-string-plus-int -Wno-unknown-pragmas -Wno-shift-count-overflow -Wno-return-type -Wno-macro-redefined -Wno-unused-result -Wno-pointer-sign
 
