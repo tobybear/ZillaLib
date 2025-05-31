@@ -33,6 +33,11 @@
 #include "ZL_File.h"
 #include "ZL_Application.h"
 
+#if (defined(__cplusplus) && (__cplusplus > 199711 || _MSC_VER >= 1800) && (!defined(__GNUC__) || defined(__clang__) || __GNUC__ > 4))
+#define ZL_HAVE_TYPE_TRAITS
+#include <type_traits>
+#endif
+
 //JSON format parser and writer
 struct ZL_Json
 {
@@ -211,7 +216,7 @@ struct ZL_Compression
 //Calculate checksums
 struct ZL_Checksum
 {
-	static unsigned int CRC32(const void* Data, size_t DataSize);
+	static unsigned int CRC32(const void* Data, size_t DataSize, unsigned int extend = 0);
 	static unsigned int Fast(const void* Data, size_t DataSize);
 	static unsigned int Fast4(const void* Data, size_t DataSize); //DataSize must be 4 byte aligned
 	static void SHA1(const void* Data, size_t DataSize, unsigned char OutResult[20]);

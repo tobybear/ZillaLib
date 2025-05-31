@@ -982,11 +982,11 @@ bool ZL_Compression::Decompress(const void* InBuffer, size_t InSize, const void*
 	return Success;
 }
 
-unsigned int ZL_Checksum::CRC32(const void* Data, size_t DataSize)
+unsigned int ZL_Checksum::CRC32(const void* Data, size_t DataSize, unsigned int extend)
 {
-	return (unsigned int)crc32(0, (unsigned char*)Data, (unsigned int)DataSize);
+	return (unsigned int)crc32(extend, (unsigned char*)Data, (unsigned int)DataSize);
 	//if (!Data) return 0;
-	//unsigned int crcu32 = ~(unsigned int)0;
+	//unsigned int crcu32 = ~(unsigned int)extend;
 	//unsigned char b, *p = (unsigned char*)Data;
 	//// Karl Malbrain's compact CRC-32. See "A compact CCITT crc16 and crc32 C implementation that balances processor cache usage against speed": http://www.geocities.com/malbrain/
 	//static const unsigned int s_crc32[16] = { 0, 0x1db71064, 0x3b6e20c8, 0x26d930ac, 0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c, 0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c, 0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c };
@@ -1055,9 +1055,9 @@ void ZL_Checksum::SHA1(const void* Data, size_t DataSize, unsigned char OutResul
 
 		static void SHA1Process(SHA1_CTX* context, const unsigned char* data, size_t len)
 		{
-			size_t i, j = context->count[0];
-			if ((context->count[0] += (len << 3)) < j) context->count[1]++;
-			context->count[1] += (len>>29);
+			size_t i; unsigned int j = context->count[0];
+			if ((context->count[0] += (unsigned int)(len << 3)) < j) context->count[1]++;
+			context->count[1] += (unsigned int)(len>>29);
 			j = (j >> 3) & 63;
 			if ((j + len) > 63)
 			{
@@ -1070,7 +1070,7 @@ void ZL_Checksum::SHA1(const void* Data, size_t DataSize, unsigned char OutResul
 			memcpy(&context->buffer[j], &data[i], len - i);
 		}
 
-		size_t count[2];
+		unsigned int count[2];
 		unsigned int state[5];
 		unsigned char buffer[64];
 	};
