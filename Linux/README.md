@@ -14,6 +14,7 @@ Building for linux requires an installed and running linux operating system (eit
   - g++
   - libgl1-mesa-dev
   - libasound2-dev
+  - libxxf86vm-dev
 
 By default, it will use the system machine (32 or 64-bit) for building.  
 If you have a cross compile environment set up, you can specify to build a specific machine target by supplying M32=1 or M64=1 as a parameter to the make command line.

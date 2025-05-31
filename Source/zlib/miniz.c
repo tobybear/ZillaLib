@@ -163,6 +163,10 @@
 #define MINIZ_NO_ARCHIVE_APIS
 #define MINIZ_NO_STDIO
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wmisleading-indentation"
+#endif
+
 #include <stdlib.h>
 
 // Defines to completely disable specific portions of miniz.c:

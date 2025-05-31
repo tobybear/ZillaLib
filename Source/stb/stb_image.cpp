@@ -3,6 +3,10 @@
 #define STB_IMAGE_NO_FLIP_VERTICALLY_ON_LOAD
 #define STB_IMAGE_IMPLEMENTATION
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wmisleading-indentation"
+#endif
+
 /* stb_image - v2.06 - public domain image loader - http://nothings.org/stb_image.h
                                      no warranty implied; use at your own risk
 

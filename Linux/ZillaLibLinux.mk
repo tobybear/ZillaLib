@@ -40,7 +40,7 @@ DEPWARNINGS := -Wno-main -Wno-empty-body -Wno-char-subscripts -Wno-sign-compare 
 CFLAGS      := $(WARNINGS) -pthread -msse -mfpmath=sse -ffast-math -fomit-frame-pointer -fvisibility=hidden -fno-exceptions -fno-non-call-exceptions -ffunction-sections -fdata-sections
 LDFLAGS     := -lGL -lpthread -ldl -Wl,--gc-sections
 CXXFLAGS    := -std=c++11 -fno-rtti
-CCFLAGS     := -std=gnu99 -D_SVID_SOURCE
+CCFLAGS     := -std=gnu99 -D_DEFAULT_SOURCE
 
 ifeq ($(BUILD),RELEASE)
   ZLOUTDIR  := $(ZILLALIB_DIR)Linux/build-release
@@ -76,7 +76,7 @@ endif
 APPFLAGS += $(subst \\\,$(sp),$(foreach F,$(subst \$(sp),\\\,$(D)),"-D$(F)"))
 
 # Compute tool paths
-ifeq ($(shell python -c "print 1"),)
+ifeq ($(shell python -c "print(1)"),)
   $(error Python executable not found in PATH)
 endif
 

@@ -1592,7 +1592,7 @@ struct ZL_ParticleEmitter_Impl : public ZL_Mesh_Impl
 
 	ZL_ParticleEmitter_Impl(scalar LifeTime, size_t MaxParticles, ZL_MaterialModes::Blending BlendMode) : ZL_Mesh_Impl(0), ActiveCount(0), MaxCount(MaxParticles)
 	{
-		memset(&Emitter, 0, sizeof(Emitter));
+		memset((void*)&Emitter, 0, sizeof(Emitter)); // cast to void* to avoid GCC warning
 		Emitter.LifeTime = LifeTime;
 		Emitter.Chance = 1;
 		Emitter.ColorMin = Emitter.ColorMax = ZL_Vector3::One;

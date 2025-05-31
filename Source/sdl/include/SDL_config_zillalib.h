@@ -89,13 +89,13 @@
 
 #define SDL_Renderer void
 #define SDL_Texture void
-typedef struct SDL_RendererInfo { const char* name; int num_texture_formats; int *texture_formats; } SDL_RendererInfo;
+typedef struct SDL_RendererInfo { const char* name; int num_texture_formats; int texture_formats[1]; } SDL_RendererInfo;
 #define SDL_GetNumRenderDrivers() 0
 #define SDL_GetRenderDriverInfo(i, info) { (info)->name = NULL; (info)->num_texture_formats = 0; }
 #define SDL_CreateRenderer(a,b,c) NULL
 #define SDL_DestroyRenderer(a)
 #define SDL_DestroyTexture(a)
-#define SDL_GetRendererInfo(a, b) NULL
+#define SDL_GetRendererInfo(a, b) (memset(&(a), 0, sizeof(a)),NULL)
 #define SDL_TEXTUREACCESS_STREAMING 0
 #define SDL_RenderSetViewport(a,b)
 #define SDL_UpdateTexture(a,b,c,d) 0
