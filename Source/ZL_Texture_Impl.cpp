@@ -312,6 +312,7 @@ ZL_Texture_Impl::~ZL_Texture_Impl()
 
 void ZL_Texture_Impl::SetTextureFilter(GLint newfiltermin, GLint newfiltermag)
 {
+	glBindTexture(GL_TEXTURE_2D, gltexid);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtermin = newfiltermin);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtermag = newfiltermag);
 }
@@ -514,3 +515,18 @@ void StoreAllFrameBufferTexturesOnDeactivate()
 	}
 }
 #endif
+
+void ZL_GL_ResetFrameBuffer()
+{
+	active_viewport = (pActiveFrameBuffer ? pActiveFrameBuffer->viewport : window_viewport);
+	active_framebuffer = (pActiveFrameBuffer ? pActiveFrameBuffer->glFB : window_framebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, active_framebuffer);
+	glViewport(active_viewport[0], active_viewport[1], active_viewport[2], active_viewport[3]);
+	ZLGLSL::DisableProgram();
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDisable(GL_CULL_FACE);
+	glDepthMask(GL_FALSE);
+}

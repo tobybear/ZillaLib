@@ -211,7 +211,7 @@ struct ZL_Sound_Impl : ZL_Impl
 
 bool ZL_PlatformAudioMix(short *stream, unsigned int bytes)
 {
-	if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_MINIMIZED))
+	if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_MINIMIZED) && !ZL_WINDOWFLAGS_HAS(ZL_WINDOW_MINIMIZEDAUDIO))
 	{
 		nothingtomix:
 		memset(stream, 0, bytes);

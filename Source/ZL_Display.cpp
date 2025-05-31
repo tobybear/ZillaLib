@@ -42,12 +42,13 @@ const ZL_Color ZL_Color::DarkGray   (0.25f, 0.25f, 0.25f, 1.f), ZL_Color::Cyan  
 const ZL_Color ZL_Color::Orange     (1.00f, 0.70f, 0.00f, 1.f), ZL_Color::Brown  (0.50f, 0.25f, 0.05f, 1.f), ZL_Color::Pink       (1.00f, 0.41f, 0.70f, 1.f);
 
 ZL_Signal_v1<ZL_KeyboardEvent&> ZL_Display::sigKeyDown, ZL_Display::sigKeyUp;
-ZL_Signal_v1<const ZL_String&> ZL_Display::sigTextInput;
+ZL_Signal_v1<const ZL_String&> ZL_Display::sigTextInput, ZL_Display::sigDropFile;
 ZL_Signal_v1<ZL_WindowResizeEvent&> ZL_Display::sigResized;
 ZL_Signal_v1<ZL_PointerMoveEvent&> ZL_Display::sigPointerMove;
 ZL_Signal_v1<ZL_PointerPressEvent&> ZL_Display::sigPointerDown, ZL_Display::sigPointerUp;
 ZL_Signal_v1<ZL_MouseWheelEvent&> ZL_Display::sigMouseWheel;
 ZL_Signal_v1<ZL_WindowActivateEvent&> ZL_Display::sigActivated; //focus, key input, mouse input
+ZL_Signal_v2<bool, int> ZL_Display::sigJoyDeviceChange;
 
 bool ZL_Display::KeyDown[ZLK_LAST], ZL_Display::MouseDown[8];
 scalar ZL_Display::PointerX, ZL_Display::PointerY;
@@ -88,10 +89,11 @@ void ZL_Display_Process_Event(ZL_Event& event)
 			if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS)) ZL_Display::sigKeyDown.call(event.key);
 			break;
 		case ZL_EVENT_KEYUP:
+			if (!ZL_Display::KeyDown[event.key.key]) break;
 			event.key.is_down = false;
 			event.key.is_repeat = false;
 			ZL_Display::KeyDown[event.key.key] = false;
-			if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS)) ZL_Display::sigKeyUp.call(event.key);
+			ZL_Display::sigKeyUp.call(event.key);
 			break;
 		case ZL_EVENT_TEXTINPUT:
 			if (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS) && ZL_Display::sigTextInput.HasConnections()) ZL_Display::sigTextInput.call(event.text.text);
@@ -131,12 +133,14 @@ void ZL_Display::AllSigDisconnect(void *callback_class_inst)
 	sigKeyDown.disconnect_class(callback_class_inst);
 	sigKeyUp.disconnect_class(callback_class_inst);
 	sigTextInput.disconnect_class(callback_class_inst);
+	sigDropFile.disconnect_class(callback_class_inst);
 	sigPointerDown.disconnect_class(callback_class_inst);
 	sigPointerUp.disconnect_class(callback_class_inst);
 	sigMouseWheel.disconnect_class(callback_class_inst);
 	sigPointerMove.disconnect_class(callback_class_inst);
 	sigActivated.disconnect_class(callback_class_inst);
 	sigResized.disconnect_class(callback_class_inst);
+	sigJoyDeviceChange.disconnect_class(callback_class_inst);
 }
 
 bool ZL_Display::Init(const char* title, int width, int height, int displayflags)
@@ -160,6 +164,7 @@ bool ZL_Display::Init(const char* title, int width, int height, int displayflags
 	if (displayflags & ZL_DISPLAY_ALLOWANYORIENTATION) *pZL_WindowFlags |= ZL_WINDOW_ALLOWANYORIENTATION;
 	if (displayflags & ZL_DISPLAY_PREVENTALTENTER) *pZL_WindowFlags |= ZL_WINDOW_PREVENTALTENTER;
 	if (displayflags & ZL_DISPLAY_PREVENTALTF4) *pZL_WindowFlags |= ZL_WINDOW_PREVENTALTF4;
+	if (displayflags & ZL_DISPLAY_MINIMIZEDAUDIO) *pZL_WindowFlags |= ZL_WINDOW_MINIMIZEDAUDIO;
 
 	ZL_LOG2("DISPLAY", "Actually got width: %d - height: %d", native_width, native_height);
 
@@ -767,19 +772,16 @@ ZL_Vector ZL_Rectf::ClosestPointOnBorder(const ZL_Vector& p) const
 #ifndef ZL_VIDEO_USE_GLSL
 #include "ZL_Impl.h"
 struct ZL_Shader_Impl : ZL_Impl { };
-ZL_Shader::ZL_Shader(const char*, const char*, const char*, const char*) : impl(NULL) { }
+ZL_Shader::ZL_Shader(const char*, const char*, const char*, const char*, int, ...) : impl(NULL) { }
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_Shader)
 void ZL_Shader::Activate() { }
-void ZL_Shader::SetUniform(scalar uni1) { }
-void ZL_Shader::SetUniform(scalar uni1, scalar uni2) { }
+void ZL_Shader::SetUniform(scalar, scalar, ...) { }
 void ZL_Shader::Deactivate() { }
 struct ZL_PostProcess_Impl : ZL_Impl { };
-ZL_PostProcess::ZL_PostProcess(const char*, bool, const char*, const char*) : impl(NULL) { }
+ZL_PostProcess::ZL_PostProcess(const char*, bool, const char*, const char*, int, ...) : impl(NULL) { }
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_PostProcess)
 void ZL_PostProcess::Start(bool) { }
-void ZL_PostProcess::Apply() { }
-void ZL_PostProcess::Apply(scalar uni1) { }
-void ZL_PostProcess::Apply(scalar uni1, scalar uni2) { }
+void ZL_PostProcess::Apply(scalar, double, ...) { }
 #endif
 
 // ------------------------------------------------------------------------------------------

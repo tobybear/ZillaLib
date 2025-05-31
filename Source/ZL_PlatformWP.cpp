@@ -1101,16 +1101,16 @@ bool ZL_AudioOpen()
 
 //TODO CUSTOM SHADER IMPLEMENTATION...
 struct ZL_Shader_Impl : ZL_Impl { };
-ZL_Shader::ZL_Shader(const char*, const char*) : impl(NULL) { }
+ZL_Shader::ZL_Shader(const char*, const char*, const char*, const char*, int, ...) : impl(NULL) { }
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_Shader)
 void ZL_Shader::Activate() { }
+void ZL_Shader::SetUniform(scalar, scalar, ...) { }
 void ZL_Shader::Deactivate() { }
 struct ZL_PostProcess_Impl : ZL_Impl { };
-ZL_PostProcess::ZL_PostProcess(const char*, bool, const char*, const char*) : impl(NULL) { }
+ZL_PostProcess::ZL_PostProcess(const char*, bool, const char*, const char*, int, ...) : impl(NULL) { }
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_PostProcess)
 void ZL_PostProcess::Start(bool) { }
 void ZL_PostProcess::Apply() { }
-void ZL_PostProcess::Apply(scalar uni1) { }
-void ZL_PostProcess::Apply(scalar uni1, scalar uni2) { }
+void ZL_PostProcess::Apply(scalar, double, ...) { }
 
 #endif

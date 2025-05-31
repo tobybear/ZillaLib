@@ -132,6 +132,8 @@ struct ZL_Surface
 
 	void DrawBox(const scalar* VerticesBox, const scalar* TexCoordBox, const ZL_Color &color) const;
 
+	void SetPixels(const unsigned char* pixels, int sub_x, int sub_y, int sub_width, int sub_height, int BytesPerPixel = 4);
+
 	//Returns bitmap data which needs to be free()'d after use
 	static unsigned char* GetPixelsFromFile(const ZL_FileLink& ImgFile, int* pOutWidth = NULL, int* pOutHeight = NULL, int* pOutBytesPerPixel = NULL, int RequestBytesPerPixel = 0);
 

@@ -574,6 +574,13 @@ void ZL_Surface::DrawBox(const scalar* VerticesBox, const scalar* TexCoordBox, c
 	glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
 }
 
+void ZL_Surface::SetPixels(const unsigned char* pixels, int sub_x, int sub_y, int sub_width, int sub_height, int BytesPerPixel)
+{
+	static const GLenum fmts[] = { GL_RGBA, GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB, GL_RGBA };
+	glBindTexture(GL_TEXTURE_2D, impl->tex->gltexid);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, sub_x, sub_y, sub_width, sub_height, (BytesPerPixel < 5 ? fmts[BytesPerPixel] : GL_RGBA), GL_UNSIGNED_BYTE, pixels);
+}
+
 unsigned char* ZL_Surface::GetPixelsFromFile(const ZL_FileLink& ImgFile, int* pOutWidth, int* pOutHeight, int* pOutBytesPerPixel, int RequestBytesPerPixel)
 {
 	ZL_BitmapSurface bmp = ZL_Texture_Impl::LoadBitmapSurface(ImgFile.Open(), RequestBytesPerPixel);
@@ -581,4 +588,9 @@ unsigned char* ZL_Surface::GetPixelsFromFile(const ZL_FileLink& ImgFile, int* pO
 	if (pOutHeight) *pOutHeight = bmp.h;
 	if (pOutBytesPerPixel) *pOutBytesPerPixel = bmp.BytesPerPixel;
 	return bmp.pixels;
+}
+
+unsigned ZL_Surface_GetGLFrameBuffer(ZL_Surface* srf)
+{
+	return (*((ZL_Surface_Impl**)srf))->tex->pFrameBuffer->glFB;
 }

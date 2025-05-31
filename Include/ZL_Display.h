@@ -225,6 +225,7 @@ enum ZL_DisplayInitFlags
 	ZL_DISPLAY_PREVENTALTENTER            = 0x010, //when set ALT+ENTER won't toggle fullscreen (on platforms that have full screen switching)
 	ZL_DISPLAY_PREVENTALTF4               = 0x020, //when set ALT+F4 won't quit
 	ZL_DISPLAY_DEPTHBUFFER                = 0x040, //use for 3d rendering with depth buffer
+	ZL_DISPLAY_MINIMIZEDAUDIO             = 0x080, //continue audio output even when minimized
 	ZL_DISPLAY_ANDROID_OVERRIDEVOLUMEKEYS = 0x100, //[Android only] when set the volume cannot be changed with the hardware buttons but are available to sigKeyDown/sigKeyUp
 	ZL_DISPLAY_ANDROID_SHOWNAVIGATIONBAR  = 0x200, //[Android only] will always show the system navigation bar without requiring a swipe from the edge to make it visible
 };
@@ -285,11 +286,11 @@ struct ZL_Polygon
 #define ZL_SHADER_SOURCE_QUOTE(GLES_PRECISION,...) ZL_SHADER_SOURCE_HEADER(GLES_PRECISION) #__VA_ARGS__
 #endif
 
-//Surface shaders that are applied to surface drawing. Both fragment and vertex shaders can be customized. Very simple, only up to two float uniforms are supported.
+//Surface shaders that are applied to surface drawing. Both fragment and vertex shaders can be customized. Very simple, only float uniforms are supported.
 struct ZL_Shader
 {
 	ZL_Shader();
-	ZL_Shader(const char* code_fragment, const char *code_vertex = NULL, const char* name_uniform_float_1 = NULL, const char* name_uniform_float_2 = NULL);
+	ZL_Shader(const char* code_fragment, const char *code_vertex = NULL, const char* name_uniform_float_1 = NULL, const char* name_uniform_float_2 = NULL, int additional_float_uniforms = 0, ...);
 	~ZL_Shader();
 	ZL_Shader(const ZL_Shader &source);
 	ZL_Shader &operator=(const ZL_Shader &source);
@@ -298,8 +299,7 @@ struct ZL_Shader
 	bool operator!=(const ZL_Shader &b) const { return (impl!=b.impl); }
 
 	void Activate();
-	void SetUniform(scalar uni1);
-	void SetUniform(scalar uni1, scalar uni2);
+	void SetUniform(scalar uni1, double uni2 = s(0), ...);
 	void Deactivate();
 
 	private: struct ZL_Shader_Impl* impl;
@@ -309,7 +309,7 @@ struct ZL_Shader
 struct ZL_PostProcess
 {
 	ZL_PostProcess();
-	ZL_PostProcess(const char* code_fragment, bool use_alpha = false, const char* name_uniform_float_1 = NULL, const char* name_uniform_float_2 = NULL);
+	ZL_PostProcess(const char* code_fragment, bool use_alpha = false, const char* name_uniform_float_1 = NULL, const char* name_uniform_float_2 = NULL, int additional_float_uniforms = 0, ...);
 	~ZL_PostProcess();
 	ZL_PostProcess(const ZL_PostProcess &source);
 	ZL_PostProcess &operator=(const ZL_PostProcess &source);
@@ -318,9 +318,7 @@ struct ZL_PostProcess
 	bool operator!=(const ZL_PostProcess &b) const { return (impl!=b.impl); }
 
 	void Start(bool clear = true);
-	void Apply();
-	void Apply(scalar uni1);
-	void Apply(scalar uni1, scalar uni2);
+	void Apply(scalar uni1 = s(0), double uni2 = s(0), ...);
 
 	private: struct ZL_PostProcess_Impl* impl;
 };
@@ -421,12 +419,13 @@ struct ZL_Display
 
 	//Events
 	static ZL_Signal_v1<ZL_KeyboardEvent&> sigKeyDown, sigKeyUp;
-	static ZL_Signal_v1<const ZL_String&> sigTextInput;
+	static ZL_Signal_v1<const ZL_String&> sigTextInput, sigDropFile;
 	static ZL_Signal_v1<ZL_PointerMoveEvent&> sigPointerMove;
 	static ZL_Signal_v1<ZL_PointerPressEvent&> sigPointerDown, sigPointerUp;
 	static ZL_Signal_v1<ZL_MouseWheelEvent&> sigMouseWheel;
 	static ZL_Signal_v1<ZL_WindowActivateEvent&> sigActivated; //input focus, mouse movement, iconified
 	static ZL_Signal_v1<ZL_WindowResizeEvent&> sigResized;
+	static ZL_Signal_v2<bool, int> sigJoyDeviceChange;
 	static void AllSigDisconnect(void *callback_class_inst);
 
 	//Data from the last input events (pointer position, key/button states)

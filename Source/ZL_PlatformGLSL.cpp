@@ -411,12 +411,13 @@ static std::vector<struct ZL_PostProcess_Impl*> *pLoadedPostProcesses = NULL;
 struct ZL_Shader_Impl : ZL_Impl
 {
 	GLuint PROGRAM;
-	GLint UNI_MVP, UNI_1, UNI_2;
+	GLint UNI_MVP;
+	std::vector <GLint> UNIs;
 	#ifdef ZL_VIDEO_WEAKCONTEXT
 	ZL_String strCodeVertex, strCodeFragment;
 	#endif
 
-	ZL_Shader_Impl(const char* code_fragment, const char *code_vertex, const char* name_uniform_float_1, const char* name_uniform_float_2)
+	ZL_Shader_Impl(const char* code_fragment, const char *code_vertex)
 	{
 		const char **srcs_vertex, **srcs_fragment; GLsizei srcs_vertex_count, srcs_fragment_count;
 		if (code_vertex) srcs_vertex = &code_vertex, srcs_vertex_count = 1; else srcs_vertex = srcs_texture_vertex, srcs_vertex_count = COUNT_OF(srcs_texture_vertex);
@@ -424,8 +425,6 @@ struct ZL_Shader_Impl : ZL_Impl
 		const char *attr[] = { "a_position", "a_color", "a_texcoord" };
 		if (!(PROGRAM = ZLGLSL::CreateProgramFromVertexAndFragmentShaders(srcs_vertex_count, srcs_vertex, srcs_fragment_count, srcs_fragment, COUNT_OF(attr), attr))) return;
 		UNI_MVP       = (GLuint)glGetUniformLocation(PROGRAM, "u_mvpMatrix");
-		if (name_uniform_float_1) UNI_1 = (GLuint)glGetUniformLocation(PROGRAM, name_uniform_float_1);
-		if (name_uniform_float_2) UNI_2 = (GLuint)glGetUniformLocation(PROGRAM, name_uniform_float_2);
 		#ifdef ZL_VIDEO_WEAKCONTEXT
 		if (code_vertex) strCodeVertex = code_vertex;
 		if (code_fragment) strCodeFragment = code_fragment;
@@ -443,8 +442,16 @@ struct ZL_Shader_Impl : ZL_Impl
 	}
 };
 
-ZL_Shader::ZL_Shader(const char* code_fragment, const char *code_vertex, const char* name_uniform_float_1, const char* name_uniform_float_2) : impl(new ZL_Shader_Impl(code_fragment, code_vertex, name_uniform_float_1, name_uniform_float_2))
-{ if (!impl->PROGRAM) { delete impl; impl = NULL; } }
+ZL_Shader::ZL_Shader(const char* code_fragment, const char *code_vertex, const char* name_uniform_float_1, const char* name_uniform_float_2, int additional_float_uniforms, ...) : impl(new ZL_Shader_Impl(code_fragment, code_vertex))
+{
+	if (!impl->PROGRAM) { delete impl; impl = NULL; return; }
+	if (name_uniform_float_1) impl->UNIs.push_back((GLuint)glGetUniformLocation(impl->PROGRAM, name_uniform_float_1));
+	if (name_uniform_float_2) impl->UNIs.push_back((GLuint)glGetUniformLocation(impl->PROGRAM, name_uniform_float_2));
+	va_list ap;
+	va_start(ap, additional_float_uniforms);
+	for (int i = 0; i != additional_float_uniforms; i++) impl->UNIs.push_back((GLuint)glGetUniformLocation(impl->PROGRAM, va_arg(ap, const char*)));
+	va_end(ap);
+}
 
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_Shader)
 
@@ -458,8 +465,20 @@ void ZL_Shader::Activate()
 	glEnableVertexAttribArrayUnbuffered(ZLGLSL::ATTR_TEXCOORD);
 	ZLGLSL::MatrixApply();
 }
-void ZL_Shader::SetUniform(scalar uni1) { if (impl) glUniform1(impl->UNI_1, (GLscalar)uni1); }
-void ZL_Shader::SetUniform(scalar uni1, scalar uni2) { if (impl) { glUniform1(impl->UNI_1, (GLscalar)uni1); glUniform1(impl->UNI_2, (GLscalar)uni2); } }
+
+void ZL_Shader::SetUniform(scalar uni1, double uni2, ...)
+{
+	if (!impl) return;
+	Activate();
+	va_list ap;
+	va_start(ap, uni2);
+	for (size_t i = 0; i != impl->UNIs.size(); i++)
+	{
+		scalar v = (i == 0 ? uni1 : i == 1 ? (scalar)uni2 : (scalar)(va_arg(ap, double)));
+		glUniform1(impl->UNIs[i], (GLscalar)v);
+	}
+	va_end(ap);
+}
 
 void ZL_Shader::Deactivate()
 {
@@ -472,18 +491,16 @@ static const char *postprocess_vertex_shader_srcs[] = { ZLGLSL_LIST_LOW_PRECISIO
 struct ZL_PostProcess_Impl : ZL_Impl
 {
 	GLuint PROGRAM;
-	GLint UNI_1, UNI_2;
+	std::vector <GLint> UNIs;
 	ZL_Texture_Impl *tex;
 	#ifdef ZL_VIDEO_WEAKCONTEXT
 	std::string strCodeFragment;
 	#endif
 
-	ZL_PostProcess_Impl(const char* code_fragment, bool use_alpha, const char* name_uniform_float_1, const char* name_uniform_float_2) : tex(NULL)
+	ZL_PostProcess_Impl(const char* code_fragment, bool use_alpha) : tex(NULL)
 	{
 		const char *attr[] = { "a_position", "a_texcoord" };
 		if (!(PROGRAM = ZLGLSL::CreateProgramFromVertexAndFragmentShaders(COUNT_OF(postprocess_vertex_shader_srcs), postprocess_vertex_shader_srcs, 1, &code_fragment, COUNT_OF(attr), attr))) return;
-		if (name_uniform_float_1) UNI_1 = (GLuint)glGetUniformLocation(PROGRAM, name_uniform_float_1);
-		if (name_uniform_float_2) UNI_2 = (GLuint)glGetUniformLocation(PROGRAM, name_uniform_float_2);
 		tex = ZL_Texture_Impl::GenerateTexture(window_viewport[2], window_viewport[3], use_alpha);
 		if (!tex->gltexid) { tex->DelRef(); tex = NULL; return; }
 		#ifdef ZL_VIDEO_WEAKCONTEXT
@@ -502,42 +519,49 @@ struct ZL_PostProcess_Impl : ZL_Impl
 			if (*it == this) { pLoadedPostProcesses->erase(it); break; }
 		#endif
 	}
-
-	void Start(bool clear)
-	{
-		tex->FrameBufferBegin(clear);
-	}
-
-	void Apply(scalar *uni1, scalar *uni2)
-	{
-		tex->FrameBufferEnd();
-		const GLscalar vec_fullbox[8] = { -1,1 , 1,1 , -1,-1 , 1,-1 };
-		const GLscalar tex_fullbox[8] = {  0,1 , 1,1 ,  0, 0 , 1, 0 };
-		glDisableVertexAttribArrayUnbuffered(2);
-		glUseProgram(PROGRAM);
-		glEnableVertexAttribArrayUnbuffered(1);
-		glBindTexture(GL_TEXTURE_2D, tex->gltexid);
-		glVertexAttribPointerUnbuffered(0, 2, GL_SCALAR, GL_FALSE, 0, vec_fullbox);
-		glVertexAttribPointerUnbuffered(1, 2, GL_SCALAR, GL_FALSE, 0, tex_fullbox);
-		if (uni1) glUniform1(UNI_1, (GLscalar)*uni1);
-		if (uni2) glUniform1(UNI_2, (GLscalar)*uni2);
-		//glDisable(GL_BLEND);
-		glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
-		//glEnable(GL_BLEND);
-		glDisableVertexAttribArrayUnbuffered(1);
-		ZLGLSL::ActiveProgram = ZLGLSL::NONE;
-	}
 };
 
-ZL_PostProcess::ZL_PostProcess(const char* code_fragment, bool use_alpha, const char* name_uniform_float_1, const char* name_uniform_float_2) : impl(new ZL_PostProcess_Impl(code_fragment, use_alpha, name_uniform_float_1, name_uniform_float_2))
-{ if (!impl->PROGRAM || !impl->tex) { delete impl; impl = NULL; } }
+ZL_PostProcess::ZL_PostProcess(const char* code_fragment, bool use_alpha, const char* name_uniform_float_1, const char* name_uniform_float_2, int additional_float_uniforms , ...) : impl(new ZL_PostProcess_Impl(code_fragment, use_alpha))
+{
+	if (!impl->PROGRAM || !impl->tex) { delete impl; impl = NULL; return; }
+	if (name_uniform_float_1) impl->UNIs.push_back((GLuint)glGetUniformLocation(impl->PROGRAM, name_uniform_float_1));
+	if (name_uniform_float_2) impl->UNIs.push_back((GLuint)glGetUniformLocation(impl->PROGRAM, name_uniform_float_2));
+	va_list ap;
+	va_start(ap, additional_float_uniforms);
+	for (int i = 0; i != additional_float_uniforms; i++) impl->UNIs.push_back((GLuint)glGetUniformLocation(impl->PROGRAM, va_arg(ap, const char*)));
+	va_end(ap);
+}
 
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_PostProcess)
 
-void ZL_PostProcess::Start(bool clear) { if (impl) impl->Start(clear); }
-void ZL_PostProcess::Apply() { if (impl) impl->Apply(NULL, NULL); }
-void ZL_PostProcess::Apply(scalar uni1) { if (impl) impl->Apply(&uni1, NULL); }
-void ZL_PostProcess::Apply(scalar uni1, scalar uni2) { if (impl) impl->Apply(&uni1, &uni2); }
+void ZL_PostProcess::Start(bool clear)
+{
+	if (impl) impl->tex->FrameBufferBegin(clear);
+}
+
+void ZL_PostProcess::Apply(scalar uni1, double uni2, ...)
+{
+	if (!impl) return;
+	impl->tex->FrameBufferEnd();
+	const GLscalar vec_fullbox[8] = { -1,1 , 1,1 , -1,-1 , 1,-1 };
+	const GLscalar tex_fullbox[8] = {  0,1 , 1,1 ,  0, 0 , 1, 0 };
+	glDisableVertexAttribArrayUnbuffered(2);
+	glUseProgram(impl->PROGRAM);
+	glEnableVertexAttribArrayUnbuffered(1);
+	glBindTexture(GL_TEXTURE_2D, impl->tex->gltexid);
+	glVertexAttribPointerUnbuffered(0, 2, GL_SCALAR, GL_FALSE, 0, vec_fullbox);
+	glVertexAttribPointerUnbuffered(1, 2, GL_SCALAR, GL_FALSE, 0, tex_fullbox);
+	va_list ap;
+	va_start(ap, uni2);
+	for (size_t i = 0; i != impl->UNIs.size(); i++)
+		glUniform1(impl->UNIs[i], (GLscalar)(i == 0 ? uni1 : i == 1 ? (scalar)uni2 : (scalar)(va_arg(ap, double))));
+	va_end(ap);
+	//glDisable(GL_BLEND);
+	glDrawArraysUnbuffered(GL_TRIANGLE_STRIP, 0, 4);
+	//glEnable(GL_BLEND);
+	glDisableVertexAttribArrayUnbuffered(1);
+	ZLGLSL::ActiveProgram = ZLGLSL::NONE;
+}
 
 #ifdef ZL_VIDEO_WEAKCONTEXT
 bool CheckProgramsIfContextLost()

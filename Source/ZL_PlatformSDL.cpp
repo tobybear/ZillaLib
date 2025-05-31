@@ -557,7 +557,14 @@ static void ProcessSDLEvents()
 				if ((out.window.event == ZL_WINDOWEVENT_MINIMIZED || out.window.event == ZL_WINDOWEVENT_FOCUS) && !ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS)) SDL_ResetMouse();
 				#endif
 				break;
-
+			case SDL_DROPFILE:
+				ZL_Display::sigDropFile.call(in.drop.file);
+				free(in.drop.file);
+				break;
+			case SDL_JOYDEVICEADDED:
+			case SDL_JOYDEVICEREMOVED:
+				ZL_Display::sigJoyDeviceChange.call(in.type == SDL_JOYDEVICEADDED, in.jdevice.which);
+				break;
 			#if 0 //defined(ZILLALOG)
 			case SDL_APP_TERMINATING: printf("UNUSED SDL EVENT [SDL_APP_TERMINATING]\n"); continue;
 			case SDL_APP_LOWMEMORY: printf("UNUSED SDL EVENT [SDL_APP_LOWMEMORY]\n"); continue;
@@ -567,22 +574,16 @@ static void ProcessSDLEvents()
 			case SDL_APP_DIDENTERFOREGROUND: printf("UNUSED SDL EVENT [SDL_APP_DIDENTERFOREGROUND]\n"); continue;
 			case SDL_SYSWMEVENT: printf("UNUSED SDL EVENT [SDL_SYSWMEVENT]\n"); continue;
 			case SDL_TEXTEDITING: printf("UNUSED SDL EVENT [SDL_TEXTEDITING]\n"); continue;
-			case SDL_JOYDEVICEADDED: printf("UNUSED SDL EVENT [SDL_JOYDEVICEADDED]\n"); continue;
-			case SDL_JOYDEVICEREMOVED: printf("UNUSED SDL EVENT [SDL_JOYDEVICEREMOVED]\n"); continue;
 			case SDL_CONTROLLERAXISMOTION: printf("UNUSED SDL EVENT [SDL_CONTROLLERAXISMOTION]\n"); continue;
 			case SDL_CONTROLLERBUTTONDOWN: printf("UNUSED SDL EVENT [SDL_CONTROLLERBUTTONDOWN]\n"); continue;
 			case SDL_CONTROLLERBUTTONUP: printf("UNUSED SDL EVENT [SDL_CONTROLLERBUTTONUP]\n"); continue;
 			case SDL_CONTROLLERDEVICEADDED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEADDED]\n"); continue;
 			case SDL_CONTROLLERDEVICEREMOVED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEREMOVED]\n"); continue;
 			case SDL_CONTROLLERDEVICEREMAPPED: printf("UNUSED SDL EVENT [SDL_CONTROLLERDEVICEREMAPPED]\n"); continue;
-			case SDL_FINGERDOWN: printf("UNUSED SDL EVENT [SDL_FINGERDOWN]\n"); continue;
-			case SDL_FINGERUP: printf("UNUSED SDL EVENT [SDL_FINGERUP]\n"); continue;
-			case SDL_FINGERMOTION: printf("UNUSED SDL EVENT [SDL_FINGERMOTION]\n"); continue;
 			case SDL_DOLLARGESTURE: printf("UNUSED SDL EVENT [SDL_DOLLARGESTURE]\n"); continue;
 			case SDL_DOLLARRECORD: printf("UNUSED SDL EVENT [SDL_DOLLARRECORD]\n"); continue;
 			case SDL_MULTIGESTURE: printf("UNUSED SDL EVENT [SDL_MULTIGESTURE]\n"); continue;
 			case SDL_CLIPBOARDUPDATE: printf("UNUSED SDL EVENT [SDL_CLIPBOARDUPDATE]\n"); continue;
-			case SDL_DROPFILE: printf("UNUSED SDL EVENT [SDL_DROPFILE]\n"); continue;
 			case SDL_RENDER_TARGETS_RESET: printf("UNUSED SDL EVENT [SDL_RENDER_TARGETS_RESET]\n"); continue;
 			case SDL_USEREVENT: printf("UNUSED SDL EVENT [SDL_USEREVENT]\n"); continue;
 			#endif
