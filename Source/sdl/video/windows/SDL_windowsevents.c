@@ -263,27 +263,29 @@ WIN_CheckRawMouseButtons( ULONG rawButtons, SDL_WindowData *data )
     }
 }
 
+/* ZL FIX: Only async check for released mouse buttons. Ignore pressing as it happens during file drag-and-dropping even outside the window. */
+static void
+WIN_CheckAsyncMouseReleaseButton(int vkey, SDL_bool bSDLMousePressed, SDL_WindowData *data, Uint8 button)
+{
+    if (bSDLMousePressed)
+        WIN_CheckWParamMouseButton( ( GetAsyncKeyState( vkey ) & 0x8000 ), bSDLMousePressed, data, button );
+}
+
 void
 WIN_CheckAsyncMouseRelease( SDL_WindowData *data )
 {
     Uint32 mouseFlags;
-    SHORT keyState;
 
     /* mouse buttons may have changed state here, we need to resync them,
        but we will get a WM_MOUSEMOVE right away which will fix things up if in non raw mode also
     */
     mouseFlags = SDL_GetMouseState( NULL, NULL );
 
-    keyState = GetAsyncKeyState( VK_LBUTTON );
-    WIN_CheckWParamMouseButton( ( keyState & 0x8000 ), ( mouseFlags & SDL_BUTTON_LMASK ), data, SDL_BUTTON_LEFT );
-    keyState = GetAsyncKeyState( VK_RBUTTON );
-    WIN_CheckWParamMouseButton( ( keyState & 0x8000 ), ( mouseFlags & SDL_BUTTON_RMASK ), data, SDL_BUTTON_RIGHT );
-    keyState = GetAsyncKeyState( VK_MBUTTON );
-    WIN_CheckWParamMouseButton( ( keyState & 0x8000 ), ( mouseFlags & SDL_BUTTON_MMASK ), data, SDL_BUTTON_MIDDLE );
-    keyState = GetAsyncKeyState( VK_XBUTTON1 );
-    WIN_CheckWParamMouseButton( ( keyState & 0x8000 ), ( mouseFlags & SDL_BUTTON_X1MASK ), data, SDL_BUTTON_X1 );
-    keyState = GetAsyncKeyState( VK_XBUTTON2 );
-    WIN_CheckWParamMouseButton( ( keyState & 0x8000 ), ( mouseFlags & SDL_BUTTON_X2MASK ), data, SDL_BUTTON_X2 );
+    WIN_CheckAsyncMouseReleaseButton( VK_LBUTTON, ( mouseFlags & SDL_BUTTON_LMASK ), data, SDL_BUTTON_LEFT );
+    WIN_CheckAsyncMouseReleaseButton( VK_RBUTTON, ( mouseFlags & SDL_BUTTON_RMASK ), data, SDL_BUTTON_RIGHT );
+    WIN_CheckAsyncMouseReleaseButton( VK_MBUTTON, ( mouseFlags & SDL_BUTTON_MMASK ), data, SDL_BUTTON_MIDDLE );
+    WIN_CheckAsyncMouseReleaseButton( VK_XBUTTON1, ( mouseFlags & SDL_BUTTON_X1MASK ), data, SDL_BUTTON_X1 );
+    WIN_CheckAsyncMouseReleaseButton( VK_XBUTTON2, ( mouseFlags & SDL_BUTTON_X2MASK ), data, SDL_BUTTON_X2 );
     data->mouse_button_flags = 0;
 }
 
@@ -525,6 +527,8 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 SDL_SendMouseMotion(data->window, 0, 0, cursorPos.x, cursorPos.y);
             }
             SDL_SetMouseFocus(NULL);
+            /* ZL FIX: Added to catch mouse release while outside the window */
+            WIN_CheckAsyncMouseRelease(data);
         }
         returnCode = 0;
         break;
@@ -561,6 +565,8 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             SDL_Scancode code = WindowsScanCodeToSDLScanCode( lParam, wParam );
             const Uint8 *keyboardState = SDL_GetKeyboardState(NULL);
 
+            /* ZL FIX: Disabled for ZillaLib to make this optional */
+            #if 0
             /* Detect relevant keyboard shortcuts */
             if (keyboardState[SDL_SCANCODE_LALT] == SDL_PRESSED || keyboardState[SDL_SCANCODE_RALT] == SDL_PRESSED ) {
                 /* ALT+F4: Close window */
@@ -568,6 +574,7 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_CLOSE, 0, 0);
                 }
             }
+            #endif
 
             if ( code != SDL_SCANCODE_UNKNOWN ) {
                 if (code == SDL_SCANCODE_PRINTSCREEN &&
@@ -607,15 +614,27 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             data->in_title_click = SDL_FALSE;
             WIN_UpdateClipCursor(data->window);
         }
+        /* ZL FIX: Added to catch mouse release while outside the window */
+        WIN_CheckAsyncMouseRelease(data);
         break;
 
     case WM_ENTERSIZEMOVE:
+        /* ZL FIX: Release all keys when entering size move (which on Windows 10 steals key up events) */
+        /* ZL FIX: It would be better to query key states when entering/leaving size move but we can't easily map SDL scancodes to win32 virtual keys to do that. */
+        /* ZL FIX: It isn't too bad though because even if we release a key here, it will be caught pressed again by a WM_KEYDOWN repeat event after leaving size move if it is still pressed. */
+        SDL_ResetKeyboard();
+        /* fall-through */
     case WM_ENTERMENULOOP:
         {
             data->in_modal_loop = SDL_TRUE;
             WIN_UpdateClipCursor(data->window);
         }
+        /* ZL FIX: Don't propagate */
+        #if 1
+        return 0;
+        #else
         break;
+        #endif
 
     case WM_EXITSIZEMOVE:
     case WM_EXITMENULOOP:
@@ -629,6 +648,12 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 #ifdef WM_CAPTURECHANGED
     /* WM_CAPTURECHANGED and not WM_EXITSIZEMOVE is being sent on Windows 10 when the window title bar is clicked just shortly */
     case WM_CAPTURECHANGED:
+#endif
+#ifdef WM_NCLBUTTONUP
+    /* ZL FIX: Added to catch mouse release while outside the window */
+    case WM_NCLBUTTONUP:
+    case WM_NCRBUTTONUP:
+    case WM_NCMBUTTONUP:
 #endif
         {
             WIN_CheckAsyncMouseRelease(data);
@@ -1003,6 +1028,16 @@ SDL_UnregisterApp()
         SDL_free(SDL_Appname);
         SDL_Appname = NULL;
     }
+}
+
+/* ZL FIX: Replaced lock (numlock, capslock, scrolllock) manual tracking with system level checks (SDL_GetLockModStates) */
+SDL_Keymod
+SDL_GetLockModStates(void)
+{
+    return
+        ((GetKeyState(VK_NUMLOCK) & 0x81) ? KMOD_NUM : KMOD_NONE) |
+        ((GetKeyState(VK_CAPITAL) & 0x81) ? KMOD_CAPS : KMOD_NONE) |
+        ((GetKeyState(VK_SCROLL)  & 0x81) ? KMOD_RESERVED : KMOD_NONE);
 }
 
 #endif /* SDL_VIDEO_DRIVER_WINDOWS */

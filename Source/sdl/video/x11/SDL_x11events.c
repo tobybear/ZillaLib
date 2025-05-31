@@ -40,6 +40,9 @@
 
 #include <stdio.h>
 
+/* ZL FIX: Replaced lock (numlock, capslock, scrolllock) manual tracking with system level checks (SDL_GetLockModStates) */
+static unsigned xkey_state;
+
 typedef struct {
     unsigned char *data;
     int format, count;
@@ -292,6 +295,7 @@ X11_DispatchEvent(_THIS)
     */
     orig_event_type = xevent.type;
     if (orig_event_type == KeyPress || orig_event_type == KeyRelease) {
+        xkey_state = xevent.xkey.state;
         orig_keycode = xevent.xkey.keycode;
     } else {
         orig_keycode = 0;
@@ -487,6 +491,7 @@ X11_DispatchEvent(_THIS)
 #ifdef DEBUG_XEVENTS
             printf("window %p: KeyPress (X11 keycode = 0x%X)\n", data, xevent.xkey.keycode);
 #endif
+            xkey_state = xevent.xkey.state;
             SDL_SendKeyboardKey(SDL_PRESSED, videodata->key_layout[keycode]);
 #if 1
             if (videodata->key_layout[keycode] == SDL_SCANCODE_UNKNOWN && keycode) {
@@ -530,6 +535,7 @@ X11_DispatchEvent(_THIS)
                 /* We're about to get a repeated key down, ignore the key up */
                 break;
             }
+            xkey_state = xevent.xkey.state;
             SDL_SendKeyboardKey(SDL_RELEASED, videodata->key_layout[keycode]);
         }
         break;
@@ -1055,6 +1061,16 @@ X11_SuspendScreenSaver(_THIS)
         X11_XResetScreenSaver(data->display);
     }
 #endif
+}
+
+/* ZL FIX: Replaced lock (numlock, capslock, scrolllock) manual tracking with system level checks (SDL_GetLockModStates) */
+SDL_Keymod
+SDL_GetLockModStates(void)
+{
+    return
+        ((xkey_state & Mod2Mask) ? KMOD_NUM : KMOD_NONE) |
+        ((xkey_state & LockMask) ? KMOD_CAPS : KMOD_NONE) |
+        ((xkey_state & Mod3Mask) ? KMOD_RESERVED : KMOD_NONE);
 }
 
 #endif /* SDL_VIDEO_DRIVER_X11 */

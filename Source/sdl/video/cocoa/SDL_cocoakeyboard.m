@@ -31,6 +31,9 @@
 #include <Carbon/Carbon.h>
 #include <IOKit/hid/IOHIDLib.h>
 
+/* ZL FIX: Replaced lock (numlock, capslock, scrolllock) manual tracking with system level checks (SDL_GetLockModStates) */
+static unsigned int last_modifier_flags;
+
 /*#define DEBUG_IME NSLog */
 #define DEBUG_IME(...)
 
@@ -497,6 +500,7 @@ HandleModifiers(_THIS, unsigned short scancode, unsigned int modifierFlags)
         return;
     }
 
+    last_modifier_flags = modifierFlags:
     DoSidedModifiers(scancode, data->modifierFlags, modifierFlags);
     data->modifierFlags = modifierFlags;
 }
@@ -710,6 +714,15 @@ void
 Cocoa_QuitKeyboard(_THIS)
 {
     QuitHIDCallback();
+}
+
+/* ZL FIX: Replaced lock (numlock, capslock, scrolllock) manual tracking with system level checks (SDL_GetLockModStates) */
+SDL_Keymod
+SDL_GetLockModStates(void)
+{
+    return
+        ((mods & NSEventModifierFlagNumericPad) ? KMOD_NUM : KMOD_NONE) |
+        ((mods & NSEventModifierFlagCapsLock) ? KMOD_CAPS : KMOD_NONE);
 }
 
 #endif /* SDL_VIDEO_DRIVER_COCOA */

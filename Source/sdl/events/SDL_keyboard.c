@@ -646,6 +646,9 @@ SDL_SetKeyboardFocus(SDL_Window * window)
     }
 }
 
+/* ZL FIX: Replaced lock (numlock, capslock, scrolllock) manual tracking with system level checks (SDL_GetLockModStates) */
+extern SDL_Keymod SDL_GetLockModStates(void);
+
 int
 SDL_SendKeyboardKey(Uint8 state, SDL_Scancode scancode)
 {
@@ -662,15 +665,22 @@ SDL_SendKeyboardKey(Uint8 state, SDL_Scancode scancode)
     printf("The '%s' key has been %s\n", SDL_GetScancodeName(scancode),
            state == SDL_PRESSED ? "pressed" : "released");
 #endif
+
+    /* ZL FIX: Replaced lock (numlock, capslock, scrolllock) manual tracking with system level checks (SDL_GetLockModStates) */
+    keyboard->modstate = (keyboard->modstate & ~(KMOD_NUM|KMOD_CAPS|KMOD_RESERVED)) | SDL_GetLockModStates();
+
     if (state == SDL_PRESSED) {
         modstate = keyboard->modstate;
         switch (scancode) {
+        /* ZL FIX: Replaced lock (numlock, capslock, scrolllock) manual tracking with system level checks (SDL_GetLockModStates) */
+        #if 0
         case SDL_SCANCODE_NUMLOCKCLEAR:
             keyboard->modstate ^= KMOD_NUM;
             break;
         case SDL_SCANCODE_CAPSLOCK:
             keyboard->modstate ^= KMOD_CAPS;
             break;
+        #endif
         case SDL_SCANCODE_LCTRL:
             keyboard->modstate |= KMOD_LCTRL;
             break;
