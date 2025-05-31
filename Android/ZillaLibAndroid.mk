@@ -300,7 +300,7 @@ $(ANDROID_SIGN_APKS): $(ANDROIDPROJ_DIR)/bin/dex/classes.dex $(ANDROIDPROJ_DIR)/
 install: $(ANDROID_PROJECT_APKBASE)-$(firstword $(BUILD_ABIS)).apk
 	$(info Installing and running $(app.package) on the default emulator or device...)
 	@$(ANDROID_ADB) ${adb.device.arg} install -r "$^"
-	@$(ANDROID_ADB) ${adb.device.arg} shell "if [ `cat /sys/class/backlight/*/brightness` = 0 ]; then input keyevent 26; else input keyevent -1; fi 2>/dev/null" >$(DEVNUL)
+	@$(ANDROID_ADB) ${adb.device.arg} shell "if [ `cat /sys/class/leds/wled/brightness || cat /sys/class/backlight/*/brightness` = 0 ]; then input keyevent 26; else input keyevent -1; fi 2>/dev/null" >$(DEVNUL)
 	@$(ANDROID_ADB) shell am start -n $(app.package)/$(app.package)$(app.activity)
 	@"$(HOST_ECHO)" "Done"
 
