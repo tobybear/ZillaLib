@@ -36,7 +36,7 @@
 #include <assert.h>
 
 extern "C" {
-extern void ZLJS_CreateWindow(int width, int height, unsigned int tpf_limit);
+extern void ZLJS_CreateWindow(int width, int height, float tpf_limit);
 extern int ZLJS_GetWidth();
 extern int ZLJS_GetHeight();
 extern void ZLJS_SetFullscreen(int flag);
@@ -342,7 +342,7 @@ static GLuint ATTR_ibo;
 // WINDOW
 bool ZL_CreateWindow(const char*, int w, int h, int displayflags)
 {
-	unsigned int tpf_limit = ZL_TPF_Limit;
+	float tpf_limit = ZL_TPF_Limit;
 	ZL_TPF_Limit = 0;
 	ZLJS_CreateWindow(w, h, tpf_limit);
 

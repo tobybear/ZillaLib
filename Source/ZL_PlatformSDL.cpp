@@ -297,6 +297,7 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
 
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
@@ -338,7 +339,7 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	SDL_GL_SwapWindow(ZL_SDL_Window);
 
 	if (ZL_Requested_FPS < 0)
-		ZL_MainApplication->SetFpsLimit(DesktopMode.refresh_rate > 0 ? (unsigned short)DesktopMode.refresh_rate : 60);
+		ZL_MainApplication->SetFpsLimit(DesktopMode.refresh_rate > 0 ? (float)DesktopMode.refresh_rate : 60.0f);
 	else
 		ZL_UpdateTPFLimit();
 
@@ -392,9 +393,11 @@ void ZL_UpdateTPFLimit()
 	SDL_DisplayMode DisplayMode = { 0, 0, 0, 0, 0 };
 	SDL_GetCurrentDisplayMode(0, &DisplayMode);
 	if (!DisplayMode.refresh_rate) return;
-	bool UseVSync = (ZL_TPF_Limit && ZL_TPF_Limit == (unsigned int)((1000.0f / (float)DisplayMode.refresh_rate)-0.0495f));
+	float TPFRate = (ZL_TPF_Limit ? (1000.0f / ZL_TPF_Limit) : 0);
+	bool UseVSync = (TPFRate && TPFRate >= DisplayMode.refresh_rate*0.99f && TPFRate <= DisplayMode.refresh_rate*1.01f);
 	SDL_GL_SetSwapInterval(UseVSync ? 1 : 0);
 	ZL_MainApplicationFlags = (UseVSync ? ZL_MainApplicationFlags | ZL_APPLICATION_HASVSYNC : ZL_MainApplicationFlags & ~ZL_APPLICATION_HASVSYNC);
+	if (UseVSync) ZL_Requested_FPS = (float)DisplayMode.refresh_rate;
 }
 
 static unsigned char ZL_SDL_FingerIDGetIndex(SDL_FingerID FingerID, unsigned char MinIndex = 0)

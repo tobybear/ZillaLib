@@ -285,8 +285,8 @@ static void HandleMessage(PP_Instance instance, PP_Var msg)
 	}
 	else if (!memcmp(utf8msg, "RUN", 3) && inited_ && !running_)
 	{
-		ZL_LOG2("NACL", "Running with %s callback (%d)", ((ZL_TPF_Limit > (unsigned short)(1000/55)) ? "tpf" : "asap"), ZL_TPF_Limit);
-		if (ZL_TPF_Limit > (unsigned int)(1000/55)) update_tpf_callback(NULL, 0);
+		ZL_LOG2("NACL", "Running with %s callback (%d)", ((ZL_TPF_Limit > (1000.0f/55.0f)) ? "tpf" : "asap"), (int)ZL_TPF_Limit);
+		if (ZL_TPF_Limit > (1000.0f/55.0f)) update_tpf_callback(NULL, 0);
 		else { update_asap_callback(NULL, 0); ZL_TPF_Limit = 0; }
 		running_ = true;
 	}

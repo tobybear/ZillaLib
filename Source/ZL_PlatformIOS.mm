@@ -446,7 +446,7 @@ static void ZL_IOS_Activate()
 	if (ZL_IOS_HasUIKitDisplayLink)
 	{
 		displayLink = [NSClassFromString(@"CADisplayLink") displayLinkWithTarget:ZL_IOS_UIKitDelegate selector:@selector(drawView)];
-		[displayLink setFrameInterval:(ZL_TPF_Limit < 30 ? 1 : ZL_TPF_Limit/15)];
+		[displayLink setFrameInterval:(ZL_TPF_Limit < 30 ? 1 : (int)(ZL_TPF_Limit/15+0.4999f))];
 		[displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 	}
 	else [ZL_IOS_UIKitDelegate performSelector:@selector(mainLoop) withObject:nil afterDelay:0.0];

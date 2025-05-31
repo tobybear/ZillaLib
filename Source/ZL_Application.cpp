@@ -29,8 +29,8 @@
 #endif
 
 ZL_Application* ZL_MainApplication = 0;
-short ZL_Requested_FPS = 0;
-unsigned int ZL_LastFPSTicks = 0, ZL_TPF_Limit = 0, ZL_MainApplicationFlags = 0;
+float ZL_Requested_FPS = 0, ZL_TPF_Limit = 0, ZL_TPF_Remain = 0;
+unsigned int ZL_LastFPSTicks = 0, ZL_MainApplicationFlags = 0;
 int ZL_DoneReturn;
 void (*funcSceneManagerCalculate)() = NULL;
 void (*funcSceneManagerDraw)() = NULL;
@@ -50,7 +50,7 @@ unsigned int *pZL_WindowFlags = WINDOWFLAGS_INVALID;
 
 static void _ZL_ApplicationUpdateTimingFps()
 {
-	ticks_t last = ZL_Application::Ticks;
+	const ticks_t last = ZL_Application::Ticks;
 	ZL_Application::Ticks = ZL_GetTicks();
 	//Elapsed = s(ElapsedTicks = Ticks - last) / s(1000);return; //disable any frame limiting
 
@@ -68,12 +68,17 @@ static void _ZL_ApplicationUpdateTimingFps()
 
 	if (!ZL_TPF_Limit || (ZL_MainApplicationFlags & (ZL_APPLICATION_HASVSYNC|ZL_APPLICATION_VSYNCFAILED)) != ZL_APPLICATION_HASVSYNC)
 	{
-		ZL_Application::ElapsedTicks = ZL_Application::Ticks - last;
-		if (ZL_Application::ElapsedTicks < ZL_TPF_Limit)
+		ZL_Application::ElapsedTicks = (ZL_Application::Ticks - last);
+		ZL_TPF_Remain += ZL_TPF_Limit;
+		ZL_TPF_Remain -= (int)(ZL_Application::ElapsedTicks);
+		if (ZL_TPF_Remain > ZL_TPF_Limit * 3 || ZL_TPF_Remain < -100)
+			ZL_TPF_Remain = 0;
+		else if (ZL_TPF_Remain >= 1.0)
 		{
-			ZL_Delay(ZL_TPF_Limit - ZL_Application::ElapsedTicks);
-			ZL_Application::Ticks = ZL_GetTicks();
-			ZL_Application::ElapsedTicks = ZL_Application::Ticks - last;
+			if (ZL_TPF_Remain >= 2.0) ZL_Delay((ticks_t)ZL_TPF_Remain - 1);
+			ticks_t target = ZL_Application::Ticks + (ticks_t)(ZL_TPF_Remain + .499999999);
+			while (ZL_GetTicks() < target)
+				ZL_Delay(0);
 		}
 		ZL_Application::Elapsed = s(ZL_Application::ElapsedTicks) / s(1000);
 		if (ZL_Application::Elapsed >= 1) ZL_Application::Elapsed = s(0.999996); //>= 1 is bad for code like: x / (1 - elapsed)
@@ -88,15 +93,15 @@ static void _ZL_ApplicationUpdateTimingFps()
 	{
 		ZL_Application::Elapsed = s(1) / s(ZL_Requested_FPS);
 		ZL_Application::ElapsedTicks = ZL_Application::FrameCount * 1000;
-		ZL_Application::ElapsedTicks = ((ZL_Application::ElapsedTicks+1000) / ZL_Requested_FPS) - (ZL_Application::ElapsedTicks / ZL_Requested_FPS);
-		if (ZL_Application::ElapsedTicks < (unsigned int)ZL_TPF_Limit-1 || ZL_Application::ElapsedTicks > (unsigned int)ZL_TPF_Limit+1) ZL_Application::ElapsedTicks = ZL_TPF_Limit;
+		ZL_Application::ElapsedTicks = (int)((ZL_Application::ElapsedTicks+1000) / ZL_Requested_FPS) - (int)(ZL_Application::ElapsedTicks / ZL_Requested_FPS);
+		if (ZL_Application::ElapsedTicks < (unsigned int)ZL_TPF_Limit-1 || ZL_Application::ElapsedTicks > (unsigned int)ZL_TPF_Limit+1) ZL_Application::ElapsedTicks = (ticks_t)ZL_TPF_Limit;
 	}
 	//ZL_LOG2("ELAPSED", "F: %f - T: %d", ZL_Application::Elapsed, ZL_Application::ElapsedTicks);
 
 	ZL_Application::FrameCount++;
 }
 
-ZL_Application::ZL_Application(short fpslimit)
+ZL_Application::ZL_Application(float fpslimit)
 {
 	assert(!ZL_MainApplication);
 	ZL_MainApplication = this;
@@ -104,14 +109,20 @@ ZL_Application::ZL_Application(short fpslimit)
 	FPS = (ZL_Requested_FPS > 0 ? (unsigned short)ZL_Requested_FPS : 0);
 }
 
-void ZL_Application::SetFpsLimit(short fps)
+void ZL_Application::SetFpsLimit(float fps)
 {
 	ZL_Requested_FPS = fps;
 	if (fps < 1) ZL_TPF_Limit = 0;
-	else ZL_TPF_Limit = (unsigned short)((1000.0f / (float)fps)-0.0495f);
+	else ZL_TPF_Limit = (1000.0f / fps);
+	ZL_TPF_Remain = -999.0f; // reset next _ZL_ApplicationUpdateTimingFps
 	#if !defined(__SMARTPHONE__) && !defined(__WEBAPP__)
 	ZL_UpdateTPFLimit();
 	#endif
+}
+
+float ZL_Application::GetVsyncFps()
+{
+	return (((ZL_MainApplicationFlags & (ZL_APPLICATION_HASVSYNC|ZL_APPLICATION_VSYNCFAILED)) != ZL_APPLICATION_HASVSYNC) ? 0.0f : ZL_Requested_FPS);
 }
 
 void ZL_Application::Frame()
@@ -205,7 +216,7 @@ bool ZL_Application::LoadReleaseDesktopDataBundle(const char* DataBundleFileName
 
 static double ZL_TickDuration, ZL_TickSum, ZL_TickExcess;
 
-ZL_ApplicationConstantTicks::ZL_ApplicationConstantTicks(short fps, unsigned short tps) : ZL_Application(fps)
+ZL_ApplicationConstantTicks::ZL_ApplicationConstantTicks(float fps, unsigned short tps) : ZL_Application(fps)
 {
 	Elapsed = s(1)/s(tps > 0 ? tps : 60);
 	ZL_TickDuration = (tps > 0 ? (1000.0/(double)tps) : 0.0);
@@ -214,7 +225,7 @@ ZL_ApplicationConstantTicks::ZL_ApplicationConstantTicks(short fps, unsigned sho
 	Ticks = 0;
 }
 
-void ZL_ApplicationConstantTicks::SetFpsTps(short fps, unsigned short tps)
+void ZL_ApplicationConstantTicks::SetFpsTps(float fps, unsigned short tps)
 {
 	SetFpsLimit(fps);
 	Elapsed = s(1)/s(tps > 0 ? tps : 60);
@@ -243,7 +254,7 @@ void ZL_ApplicationConstantTicks::Frame()
 		scalar DrawElapsed = Elapsed;
 		unsigned int DrawElapsedTicks = ElapsedTicks;
 		Elapsed = s(ZL_TickDuration/1000.0);
-		unsigned int maxcalcs = 1000/ZL_TPF_Limit;
+		unsigned int maxcalcs = (unsigned int)(1000/ZL_TPF_Limit+0.4999f);
 		for (double MinExcess = -ZL_TickDuration; ZL_TickExcess >= MinExcess && maxcalcs--; MinExcess = ZL_TickDuration)
 		{
 			ZL_TickExcess -= ZL_TickDuration;

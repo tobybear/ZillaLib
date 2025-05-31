@@ -107,7 +107,7 @@
 #define ZL_ASSERTMSGF(cond,fmt,...) ((void)0)
 #endif
 #endif
-#define ZL_NO_ENTRY ZL_ASSERT(false)
+#define ZL_NO_ENTRY() ZL_ASSERT(false)
 #define _ZL_STATIC_ASSERTM(A,B) static_assertion_##A##_##B
 #define _ZL_STATIC_ASSERTN(A,B) _ZL_STATIC_ASSERTM(A,B)
 #define ZL_STATIC_ASSERT(cond) typedef char _ZL_STATIC_ASSERTN(__LINE__,__COUNTER__)[(cond)?1:-1]
@@ -133,7 +133,7 @@ typedef unsigned int ticks_t;
 //The core of initialization and the game loop. Needs to be subclassed in any application using ZillaLib.
 struct ZL_Application
 {
-	ZL_Application(short fpslimit = -1);
+	ZL_Application(float fpslimit = -1);
 
 	//Will be called upon initialization of the program, should call Init() on required submodules, load initial assets and switch to the first scene if scene manager is used.
 	virtual void Load(int argc, char *argv[]) = 0;
@@ -145,7 +145,8 @@ struct ZL_Application
 
 	//Static functions
 	static ZL_Application& GetApplication();
-	static void SetFpsLimit(short fps);
+	static void SetFpsLimit(float fps);
+	static float GetVsyncFps();
 	static void Quit(int Return = 0);
 	static int Log(const char *logtag, const char *format, ...);
 
@@ -187,10 +188,10 @@ private:
 class ZL_ApplicationConstantTicks : public ZL_Application
 {
 protected:
-	ZL_ApplicationConstantTicks(short fps = -1, unsigned short tps = 60);
+	ZL_ApplicationConstantTicks(float fps = -1, unsigned short tps = 60);
 	virtual void Frame();
 	virtual void AfterCalculate() { }
-	static void SetFpsTps(short fps = -1, unsigned short tps = 60);
+	static void SetFpsTps(float fps = -1, unsigned short tps = 60);
 };
 
 #endif //__ZL_APPLICATION__
