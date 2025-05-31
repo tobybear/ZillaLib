@@ -67,7 +67,7 @@ public:
 	typedef char chr;
 
 	ZL_String() { }
-	
+
 	static ZL_String format(const char *format, ...);
 	static ZL_String vformat(const char *format, va_list ap);
 	static void format(ZL_String& target, const char *format, ...);
@@ -100,6 +100,11 @@ public:
 	ZL_String(const signed long source)    { operator<<(source); }
 	ZL_String(const float source)          { operator<<(source); }
 	ZL_String(const double source)         { operator<<(source); }
+
+	#if (defined(__cplusplus) && (__cplusplus > 199711 || _MSC_VER >= 1800) && (!defined(__GNUC__) || defined(__clang__) || __GNUC__ > 4))
+	inline ZL_String(ZL_String&& source) : str((str&&)source) { }
+	inline ZL_String& operator=(const ZL_String& source) { assign(source); return *this; }
+	#endif
 
 	ZL_String& operator +=(const ZL_String &source) { append(source); return *this; }
 	ZL_String& operator +=(const str &source)       { append(source); return *this; }
