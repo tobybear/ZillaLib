@@ -392,7 +392,7 @@ void ZL_UpdateTPFLimit()
 {
 	SDL_DisplayMode DisplayMode = { 0, 0, 0, 0, 0 };
 	SDL_GetCurrentDisplayMode(0, &DisplayMode);
-	if (!DisplayMode.refresh_rate) return;
+	if (!DisplayMode.refresh_rate) DisplayMode.refresh_rate = 60; // at least matches on VMWare running Linux
 	float TPFRate = (ZL_TPF_Limit ? (1000.0f / ZL_TPF_Limit) : 0);
 	bool UseVSync = (TPFRate && TPFRate >= DisplayMode.refresh_rate*0.99f && TPFRate <= DisplayMode.refresh_rate*1.01f);
 	SDL_GL_SetSwapInterval(UseVSync ? 1 : 0);
@@ -654,7 +654,7 @@ bool ZL_AudioOpen()
 	desired.freq = 44100;
 	desired.format = AUDIO_S16LSB;
 	desired.channels = 2;
-	desired.samples = 1024; //Used to be 4096, PCs are faster now
+	desired.samples = 2048; //Used to be 4096, PCs are faster now
 	desired.callback = ZL_SdlAudioMix;
 	desired.userdata = NULL;
 	if (SDL_OpenAudio(&desired, NULL) < 0) return false;
