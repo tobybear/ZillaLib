@@ -22,6 +22,11 @@
 
 #if SDL_VIDEO_DRIVER_COCOA
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
+
 #include "SDL_cocoavideo.h"
 
 /* We need this for IODisplayCreateInfoDictionary and kIODisplayOnlyPreferredName */

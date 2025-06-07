@@ -1805,7 +1805,9 @@ static void InitEdgeDict( TESStesselator *tess )
 static void DoneEdgeDict( TESStesselator *tess )
 {
 	ActiveRegion *reg;
+	#ifndef NDEBUG
 	int fixedEdges = 0;
+	#endif
 
 	while( (reg = (ActiveRegion *)dictKey( dictMin( tess->dict ))) != NULL ) {
 		/*
@@ -1815,7 +1817,9 @@ static void DoneEdgeDict( TESStesselator *tess )
 		*/
 		if( ! reg->sentinel ) {
 			assert( reg->fixUpperEdge );
+			#ifndef NDEBUG
 			assert( ++fixedEdges == 1 );
+			#endif
 		}
 		assert( reg->windingNumber == 0 );
 		DeleteRegion( tess, reg );

@@ -324,7 +324,7 @@ COREAUDIO_CloseDevice(_THIS)
 {
     if (this->hidden != NULL) {
         if (this->hidden->audioUnitOpened) {
-            OSStatus result = noErr;
+            /* OSStatus result = noErr; */
             AURenderCallbackStruct callback;
             const AudioUnitElement output_bus = 0;
             const AudioUnitElement input_bus = 1;
@@ -336,11 +336,11 @@ COREAUDIO_CloseDevice(_THIS)
                  kAudioUnitScope_Input);
 
             /* stop processing the audio unit */
-            result = AudioOutputUnitStop(this->hidden->audioUnit);
+            /*result = */AudioOutputUnitStop(this->hidden->audioUnit);
 
             /* Remove the input callback */
             SDL_memset(&callback, 0, sizeof(AURenderCallbackStruct));
-            result = AudioUnitSetProperty(this->hidden->audioUnit,
+            /*result = */AudioUnitSetProperty(this->hidden->audioUnit,
                                           kAudioUnitProperty_SetRenderCallback,
                                           scope, bus, &callback,
                                           sizeof(callback));

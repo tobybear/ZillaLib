@@ -164,6 +164,7 @@
 #define MINIZ_NO_STDIO
 
 #if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wmisleading-indentation"
 #endif
 

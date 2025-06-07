@@ -20,6 +20,11 @@
 */
 #include "../SDL_internal.h"
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
+
 /* The high-level video driver subsystem */
 
 #include "SDL.h"

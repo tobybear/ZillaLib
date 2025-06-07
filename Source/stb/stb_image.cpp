@@ -4,6 +4,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 
 #if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wmisleading-indentation"
 #endif
 

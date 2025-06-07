@@ -500,9 +500,8 @@ HandleModifiers(_THIS, unsigned short scancode, unsigned int modifierFlags)
         return;
     }
 
-    last_modifier_flags = modifierFlags:
     DoSidedModifiers(scancode, data->modifierFlags, modifierFlags);
-    data->modifierFlags = modifierFlags;
+    last_modifier_flags = data->modifierFlags = modifierFlags;
 }
 
 static void
@@ -584,7 +583,7 @@ Cocoa_InitKeyboard(_THIS)
     SDL_SetScancodeName(SDL_SCANCODE_RALT, "Right Option");
     SDL_SetScancodeName(SDL_SCANCODE_RGUI, "Right Command");
 
-    data->modifierFlags = [NSEvent modifierFlags];
+    last_modifier_flags = data->modifierFlags = [NSEvent modifierFlags];
     //SDL_ToggleModState(KMOD_CAPS, (data->modifierFlags & NSEventModifierFlagCapsLock) != 0);
 
     InitHIDCallback();
@@ -721,8 +720,8 @@ SDL_Keymod
 SDL_GetLockModStates(void)
 {
     return
-        ((mods & NSEventModifierFlagNumericPad) ? KMOD_NUM : KMOD_NONE) |
-        ((mods & NSEventModifierFlagCapsLock) ? KMOD_CAPS : KMOD_NONE);
+        ((last_modifier_flags & NSEventModifierFlagNumericPad) ? KMOD_NUM : KMOD_NONE) |
+        ((last_modifier_flags & NSEventModifierFlagCapsLock) ? KMOD_CAPS : KMOD_NONE);
 }
 
 #endif /* SDL_VIDEO_DRIVER_COCOA */
