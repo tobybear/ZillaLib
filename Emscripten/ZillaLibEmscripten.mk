@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2019 Bernhard Schelling
+#  Copyright (C) 2010-2025 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -207,7 +207,7 @@ all: $(APPOUTBIN) $(APPOUTDIR)/$(ZillaApp).html
 
 define MAKEAPPOBJ
 
-$(APPOUTDIR)/$(basename $(notdir $(1))).o: $(1) ; $$(call COMPILEMMD,$$@,$$<,$(2),$(3) $$(APPFLAGS))
+$(APPOUTDIR)/$(basename $(notdir $(1))).o: $(1) ; $$(call COMPILEMMD,$$@,$$<,$(2),$(3),$$(APPFLAGS))
 
 endef
 APPOBJS := $(addprefix $(APPOUTDIR)/,$(notdir $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(APPSOURCES)))))
@@ -263,7 +263,7 @@ all: $(ZLOUTDIR)/ZillaLib.bc
 
 clean:
 	$(info Removing all temporary build files ...)
-	@$(CMD_DEL_FILES) $(ZLOUTDIR)/ZillaLib.bc $(EM_CPP_ZLOBJS) $(EM_CPP_ZLOBJS:%.o=%.d) $(EM_CC_ZLOBJS) $(EM_CC_ZLOBJS:%.o=%.d) $(EM_CPP_DEPOBJS) $(EM_CC_DEPOBJS)
+	@$(CMD_DEL_FILES) $(ZLOUTDIR)/ZillaLib.bc $(EM_CPP_ZLOBJS) $(EM_CPP_ZLOBJS:%.o=%.d) $(EM_CPP_DEPOBJS) $(EM_CC_DEPOBJS)
 
 #------------------------------------------------------------------------------------------------------
 endif
@@ -288,13 +288,11 @@ $(EM_CPP_DEPOBJS) : $(ZLOUTDIR)/%.o : $(ZILLALIB_DIR)%.cpp ; $(call COMPILE,$@,$
 $(EM_CC_DEPOBJS)  : $(ZLOUTDIR)/%.o : $(ZILLALIB_DIR)%.c   ; $(call COMPILE,$@,$<,$(CC),$(CCFLAGS) $(ZLFLAGS) $(DEPFLAGS))
 
 EM_CPP_ZLOBJS  := $(addprefix $(ZLOUTDIR)/,$(patsubst %.cpp,%.o,$(filter %.cpp,$(ZLSOURCES))))
-EM_CC_ZLOBJS   := $(addprefix $(ZLOUTDIR)/,$(patsubst   %.c,%.o,$(filter   %.c,$(ZLSOURCES))))
-$(shell $(CMD_DEL_OLD_OBJ) $(EM_CPP_ZLOBJS:%.o=%.d) $(EM_CC_ZLOBJS:%.o=%.d))
--include $(EM_CPP_ZLOBJS:%.o=%.d) $(EM_CC_ZLOBJS:%.o=%.d)
+$(shell $(CMD_DEL_OLD_OBJ) $(EM_CPP_ZLOBJS:%.o=%.d))
+-include $(EM_CPP_ZLOBJS:%.o=%.d)
 $(EM_CPP_ZLOBJS)  : $(ZLOUTDIR)/%.o : $(ZILLALIB_DIR)%.cpp ; $(call COMPILEMMD,$@,$<,$(CXX),$(CXXFLAGS) $(ZLFLAGS))
-$(EM_CC_ZLOBJS)   : $(ZLOUTDIR)/%.o : $(ZILLALIB_DIR)%.c   ; $(call COMPILEMMD,$@,$<,$(CC),$(CCFLAGS) $(ZLFLAGS))
 
-$(ZLOUTDIR)/ZillaLib.bc : $(EM_CPP_ZLOBJS) $(EM_CC_ZLOBJS) $(EM_CPP_DEPOBJS) $(EM_CC_DEPOBJS)
+$(ZLOUTDIR)/ZillaLib.bc : $(EM_CPP_ZLOBJS) $(EM_CPP_DEPOBJS) $(EM_CC_DEPOBJS)
 	$(info Creating archive $@ ...)
 	@$(LD) $^ -o $@
 
@@ -305,10 +303,10 @@ endif
 define COMPILE
 	$(info $2)
 	@$(if $(wildcard $(dir $1)),,$(shell $(PYTHON) -c "import os;os.makedirs('$(dir $1)')"))
-	@$3 $4 $(CLANGFLAGS) -o $1 -c $2
+	@$3 $4 $(CLANGFLAGS) $(COMMONFLAGS) -o $1 -c $2
 endef
 define COMPILEMMD
 	$(info $2)
 	@$(if $(wildcard $(dir $1)),,$(shell $(PYTHON) -c "import os;os.makedirs('$(dir $1)')"))
-	@$3 $4 $(CLANGFLAGS) -MMD -MP -MF $(patsubst %.o,%.d,$1) -o $1 -c $2
+	@$3 $4 $(CLANGFLAGS) $5 $(COMMONFLAGS) -MMD -MP -MF $(patsubst %.o,%.d,$1) -o $1 -c $2
 endef

@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2019 Bernhard Schelling
+#  Copyright (C) 2010-2025 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -35,8 +35,8 @@ STRIP:=strip
 # Build global settings
 APPFLAGS    := -I$(ZILLALIB_DIR)Include
 ZLFLAGS     := -I$(ZILLALIB_DIR)Include -I$(ZILLALIB_DIR)Source/zlib
-WARNINGS    := -pedantic -Wall -Wno-long-long -Wno-error=unused-parameter -Wno-pedantic -Wno-unused-local-typedefs -Wno-unused-function
-DEPWARNINGS := -Wno-main -Wno-empty-body -Wno-char-subscripts -Wno-sign-compare -Wno-unused-value -Wno-unused-variable -Wno-unused-but-set-variable -Wno-nonnull -Werror
+WARNINGS    := -pedantic -Wall -Wno-long-long -Wno-error=unused-parameter -Wno-pedantic -Wno-unused-local-typedefs -Wno-unused-function -Wno-strict-aliasing
+DEPWARNINGS := -Wno-main -Wno-empty-body -Wno-char-subscripts -Wno-sign-compare -Wno-unused-value -Wno-unused-variable -Wno-unused-but-set-variable -Wno-nonnull -Wno-stringop-truncation -Werror
 CFLAGS      := $(WARNINGS) -pthread -msse -mfpmath=sse -ffast-math -fomit-frame-pointer -fvisibility=hidden -fno-exceptions -fno-non-call-exceptions -ffunction-sections -fdata-sections
 LDFLAGS     := -lGL -lpthread -ldl -Wl,--gc-sections
 CXXFLAGS    := -std=c++11 -fno-rtti
@@ -76,13 +76,20 @@ endif
 APPFLAGS += $(subst \\\,$(sp),$(foreach F,$(subst \$(sp),\\\,$(D)),"-D$(F)"))
 
 # Compute tool paths
-ifeq ($(shell python -c "print(1)"),)
-  $(error Python executable not found in PATH)
+PYTHON := python3
+ifeq ($(shell $(PYTHON) -c "print(1)" 2>/dev/null),)
+  PYTHON := python
+  ifeq ($(shell $(PYTHON) -c "print(1)" 2>/dev/null),)
+    PYTHON := python2
+    ifeq ($(shell $(PYTHON) -c "print(1)" 2>/dev/null),)
+      $(error Python executable not found in PATH)
+    endif
+  endif
 endif
 
 # Python one liner to delete all .o files when the dependency files were created empty due to compile error
-CMD_DEL_OLD_OBJ := python -c "import sys,os;[os.path.exists(a) and os.path.getsize(a)==0 and os.path.exists(a.rstrip('d')+'o') and os.remove(a.rstrip('d')+'o') for a in sys.argv[1:]]"
-CMD_DEL_FILES := python -c "import sys,os;[os.path.exists(a) and os.remove(a) for a in sys.argv[1:]]"
+CMD_DEL_OLD_OBJ := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.path.getsize(a)==0 and os.path.exists(a.rstrip('d')+'o') and os.remove(a.rstrip('d')+'o') for a in sys.argv[1:]]"
+CMD_DEL_FILES := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.remove(a) for a in sys.argv[1:]]"
 
 # Disable DOS PATH warning when using Cygwin based tools Windows
 CYGWIN ?= nodosfilewarning
@@ -121,7 +128,7 @@ endif
 .PHONY: all clean run gdb
 all: $(APPOUTBIN) $(ASSET_ZIP)
 
-MAKEAPPOBJ = $(APPOUTDIR)/$(basename $(notdir $(1)))$(OBJEXT): $(1) ; $$(call COMPILE,$$@,$$<,$(2),$(GCCMFLAG) $(3) $$(APPFLAGS) -MMD -MP)
+MAKEAPPOBJ = $(APPOUTDIR)/$(basename $(notdir $(1)))$(OBJEXT): $(1) ; $$(call COMPILE,$$@,$$<,$(2),$(GCCMFLAG) $(3),$$(APPFLAGS) -MMD -MP)
 
 APPOBJS := $(addprefix $(APPOUTDIR)/,$(notdir $(patsubst %.c,%$(OBJEXT),$(patsubst %.cpp,%$(OBJEXT),$(APPSOURCES)))))
 $(shell $(CMD_DEL_OLD_OBJ) $(APPOBJS:%.o=%.d))
@@ -141,7 +148,7 @@ gdb: $(APPOUTBIN) $(ASSET_ZIP)
 
 $(ASSET_ZIP) : $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)))
 	$(info Building $@ with $(words $(ASSET_ALL_STARS)) assets ...)
-	@python -c "import sys,zipfile;z=zipfile.ZipFile('$@','w');[z.write(f) for f in sys.argv[1:]]" $(subst *, ,$(subst $(sp)," ","$(ASSET_ALL_STARS)"))
+	@$(PYTHON) -c "import sys,zipfile;z=zipfile.ZipFile('$@','w');[z.write(f) for f in sys.argv[1:]]" $(subst *, ,$(subst $(sp)," ","$(ASSET_ALL_STARS)"))
 
 $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE) : $(APPOBJS) $(ZLOUTDIR)/ZillaLib_$(CPUTYPE).a
 	$(info Linking $@ ...)
@@ -164,7 +171,7 @@ all: $(ZLOUTDIR)/ZillaLib_$(CPUTYPE).a
 
 clean:
 	$(info Removing all build files ...)
-	@$(CMD_DEL_FILES) $(ZLOUTDIR)/ZillaLib_$(CPUTYPE).a $(CPP_ZLOBJS) $(CC_ZLOBJS) $(CPP_DEPOBJS) $(CC_DEPOBJS) $(CPP_ZLOBJS:%.o=%.d) $(CC_ZLOBJS:%.o=%.d) $(CPP_DEPOBJS:%.o=%.d) $(CC_DEPOBJS:%.o=%.d)
+	@$(CMD_DEL_FILES) $(ZLOUTDIR)/ZillaLib_$(CPUTYPE).a $(CPP_ZLOBJS) $(CPP_DEPOBJS) $(CC_DEPOBJS) $(CPP_ZLOBJS:%.o=%.d) $(CPP_DEPOBJS:%.o=%.d) $(CC_DEPOBJS:%.o=%.d)
 
 #------------------------------------------------------------------------------------------------------
 endif
@@ -205,13 +212,11 @@ $(CPP_DEPOBJS) : $(ZLOUTDIR)/%$(OBJEXT) : $(ZILLALIB_DIR)%.cpp ; $(call COMPILE,
 $(CC_DEPOBJS)  : $(ZLOUTDIR)/%$(OBJEXT) : $(ZILLALIB_DIR)%.c   ; $(call   COMPILE,$@,$<,$(CC),$(GCCMFLAG) $(CCFLAGS) $(ZLFLAGS) $(DEPWARNINGS))
 
 CPP_ZLOBJS  := $(addprefix $(ZLOUTDIR)/,$(patsubst %.cpp,%$(OBJEXT),$(filter %.cpp,$(ZLSOURCES))))
-CC_ZLOBJS   := $(addprefix $(ZLOUTDIR)/,$(patsubst   %.c,%$(OBJEXT),$(filter   %.c,$(ZLSOURCES))))
-$(shell $(CMD_DEL_OLD_OBJ) $(CPP_ZLOBJS:%.o=%.d) $(CC_ZLOBJS:%.o=%.d))
--include $(CPP_ZLOBJS:%.o=%.d) $(CC_ZLOBJS:%.o=%.d)
+$(shell $(CMD_DEL_OLD_OBJ) $(CPP_ZLOBJS:%.o=%.d))
+-include $(CPP_ZLOBJS:%.o=%.d)
 $(CPP_ZLOBJS)  : $(ZLOUTDIR)/%$(OBJEXT) : $(ZILLALIB_DIR)%.cpp ; $(call COMPILE,$@,$<,$(CXX),$(GCCMFLAG) $(CXXFLAGS) $(ZLFLAGS) -MMD -MP)
-$(CC_ZLOBJS)   : $(ZLOUTDIR)/%$(OBJEXT) : $(ZILLALIB_DIR)%.c   ; $(call   COMPILE,$@,$<,$(CC),$(GCCMFLAG) $(CCFLAGS) $(ZLFLAGS) -MMD -MP)
 
-$(ZLOUTDIR)/ZillaLib_$(CPUTYPE).a : $(CPP_ZLOBJS) $(CC_ZLOBJS) $(CPP_DEPOBJS) $(CC_DEPOBJS)
+$(ZLOUTDIR)/ZillaLib_$(CPUTYPE).a : $(CPP_ZLOBJS) $(CPP_DEPOBJS) $(CC_DEPOBJS)
 	$(info Creating static library $@ ...)
 	@$(AR) rcs $@ $^
 
@@ -219,6 +224,6 @@ $(ZLOUTDIR)/ZillaLib_$(CPUTYPE).a : $(CPP_ZLOBJS) $(CC_ZLOBJS) $(CPP_DEPOBJS) $(
 
 define COMPILE
 	$(info $2)
-	@$(if $(wildcard $(dir $1)),,$(shell python -c "import os;os.makedirs('$(dir $1)')"))
-	@"$3" -o $1 -c $2 $4 $(CFLAGS)
+	@$(if $(wildcard $(dir $1)),,$(shell $(PYTHON) -c "import os;os.makedirs('$(dir $1)')"))
+	@$3 $4 $(CFLAGS) $5 $(COMMONFLAGS) -o $1 -c $2
 endef

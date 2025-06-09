@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2021 Bernhard Schelling
+#  Copyright (C) 2010-2025 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -174,7 +174,7 @@ ZILLAAPPSCRIPT := $(subst > <,><,$(foreach F,$(patsubst $(APPOUTDIR)/%.js.gz,%.j
 all: $(APPOUTJSS) $(APPOUTDIR)/$(ZillaApp).html
 .PHONY: clean cleanall run web
 
-MAKEAPPOBJ = $(APPOUTDIR)/$(basename $(notdir $(1))).o: $(1) ; $$(call COMPILEMMD,$$@,$$<,$(2),$(3) $$(APPFLAGS))
+MAKEAPPOBJ = $(APPOUTDIR)/$(basename $(notdir $(1))).o: $(1) ; $$(call COMPILEMMD,$$@,$$<,$(2),$(3),$$(APPFLAGS))
 
 APPOBJS := $(addprefix $(APPOUTDIR)/,$(notdir $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(APPSOURCES)))))
 -include $(APPOBJS:%.o=%.d)
@@ -330,12 +330,12 @@ endif #!ZillaApp || !AlwaysMake
 define COMPILE
 	$(info $2)
 	@$(if $(wildcard $(dir $1)),,$(shell $(CMD_MAKE_DIRS) $(dir $1)))
-	@$3 $4 $(CLANGFLAGS) -o $1 -c $2
+	@$3 $4 $(CLANGFLAGS) $(COMMONFLAGS) -o $1 -c $2
 endef
 define COMPILEMMD
 	$(info $2)
 	@$(if $(wildcard $(dir $1)),,$(shell $(CMD_MAKE_DIRS) $(dir $1)))
-	@$3 $4 $(CLANGFLAGS) -MMD -MP -MF $(patsubst %.o,%.d,$1) -o $1 -c $2
+	@$3 $4 $(CLANGFLAGS) $5 $(COMMONFLAGS) -MMD -MP -MF $(patsubst %.o,%.d,$1) -o $1 -c $2
 endef
 
 endif #!MSVC

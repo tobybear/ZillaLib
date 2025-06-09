@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2019 Bernhard Schelling
+#  Copyright (C) 2010-2025 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -154,7 +154,7 @@ CMD_GENERATE_HTML = python -c "q=chr(39);open('$@','wb').write(file('$^','rb').r
 
 define MAKEAPPOBJ
 
-$(APPOUTDIR)/$(basename $(notdir $(1))).o: $(1) ; $$(call COMPILE,$$@,$$<,$(2),$(3) $$(APPFLAGS) -MMD -MP)
+$(APPOUTDIR)/$(basename $(notdir $(1))).o: $(1) ; $$(call COMPILE,$$@,$$<,$(2),$(3),$$(APPFLAGS) -MMD -MP)
 
 endef
 APPOBJS := $(addprefix $(APPOUTDIR)/,$(notdir $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(APPSOURCES)))))
@@ -216,7 +216,7 @@ all: $(ZLOUTDIR)/ZillaLib.a
 
 clean:
 	$(info Removing all build files ...)
-	@$(CMD_DEL_FILES) $(ZLOUTDIR)/ZillaLib.a $(CPP_ZLOBJS) $(CPP_ZLOBJS:%.o=%.d) $(CC_ZLOBJS) $(CC_ZLOBJS:%.o=%.d) $(CPP_DEPOBJS) $(CC_DEPOBJS)
+	@$(CMD_DEL_FILES) $(ZLOUTDIR)/ZillaLib.a $(CPP_ZLOBJS) $(CPP_ZLOBJS:%.o=%.d) $(CPP_DEPOBJS) $(CC_DEPOBJS)
 
 #------------------------------------------------------------------------------------------------------
 endif
@@ -241,13 +241,11 @@ $(CPP_DEPOBJS) : $(ZLOUTDIR)/%.o : $(ZILLALIB_DIR)%.cpp ; $(call COMPILE,$@,$<,$
 $(CC_DEPOBJS)  : $(ZLOUTDIR)/%.o : $(ZILLALIB_DIR)%.c   ; $(call   COMPILE,$@,$<,$(CC),$(CCFLAGS) $(ZLFLAGS) $(DEPWARNINGS))
 
 CPP_ZLOBJS  := $(addprefix $(ZLOUTDIR)/,$(patsubst %.cpp,%.o,$(filter %.cpp,$(ZLSOURCES))))
-CC_ZLOBJS   := $(addprefix $(ZLOUTDIR)/,$(patsubst   %.c,%.o,$(filter   %.c,$(ZLSOURCES))))
-$(shell $(CMD_DEL_OLD_OBJ) $(CPP_ZLOBJS:%.o=%.d) $(CC_ZLOBJS:%.o=%.d))
--include $(CPP_ZLOBJS:%.o=%.d) $(CC_ZLOBJS:%.o=%.d)
+$(shell $(CMD_DEL_OLD_OBJ) $(CPP_ZLOBJS:%.o=%.d))
+-include $(CPP_ZLOBJS:%.o=%.d)
 $(CPP_ZLOBJS)  : $(ZLOUTDIR)/%.o : $(ZILLALIB_DIR)%.cpp ; $(call COMPILE,$@,$<,$(CXX),$(CXXFLAGS) $(ZLFLAGS) -MMD -MP)
-$(CC_ZLOBJS)   : $(ZLOUTDIR)/%.o : $(ZILLALIB_DIR)%.c   ; $(call   COMPILE,$@,$<,$(CC),$(CCFLAGS) $(ZLFLAGS) -MMD -MP)
 
-$(ZLOUTDIR)/ZillaLib.a : $(CPP_ZLOBJS) $(CC_ZLOBJS) $(CPP_DEPOBJS) $(CC_DEPOBJS)
+$(ZLOUTDIR)/ZillaLib.a : $(CPP_ZLOBJS) $(CPP_DEPOBJS) $(CC_DEPOBJS)
 	$(info Creating static library $@ ...)
 	@$(AR) rcs $@ $^
 
@@ -258,5 +256,5 @@ endif
 define COMPILE
 	$(info $2)
 	@$(if $(wildcard $(dir $1)),,$(shell python -c "import os;os.makedirs('$(dir $1)')"))
-	@"$3" -o $1 -c $2 $4
+	@$3 $4 $5 $(COMMONFLAGS) -o $1 -c $2
 endef
