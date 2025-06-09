@@ -1,6 +1,6 @@
 #
 #  ZillaLib
-#  Copyright (C) 2010-2019 Bernhard Schelling
+#  Copyright (C) 2010-2025 Bernhard Schelling
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty.  In no event will the authors be held liable for any damages
@@ -23,27 +23,28 @@ ifndef ZL_IS_APP_MAKE
 
 ZILLALIB_PATH := $(or $(ZILLALIB_PATH),$(subst / *,,$(dir $(subst \,/,$(lastword $(MAKEFILE_LIST)))) *))
 
-.PHONY: all help helpheader linux-help wasm-help emscripten-help nacl-help android-help osx-help ios-help help-all
+.PHONY: all help helpheader linux-help macos-help wasm-help emscripten-help nacl-help android-help osx-help ios-help help-all
 all: help
-help-all: help helpheader linux-help wasm-help emscripten-help nacl-help android-help osx-help ios-help
+help-all: help helpheader linux-help macos-help wasm-help emscripten-help nacl-help android-help osx-help ios-help
 ISWIN = $(findstring :,$(firstword $(subst \, ,$(subst /, ,$(abspath .)))))
-ISOSX = $(wildcard /Applications)
+ISMAC = $(wildcard /Applications)
 ISLIN = $(wildcard /proc)
 helpheader:
 	@:    $(info )$(eval #: don't print "Nothing to be done for" message)
 	$(info $( ) ZillaLib Makefile Help)
 	$(info ========================)
 	$(info )
-help: ZLHELP_OTHER = $(strip $(if $(ISLIN),,linux )$(if $(wildcard $(ZILLALIB_PATH)/WebAssembly/ZillaAppLocalConfig.mk),,wasm )$(if $(wildcard $(ZILLALIB_PATH)/Emscripten/ZillaAppLocalConfig.mk),,emscripten )$(if $(wildcard $(ZILLALIB_PATH)/NACL/ZillaAppLocalConfig.mk),,nacl )$(if $(wildcard Android),,android )$(if $(ISOSX),,osx ios ))
+help: ZLHELP_OTHER = $(strip $(if $(ISLIN),,linux )$(if $(wildcard $(ZILLALIB_PATH)/WebAssembly/ZillaAppLocalConfig.mk),,wasm )$(if $(wildcard $(ZILLALIB_PATH)/Emscripten/ZillaAppLocalConfig.mk),,emscripten )$(if $(wildcard $(ZILLALIB_PATH)/NACL/ZillaAppLocalConfig.mk),,nacl )$(if $(wildcard Android),,android )$(if $(ISMAC),,macos osx ios ))
 help: ZLHELP_ECHOOTHER = $(if $(ZLHELP_OTHER),$(info )$(info Other platforms (requiring further setup): $(ZLHELP_OTHER)))
 help:helpheader
 	$(if $(ISLIN),$(info Platform: linux      - Commands: linux linux-debug linux-release linux-releasedbg linux-clean linux-debug-clean linux-release-clean linux-releasedbg-clean$(if $(ZillaApp), linux-run linux-gdb linux-debug-run linux-release-run linux-releasedbg-run linux-debug-gdb linux-release-gdb linux-releasedbg-gdb)))
+	$(if $(ISMAC),$(info Platform: macos      - Commands: macos macos-debug macos-release macos-releasedbg macos-clean macos-debug-clean macos-release-clean macos-releasedbg-clean$(if $(ZillaApp), macos-run macos-gdb macos-debug-run macos-release-run macos-releasedbg-run macos-debug-gdb macos-release-gdb macos-releasedbg-gdb)))
 	$(if $(wildcard $(ZILLALIB_PATH)/WebAssembly/ZillaAppLocalConfig.mk),$(info Platform: wasm       - Commands: wasm wasm-clean wasm-debug wasm-release wasm-debug-clean wasm-release-clean$(if $(ZillaApp), wasm-run wasm-debug-run wasm-release-run)))
 	$(if $(wildcard $(ZILLALIB_PATH)/Emscripten/ZillaAppLocalConfig.mk),$(info Platform: emscripten - Commands: emscripten emscripten-clean emscripten-debug emscripten-release emscripten-debug-clean emscripten-release-clean$(if $(ZillaApp), emscripten-run emscripten-debug-run emscripten-release-run)))
 	$(if $(wildcard $(ZILLALIB_PATH)/NACL/ZillaAppLocalConfig.mk),$(info Platform: nacl       - Commands: nacl nacl-clean nacl-run nacl-debug nacl-release nacl-debug-clean nacl-release-clean nacl-debug-run nacl-release-run))
 	$(if $(wildcard Android),$(info Platform: android    - Commands: android android-clean android-install android-uninstall android-sign android-debug android-release android-debug-clean android-release-clean android-debug-install android-release-install))
-	$(if $(ISOSX),$(info Platform: osx        - Commands: osx osx-clean osx-cleanall osx-run osx-lldb osx-debug osx-release osx-debug-clean osx-release-clean osx-debug-cleanall osx-release-cleanall osx-debug-run osx-release-run))
-	$(if $(ISOSX),$(info Platform: ios        - Commands: ios ios-clean ios-cleanall ios-run ios-simulator ios-phone ios-simulator-run ios-archive))
+	$(if $(ISMAC),$(info Platform: osx        - Commands: osx osx-clean osx-cleanall osx-run osx-lldb osx-debug osx-release osx-debug-clean osx-release-clean osx-debug-cleanall osx-release-cleanall osx-debug-run osx-release-run))
+	$(if $(ISMAC),$(info Platform: ios        - Commands: ios ios-clean ios-cleanall ios-run ios-simulator ios-phone ios-simulator-run ios-archive))
 	$(ZLHELP_ECHOOTHER)$(info )
 	$(info You can run "$(MAKE) {platform-name}-help" to get further setup instructions)$(info )
 linux-help:helpheader
@@ -58,6 +59,18 @@ linux-help:helpheader
 	$(info $( )    linux-clean | linux-debug-clean | linux-release-clean | linux-releasedbg-clean -- Clean the build output directory)
 	$(if $(ZillaApp),$(info $( )    linux-run   | linux-debug-run   | linux-release-run   | linux-releasedbg-run   -- Build and run the game))
 	$(if $(ZillaApp),$(info $( )    linux-gdb   | linux-debug-gdb   | linux-release-gdb   | linux-releasedbg-gdb   -- Build and run the game with GDB))
+	$(info )$(info $( )    (if no configuration is supplied in the make target name, the default (debug) configuration will be used))$(info )
+macos-help:helpheader
+	$(info macOS Requirements:)
+	$(info $( )    Building for macOS requires an installed and running macOS operating system with Xcode installed.)
+	$(info $( )    By default, it will use the system (Intel or ARM) for building)
+	$(info $( )    Unlike builds named `osx` (see osx-help), these `macos` builds use just the command line (similar to `linux` and `wasm`) without the need to have Xcode project files)
+	$(info )
+	$(info macOS Make Targets:)
+	$(info $( )    macos       | macos-debug       | macos-release       | macos-releasedbg       -- Builds the $(if $(ZillaApp),game executable,static ZillaLib library))
+	$(info $( )    macos-clean | macos-debug-clean | macos-release-clean | macos-releasedbg-clean -- Clean the build output directory)
+	$(if $(ZillaApp),$(info $( )    macos-run   | macos-debug-run   | macos-release-run   | macos-releasedbg-run   -- Build and run the game))
+	$(if $(ZillaApp),$(info $( )    macos-gdb   | macos-debug-gdb   | macos-release-gdb   | macos-releasedbg-gdb   -- Build and run the game with GDB))
 	$(info )$(info $( )    (if no configuration is supplied in the make target name, the default (debug) configuration will be used))$(info )
 wasm-help:helpheader
 	$(info Wasm Requirements:)
@@ -84,7 +97,7 @@ emscripten-help:helpheader
 	$(info $( )        EMSCRIPTEN_NATIVE_OPTIMIZER = $(if $(ISWIN),D:)/path/to/optimizer$(if $(ISWIN),.exe,    ) #path to Emscripten optimizer executable)
 	$(info $( )        NODE_JS = $(if $(ISWIN),D:)/path/to/node/node$(if $(ISWIN),.exe,    )                     #path to Node.js executable)
 	$(info $( )        PYTHON = $(if $(ISWIN),D:)/path/to/python/python$(if $(ISWIN),.exe,    )                  #path to Python executable (only required if not in PATH))
-#	$(info $( )        JAVA = $(if $(ISWIN),D:)/path/to/java/bin/java$(if $(ISWIN),.exe,    )                    #[OPTIONAL] path to Java executable for minifying output (ca. 15% less))
+	#$(info $( )        JAVA = $(if $(ISWIN),D:)/path/to/java/bin/java$(if $(ISWIN),.exe,    )                    #[OPTIONAL] path to Java executable for minifying output (ca. 15% less))
 	$(info $( )        7ZIP = $(if $(ISWIN),D:)/path/to/7z$(if $(ISWIN),.exe,    )                               #[OPTIONAL] path to 7z$(if $(ISWIN),.exe) for better output gz compression)
 	$(info $( )        BROWSER = $(if $(ISWIN),D:)/path/to/browser/browser$(if $(ISWIN),.exe,    )               #[OPTIONAL] path to a browser for run targets)
 	$(info )
@@ -156,31 +169,31 @@ ios-help:helpheader
 
 #------------------------------------------------------------------------------------------------------
 
-debug            : $(if $(ISLIN),linux-debug)$(if $(ISOSX),osx-debug)
-release          : $(if $(ISLIN),linux-release)$(if $(ISOSX),osx-release)
+debug            : $(if $(ISLIN),linux-debug)$(if $(ISMAC),osx-debug)
+release          : $(if $(ISLIN),linux-release)$(if $(ISMAC),osx-release)
 releasedbg       : $(if $(ISLIN),linux-releasedbg)
-clean            : $(if $(ISLIN),linux-clean)$(if $(ISOSX),osx-clean)
-debug-clean      : $(if $(ISLIN),linux-debug-clean)$(if $(ISOSX),osx-debug-clean)
-release-clean    : $(if $(ISLIN),linux-release-clean)$(if $(ISOSX),osx-release-clean)
+clean            : $(if $(ISLIN),linux-clean)$(if $(ISMAC),osx-clean)
+debug-clean      : $(if $(ISLIN),linux-debug-clean)$(if $(ISMAC),osx-debug-clean)
+release-clean    : $(if $(ISLIN),linux-release-clean)$(if $(ISMAC),osx-release-clean)
 releasedbg-clean : $(if $(ISLIN),linux-releasedbg-clean)
 
 #------------------------------------------------------------------------------------------------------
 ifdef ZillaApp
 #------------------------------------------------------------------------------------------------------
 
-run              : $(if $(ISLIN),linux-run)$(if $(ISOSX),osx-run)
-debug-run        : $(if $(ISLIN),linux-debug-run)$(if $(ISOSX),osx-debug-run)
-release-run      : $(if $(ISLIN),linux-release-run)$(if $(ISOSX),osx-release-run)
+run              : $(if $(ISLIN),linux-run)$(if $(ISMAC),osx-run)
+debug-run        : $(if $(ISLIN),linux-debug-run)$(if $(ISMAC),osx-debug-run)
+release-run      : $(if $(ISLIN),linux-release-run)$(if $(ISMAC),osx-release-run)
 releasedbg-run   : $(if $(ISLIN),linux-releasedbg-run)
-cleanall         : $(if $(ISOSX),osx-cleanall)
-debug-cleanall   : $(if $(ISOSX),osx-debug-cleanall)
-release-cleanall : $(if $(ISOSX),osx-release-cleanall)
+cleanall         : $(if $(ISMAC),osx-cleanall)
+debug-cleanall   : $(if $(ISMAC),osx-debug-cleanall)
+release-cleanall : $(if $(ISMAC),osx-release-cleanall)
 gdb              : $(if $(ISLIN),linux-gdb)
-lldb             : $(if $(ISOSX),osx-lldb)
+lldb             : $(if $(ISMAC),osx-lldb)
 debug-gdb        : $(if $(ISLIN),linux-debug-gdb)
-debug-lldb       : $(if $(ISOSX),osx-debug-lldb)
+debug-lldb       : $(if $(ISMAC),osx-debug-lldb)
 release-gdb      : $(if $(ISLIN),linux-release-gdb)
-release-lldb     : $(if $(ISOSX),osx-release-lldb)
+release-lldb     : $(if $(ISMAC),osx-release-lldb)
 releasedbg-gdb   : $(if $(ISLIN),linux-releasedbg-gdb)
 
 #------------------------------------------------------------------------------------------------------
@@ -189,6 +202,7 @@ ZLPARAMS_MAKE  = $(strip $(strip $(if $(D),"D=$(D)")$(if $(W),$(foreach WW,$(W),
 ZLPARAMS_XCODE = $(if $(D),"CmdLinePreprocessorDefinitions=$(D)")
 
 #------------------------------------------------------------------------------------------------------
+
 .PHONY: linux linux-clean linux-run linux-gdb linux-debug linux-release linux-releasedbg linux-debug-clean linux-release-clean linux-releasedbg-clean linux-debug-run linux-release-run linux-releasedbg-run linux-debug-gdb linux-release-gdb linux-releasedbg-gdb
 linux: linux-debug
 linux-clean: linux-debug-clean
@@ -201,6 +215,21 @@ linux-debug linux-release linux-releasedbg:; $(ZLLINUX_CMD) $(ZLPARAMS_MAKE)
 linux-debug-clean linux-release-clean linux-releasedbg-clean:; $(ZLLINUX_CMD) clean
 linux-debug-run linux-release-run linux-releasedbg-run:; $(ZLLINUX_CMD) run
 linux-debug-gdb linux-release-gdb linux-releasedbg-gdb:; $(ZLLINUX_CMD) gdb
+
+#------------------------------------------------------------------------------------------------------
+
+.PHONY: macos macos-clean macos-run macos-gdb macos-debug macos-release macos-releasedbg macos-debug-clean macos-release-clean macos-releasedbg-clean macos-debug-run macos-release-run macos-releasedbg-run macos-debug-gdb macos-release-gdb macos-releasedbg-gdb
+macos: macos-debug
+macos-clean: macos-debug-clean
+macos-run: macos-debug-run
+macos-gdb: macos-debug-gdb
+macos-release macos-release-clean macos-release-run macos-release-gdb: ZLMACOS_BUILD = BUILD=RELEASE
+macos-releasedbg macos-releasedbg-clean macos-releasedbg-run macos-releasedbg-gdb: ZLMACOS_BUILD = BUILD=RELEASEDBG
+ZLMACOS_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/ZillaLib-OSX.xcodeproj/ZillaLibMacOS.mk" $(ZLMACOS_BUILD) "ZillaApp=$(ZillaApp)"
+macos-debug macos-release macos-releasedbg:; $(ZLMACOS_CMD) $(ZLPARAMS_MAKE)
+macos-debug-clean macos-release-clean macos-releasedbg-clean:; $(ZLMACOS_CMD) clean
+macos-debug-run macos-release-run macos-releasedbg-run:; $(ZLMACOS_CMD) run
+macos-debug-gdb macos-release-gdb macos-releasedbg-gdb:; $(ZLMACOS_CMD) gdb
 
 #------------------------------------------------------------------------------------------------------
 
@@ -313,6 +342,17 @@ linux-releasedbg linux-releasedbg-clean: ZLLINUX_BUILD = BUILD=RELEASEDBG
 ZLLINUX_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/Linux/ZillaLibLinux.mk" $(ZLLINUX_BUILD)
 linux-debug linux-release linux-releasedbg:; $(ZLLINUX_CMD) $(ZLPARAMS_MAKE)
 linux-debug-clean linux-release-clean linux-releasedbg-clean:; $(ZLLINUX_CMD) clean
+
+#------------------------------------------------------------------------------------------------------
+
+.PHONY: macos macos-clean macos-debug macos-release macos-releasedbg macos-debug-clean macos-release-clean macos-releasedbg-clean
+macos: macos-debug
+macos-clean: macos-debug-clean
+macos-release macos-release-clean: ZLMACOS_BUILD = BUILD=RELEASE
+macos-releasedbg macos-releasedbg-clean: ZLMACOS_BUILD = BUILD=RELEASEDBG
+ZLMACOS_CMD = @+"$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/ZillaLib-OSX.xcodeproj/ZillaLibMacOS.mk" $(ZLMACOS_BUILD)
+macos-debug macos-release macos-releasedbg:; $(ZLMACOS_CMD) $(ZLPARAMS_MAKE)
+macos-debug-clean macos-release-clean macos-releasedbg-clean:; $(ZLMACOS_CMD) clean
 
 #------------------------------------------------------------------------------------------------------
 

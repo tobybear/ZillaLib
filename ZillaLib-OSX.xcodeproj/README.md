@@ -1,5 +1,5 @@
-ZillaLib on Mac OS X
-====================
+ZillaLib on macOS
+=================
 
   * [Setup](#setup)
   * [Building](#building)
@@ -7,7 +7,7 @@ ZillaLib on Mac OS X
 
 # Setup
 
-You need a running Mac OS X system (on real hardware or in a virtual machine) with the Apple development suite Xcode installed.  
+You need a running macOS system (on real hardware or in a virtual machine) with the Apple development suite Xcode installed.  
 Only the newest Xcode version (requiring the latest OS X version) can be installed from inside the Mac App Store but you can get any old version from the [Apple Developer Download site](https://developer.apple.com/downloads/).  
 See [Xcode on Wikipedia](https://en.wikipedia.org/wiki/Xcode#Version_comparison_table) for which version runs on which OS.  
 
@@ -31,3 +31,8 @@ make osx-help
 ```
 
 With the various make targets you can build debug and release executables, run them normally or with the lldb command line debugger.
+
+There are alternative `macos` make targets which use a different approach similar to building for Linux with no need to have an Xcode project file. This will lose some convenience and debugging features provided by Xcode in favor of a faster and more simplified build process. It will also result in just a single executable file as opposed to the Xcode project which will generate a full .application package with icons and plist files.
+```sh
+make macos-help
+```
