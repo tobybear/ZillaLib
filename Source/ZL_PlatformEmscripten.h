@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2025 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -30,14 +30,8 @@
 
 #ifdef __cplusplus
 
+//GLSL namespace
 #include "ZL_PlatformGLSL.h"
-extern bool ZLEM_EnabledVertexAttrib[ZLGLSL::_ATTR_MAX];
-inline void glEnableVertexAttribArrayUnbuffered(GLuint i) { ZLEM_EnabledVertexAttrib[i] = true; glEnableVertexAttribArray(i); }
-inline void glDisableVertexAttribArrayUnbuffered(GLuint i) { ZLEM_EnabledVertexAttrib[i] = false; glDisableVertexAttribArray(i); }
-void glVertexAttribPointerUnbuffered(GLuint indx, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* ptr);
-void glDrawArraysUnbuffered(GLenum mode, GLint first, GLsizei count);
-void glDrawElementsUnbuffered(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices);
-#define ZL_VIDEO_GL_SEPARATE_UNBUFFERED_CALLS
 
 //Display
 void ZL_SetFullscreen(bool toFullscreen);

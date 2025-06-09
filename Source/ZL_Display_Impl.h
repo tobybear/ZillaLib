@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2025 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -137,12 +137,28 @@
 	#define glDeleteFramebuffers glDeleteFramebuffersOES
 #endif
 
-#ifndef ZL_VIDEO_GL_SEPARATE_UNBUFFERED_CALLS
+#if !defined(__WEBAPP__) && !defined(ZL_VIDEO_OPENGL_CORE)
 	#define glEnableVertexAttribArrayUnbuffered glEnableVertexAttribArray
 	#define glDisableVertexAttribArrayUnbuffered glDisableVertexAttribArray
 	#define glVertexAttribPointerUnbuffered glVertexAttribPointer
 	#define glDrawArraysUnbuffered glDrawArrays
 	#define glDrawElementsUnbuffered glDrawElements
+#else
+	#define ZL_VIDEO_GL_USE_VBO
+	namespace ZLGLSL { extern bool EnabledVertexAttrib[]; };
+	inline void glEnableVertexAttribArrayUnbuffered(GLuint i) { ZLGLSL::EnabledVertexAttrib[i] = true; glEnableVertexAttribArray(i); }
+	inline void glDisableVertexAttribArrayUnbuffered(GLuint i) { ZLGLSL::EnabledVertexAttrib[i] = false; glDisableVertexAttribArray(i); }
+	void glVertexAttribPointerUnbuffered(GLuint indx, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* ptr);
+	void glDrawArraysUnbuffered(GLenum mode, GLint first, GLsizei count);
+	void glDrawElementsUnbuffered(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices);
+#endif
+
+#if defined(ZL_VIDEO_OPENGL_CORE)
+	#define ZL_VIDEO_GL_USE_VAO
+	#undef GL_LUMINANCE
+	#define GL_LUMINANCE GL_RED
+	#undef GL_LUMINANCE_ALPHA
+	#define GL_LUMINANCE_ALPHA GL_RG
 #endif
 
 #ifdef __cplusplus

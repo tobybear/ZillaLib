@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2025 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -96,13 +96,13 @@ namespace ZL_Display3D_Shaders
 
 	enum { EXTERN_Varying_ShadowMap, EXTERN_VS_ShadowMap_Defs, EXTERN_FS_ShadowMap_Defs, EXTERN_VS_ShadowMap_Calc, EXTERN_FS_ShadowMap_Calc, _EXTERN_NUM };
 	static const char* ExternalSource[_EXTERN_NUM];
+	static const char* SharedVSHeader[1] { ZLGLSL_LIST_HIGH_PRECISION_HEADER ZLGLSL_LIST_VS_HEADER };
+	static const char* SharedFSHeader[1] { ZLGLSL_LIST_HIGH_PRECISION_HEADER ZLGLSL_LIST_FS_HEADER };
 	static char Const_NumLights[] = "const int " Z3S_NUMLIGHTS "=   ", *Const_NumLightsNumberPtr = Const_NumLights+COUNT_OF(Const_NumLights)-4;
 
 	static const struct SourceRule { int MMUseIf, MMLimit; const char *Source; }
 		SharedRules[] = {
-			#ifdef ZL_VIDEO_OPENGL_ES2
-			{ 0,0,ZLGLSL_LIST_HIGH_PRECISION_HEADER },
-			#endif
+			{ 0,0,0 },
 			{ MMUSE_VERTEXCOLOR,                      0, "varying vec4 " Z3V_COLOR ";" },
 			{ MMUSE_TEXCOORD,                         0, "varying vec2 " Z3V_TEXCOORD ";" },
 			{ MMUSE_CAMERATANGENT,  MO_PRECISIONTANGENT, "varying vec3 " Z3V_CAMERATANGENT ";" },
@@ -649,10 +649,10 @@ ZL_Material_Impl* ZL_Material_Impl::GetMaterialReference(unsigned int MM, const 
 		const unsigned int MMRules = (MM & MO_UNLIT ? MM : MM | MR_WPOSITION | MR_NORMAL);
 		const char* FSNullReplacements[] = { CustomFragmentCode, FS_FragColorCalc };
 		const char *VS[COUNT_OF(SharedRules)+COUNT_OF(VSGlobalRules)+COUNT_OF(VSRules)], *FS[COUNT_OF(SharedRules)+COUNT_OF(FSRules)];
-		GLsizei VSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MMRules, &VS[      0]);
+		GLsizei VSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MMRules, &VS[      0], SharedVSHeader);
 		        VSCount += BuildList(VSGlobalRules, COUNT_OF(VSGlobalRules), MMRules, &VS[VSCount]);
 		        VSCount += BuildList(VSRules,       COUNT_OF(VSRules),       MMRules, &VS[VSCount], &CustomVertexCode);
-		GLsizei FSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MMRules, &FS[      0]);
+		GLsizei FSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MMRules, &FS[      0], SharedFSHeader);
 		        FSCount += BuildList(FSRules,       COUNT_OF(FSRules),       MMRules, &FS[FSCount], FSNullReplacements);
 		res = new ZL_MaterialProgram(VSCount, VS, FSCount, FS, MM);
 		if (!res->ShaderProgram->ShaderIDs.Program) { res->ShaderProgram->MaterialModes = 0; delete res; return NULL; }
@@ -2346,10 +2346,10 @@ static void ZL_Display3D_BuildDebugColorMat()
 	ZL_ASSERT(!g_DebugColorMat);
 	using namespace ZL_Display3D_Shaders;
 	const char *VS[COUNT_OF(SharedRules)+COUNT_OF(VSGlobalRules)+COUNT_OF(VSRules)], *FS[COUNT_OF(SharedRules)+COUNT_OF(FSRules)], *FSNullReplacements[] = { NULL, Z3U_COLOR ";" };
-	GLsizei VSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MM_STATICCOLOR|MO_UNLIT, &VS[      0]);
+	GLsizei VSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MM_STATICCOLOR|MO_UNLIT, &VS[      0], SharedVSHeader);
 	        VSCount += BuildList(VSGlobalRules, COUNT_OF(VSGlobalRules), MM_STATICCOLOR|MO_UNLIT, &VS[VSCount]);
 	        VSCount += BuildList(VSRules,       COUNT_OF(VSRules),       MM_STATICCOLOR|MO_UNLIT, &VS[VSCount]);
-	GLsizei FSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MM_STATICCOLOR|MO_UNLIT, &FS[      0]);
+	GLsizei FSCount  = BuildList(SharedRules,   COUNT_OF(SharedRules),   MM_STATICCOLOR|MO_UNLIT, &FS[      0], SharedFSHeader);
 	        FSCount += BuildList(FSRules,       COUNT_OF(FSRules),       MM_STATICCOLOR|MO_UNLIT, &FS[FSCount], FSNullReplacements);
 	g_DebugColorMat = new ZL_MaterialProgram(VSCount, VS, FSCount, FS);
 	ZL_ASSERT(g_DebugColorMat->ShaderIDs.Program);
@@ -2453,10 +2453,10 @@ bool ZL_Display3D::InitShadowMapping()
 				const char *VS[1+COUNT_OF(SharedRules)+COUNT_OF(VSGlobalRules)+COUNT_OF(VSRules)], *FS[COUNT_OF(SharedRules)+COUNT_OF(FSRules)];
 				GLsizei VSCount = 0;
 				if (MMSMRules & MM_VERTEXFUNC) VS[VSCount++] = "#define " Z3D_SHADOWMAP "\n";
-				        VSCount += BuildList(SharedRules,      COUNT_OF(SharedRules),      MMSMRules,  &VS[VSCount]);
+				        VSCount += BuildList(SharedRules,      COUNT_OF(SharedRules),      MMSMRules,  &VS[VSCount], SharedVSHeader);
 				        VSCount += BuildList(VSGlobalRules,    COUNT_OF(VSGlobalRules),    MMSMGlobal, &VS[VSCount]);
 				        VSCount += BuildList(VSRules,          COUNT_OF(VSRules),          MMSMRules,  &VS[VSCount], &CustomVertexCode);
-				GLsizei FSCount  = BuildList(SharedRules,      COUNT_OF(SharedRules),      MMSMRules,  &FS[      0]);
+				GLsizei FSCount  = BuildList(SharedRules,      COUNT_OF(SharedRules),      MMSMRules,  &FS[      0], SharedFSHeader);
 				        FSCount += BuildList(ShadowMapFSRules, COUNT_OF(ShadowMapFSRules), MMSMRules,  &FS[FSCount]);
 				UseShadowMapProgram = new ZL_MaterialProgram(VSCount, VS, FSCount, FS);
 				if (!UseShadowMapProgram->ShaderIDs.Program) { delete UseShadowMapProgram; UseShadowMapProgram = NULL; }

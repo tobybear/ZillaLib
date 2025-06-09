@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2020 Bernhard Schelling
+  Copyright (C) 2010-2025 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -65,6 +65,15 @@
   #define __NACL__
   #define __WEBAPP__
  #endif
+#endif
+#define ZL_VIDEO_USE_GLSL
+#if (defined(__ANDROID__) || defined(__IPHONEOS__) || defined(__WEBAPP__)) && !defined(ZL_VIDEO_OPENGL_ES1) && !defined(ZL_VIDEO_OPENGL_ES2)
+//#define ZL_VIDEO_OPENGL_ES1
+#define ZL_VIDEO_OPENGL_ES2
+#elif !defined(__WINDOWSPHONE__) && !defined(ZL_VIDEO_OPENGL1) && !defined(ZL_VIDEO_OPENGL2) && !defined(ZL_VIDEO_OPENGL_CORE)
+//#define ZL_VIDEO_OPENGL1
+#define ZL_VIDEO_OPENGL2
+//#define ZL_VIDEO_OPENGL_CORE
 #endif
 #if defined(__LP64__) || defined(_LP64) || defined(__LLP64__) || defined(__x86_64__) || defined(__ia64__) || defined(_WIN64) || defined(_M_X64)
 #define ZL_IS_64_BIT

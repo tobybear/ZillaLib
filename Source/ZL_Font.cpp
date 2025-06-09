@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2020 Bernhard Schelling
+  Copyright (C) 2010-2025 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -344,10 +344,10 @@ struct ZL_FontTTF_Impl : ZL_Font_Impl
 			return chars.Put(cd, c);
 		}
 
-		#ifndef ZL_VIDEO_DIRECT3D
+		#if !defined(ZL_VIDEO_OPENGL_CORE) && !defined(ZL_VIDEO_DIRECT3D)
 		#define ZLFONTVIDEO_FORMAT GL_LUMINANCE_ALPHA
 		#define ZLFONTVIDEO_BPP 2
-		#else //D3D must be RGBA
+		#else //D3D and GLCORE must be RGBA
 		#define ZLFONTVIDEO_FORMAT GL_RGBA
 		#define ZLFONTVIDEO_BPP 4
 		#endif

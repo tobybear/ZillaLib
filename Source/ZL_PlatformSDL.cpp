@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2020 Bernhard Schelling
+  Copyright (C) 2010-2025 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -297,9 +297,11 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
 
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	#ifdef ZL_VIDEO_OPENGL_CORE
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	#endif
 
 	#if defined(__WIN32__) && defined(ZILLALIB_TRANSPARENTONWINDOWSDESKTOP)
 	windowflags |= SDL_WINDOW_BORDERLESS;
@@ -739,6 +741,16 @@ PFNGLGENFRAMEBUFFERSPROC          glGenFramebuffers;
 PFNGLDELETEFRAMEBUFFERSPROC       glDeleteFramebuffers;
 PFNGLBINDFRAMEBUFFERPROC          glBindFramebuffer;
 PFNGLFRAMEBUFFERTEXTURE2DPROC     glFramebufferTexture2D;
+#ifndef __MACOSX__
+PFNGLGENBUFFERSPROC               glGenBuffers;
+PFNGLDELETEBUFFERSPROC            glDeleteBuffers;
+PFNGLBINDBUFFERPROC               glBindBuffer;
+PFNGLBUFFERDATAPROC               glBufferData;
+PFNGLBUFFERSUBDATAPROC            glBufferSubData;
+#endif
+PFNGLGENVERTEXARRAYSPROC          glGenVertexArrays;
+PFNGLBINDVERTEXARRAYPROC          glBindVertexArray;
+PFNGLDELETEVERTEXARRAYSPROC       glDeleteVertexArrays;
 static void InitExtensionEntries()
 {
 #ifndef __MACOSX__
@@ -787,6 +799,16 @@ static void InitExtensionEntries()
 	glDeleteFramebuffers =       (PFNGLDELETEFRAMEBUFFERSPROC      )(size_t)SDL_GL_GetProcAddress("glDeleteFramebuffers");
 	glBindFramebuffer =          (PFNGLBINDFRAMEBUFFERPROC         )(size_t)SDL_GL_GetProcAddress("glBindFramebuffer");
 	glFramebufferTexture2D =     (PFNGLFRAMEBUFFERTEXTURE2DPROC    )(size_t)SDL_GL_GetProcAddress("glFramebufferTexture2D");
+#ifndef __MACOSX__
+	glGenBuffers =               (PFNGLGENBUFFERSPROC              )(size_t)SDL_GL_GetProcAddress("glGenBuffers");
+	glDeleteBuffers =            (PFNGLDELETEBUFFERSPROC           )(size_t)SDL_GL_GetProcAddress("glDeleteBuffers");
+	glBindBuffer =               (PFNGLBINDBUFFERPROC              )(size_t)SDL_GL_GetProcAddress("glBindBuffer");
+	glBufferData =               (PFNGLBUFFERDATAPROC              )(size_t)SDL_GL_GetProcAddress("glBufferData");
+	glBufferSubData =            (PFNGLBUFFERSUBDATAPROC           )(size_t)SDL_GL_GetProcAddress("glBufferSubData");
+#endif
+	glGenVertexArrays =          (PFNGLGENVERTEXARRAYSPROC         )(size_t)SDL_GL_GetProcAddress("glGenVertexArrays");
+	glBindVertexArray =          (PFNGLBINDVERTEXARRAYPROC         )(size_t)SDL_GL_GetProcAddress("glBindVertexArray");
+	glDeleteVertexArrays =       (PFNGLDELETEVERTEXARRAYSPROC      )(size_t)SDL_GL_GetProcAddress("glDeleteVertexArrays");
 }
 
 #ifdef ZL_REQUIRE_INIT3DGLEXTENSIONENTRIES
@@ -794,10 +816,6 @@ PFNGLGETACTIVEUNIFORMPROC         glGetActiveUniform;
 #ifndef GL_ATI_blend_equation_separate
 PFNGLACTIVETEXTUREPROC            glActiveTexture;
 #endif
-PFNGLGENBUFFERSPROC               glGenBuffers;
-PFNGLDELETEBUFFERSPROC            glDeleteBuffers;
-PFNGLBINDBUFFERPROC               glBindBuffer;
-PFNGLBUFFERDATAPROC               glBufferData;
 #ifdef ZILLALOG
 PFNGLGETBUFFERPARAMETERIVPROC     glGetBufferParameteriv;
 PFNGLMAPBUFFERPROC                glMapBuffer;
@@ -821,10 +839,6 @@ void ZL_Init3DGLExtensionEntries()
 	glActiveTexture =            (PFNGLACTIVETEXTUREPROC           )(size_t)SDL_GL_GetProcAddress("glActiveTexture");
 #endif
 	glGetActiveUniform =         (PFNGLGETACTIVEUNIFORMPROC        )(size_t)SDL_GL_GetProcAddress("glGetActiveUniform");
-	glGenBuffers =               (PFNGLGENBUFFERSPROC              )(size_t)SDL_GL_GetProcAddress("glGenBuffers");
-	glDeleteBuffers =            (PFNGLDELETEBUFFERSPROC           )(size_t)SDL_GL_GetProcAddress("glDeleteBuffers");
-	glBindBuffer =               (PFNGLBINDBUFFERPROC              )(size_t)SDL_GL_GetProcAddress("glBindBuffer");
-	glBufferData =               (PFNGLBUFFERDATAPROC              )(size_t)SDL_GL_GetProcAddress("glBufferData");
 #ifdef ZILLALOG
 	glGetBufferParameteriv =     (PFNGLGETBUFFERPARAMETERIVPROC    )(size_t)SDL_GL_GetProcAddress("glGetBufferParameteriv");
 	glMapBuffer =                (PFNGLMAPBUFFERPROC               )(size_t)SDL_GL_GetProcAddress("glMapBuffer");

@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2018 Bernhard Schelling
+  Copyright (C) 2010-2025 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -102,10 +102,6 @@ extern PFNGLGETACTIVEUNIFORMPROC         glGetActiveUniform;
 #ifndef GL_ATI_blend_equation_separate //On linux some OpenGL 2 functions are already defined in the OS GL.h, avoid redefinition
 extern PFNGLACTIVETEXTUREPROC            glActiveTexture;
 #endif
-extern PFNGLGENBUFFERSPROC               glGenBuffers;
-extern PFNGLDELETEBUFFERSPROC            glDeleteBuffers;
-extern PFNGLBINDBUFFERPROC               glBindBuffer;
-extern PFNGLBUFFERDATAPROC               glBufferData;
 #ifdef ZILLALOG
 extern PFNGLGETBUFFERPARAMETERIVPROC     glGetBufferParameteriv;
 extern PFNGLMAPBUFFERPROC                glMapBuffer;
@@ -129,6 +125,15 @@ extern PFNGLGENFRAMEBUFFERSPROC          glGenFramebuffers;
 extern PFNGLDELETEFRAMEBUFFERSPROC       glDeleteFramebuffers;
 extern PFNGLBINDFRAMEBUFFERPROC          glBindFramebuffer;
 extern PFNGLFRAMEBUFFERTEXTURE2DPROC     glFramebufferTexture2D;
-
+#ifndef __MACOSX__
+extern PFNGLGENBUFFERSPROC               glGenBuffers;
+extern PFNGLDELETEBUFFERSPROC            glDeleteBuffers;
+extern PFNGLBINDBUFFERPROC               glBindBuffer;
+extern PFNGLBUFFERDATAPROC               glBufferData;
+extern PFNGLBUFFERSUBDATAPROC            glBufferSubData;
+#endif
+extern PFNGLGENVERTEXARRAYSPROC          glGenVertexArrays;
+extern PFNGLBINDVERTEXARRAYPROC          glBindVertexArray;
+extern PFNGLDELETEVERTEXARRAYSPROC       glDeleteVertexArrays;
 #endif //__cplusplus
 #endif //__ZL_PLATFORM_SDL__

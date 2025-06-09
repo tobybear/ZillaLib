@@ -23,10 +23,10 @@
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+  <PropertyGroup Condition="'$(Configuration)'=='Debug' Or '$(Configuration)'=='DebugGLCORE'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB'" Label="Configuration">
+  <PropertyGroup Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseGLCORE' Or '$(Configuration)'=='ReleaseWithPDB'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
@@ -44,27 +44,30 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+  <PropertyGroup Condition="'$(Configuration)'=='Debug' Or '$(Configuration)'=='DebugGLCORE'">
     <LinkIncremental>true</LinkIncremental>
     <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB'">
+  <PropertyGroup Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseGLCORE' Or '$(Configuration)'=='ReleaseWithPDB'">
     <LinkIncremental>false</LinkIncremental>
     <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32' Or '$(Configuration)|$(Platform)'=='DebugGLCORE|Win32'">
     <OutDir>Debug-vs$(VisualStudioYear)\</OutDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32' Or '$(Configuration)|$(Platform)'=='ReleaseGLCORE|Win32' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|Win32'">
     <OutDir>Release-vs$(VisualStudioYear)\</OutDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64' Or '$(Configuration)|$(Platform)'=='DebugGLCORE|x64'">
     <OutDir>Debug-vs$(VisualStudioYear)x64\</OutDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64' Or '$(Configuration)|$(Platform)'=='ReleaseGLCORE|x64' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|x64'">
     <OutDir>Release-vs$(VisualStudioYear)x64\</OutDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(DataAssets)'!='' And ('$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB')">
+  <PropertyGroup>
+    <ZillaLibOutDir>$(ZillaLibDir)/$(OutDir)</ZillaLibOutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(DataAssets)'!='' And ('$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseGLCORE' Or '$(Configuration)'=='ReleaseWithPDB')">
     <LocalDebuggerCommand>$(OutDir)$(TargetName)_WithData.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
@@ -153,12 +156,12 @@
     <TLogLocation>$(OutDir)</TLogLocation>
     <IntermediateOutputPath>$(OutDir)</IntermediateOutputPath>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug' Or '$(Configuration)'=='DebugGLCORE'">
     <ClCompile>
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(ZillaLibDir)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_HAS_EXCEPTIONS=0;_CONSOLE;ZILLALOG;%(PreprocessorDefinitions);$(CmdLinePreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_HAS_EXCEPTIONS=0;_CONSOLE;ZILLALOG;%(PreprocessorDefinitions);$(CmdLinePreprocessorDefinitions);$(ZillaLibDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -176,7 +179,7 @@
       <Culture>0x0807</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>$(ZillaLibDir)/$(OutDir)ZillaLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(ZillaLibOutDir)ZillaLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreSpecificDefaultLibraries>libcmt;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -186,12 +189,7 @@
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|Win32'">
-    <ClCompile>
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions</EnableEnhancedInstructionSet>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB'">
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseGLCORE' Or '$(Configuration)'=='ReleaseWithPDB'">
     <ClCompile>
       <Optimization>Full</Optimization>
       <AdditionalIncludeDirectories>$(ZillaLibDir)/Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -219,7 +217,7 @@
       <Culture>0x0807</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>$(ZillaLibDir)/$(OutDir)ZillaLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(ZillaLibOutDir)ZillaLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
       <GenerateMapFile>true</GenerateMapFile>
@@ -233,7 +231,17 @@
       <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(DataAssets)'!='' And ('$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseWithPDB') And $(SkipDataAssets)==''">
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='DebugGLCore' Or '$(Configuration)'=='ReleaseGLCORE'">
+    <ClCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);ZL_VIDEO_OPENGL_CORE</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32' Or '$(Configuration)|$(Platform)'=='ReleaseGLCORE|Win32' Or '$(Configuration)|$(Platform)'=='ReleaseWithPDB|Win32'">
+    <ClCompile>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions</EnableEnhancedInstructionSet>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(DataAssets)'!='' And ('$(Configuration)'=='Release' Or '$(Configuration)'=='ReleaseGLCORE' Or '$(Configuration)'=='ReleaseWithPDB') And $(SkipDataAssets)==''">
     <PostBuildEvent>
       <Command>
 "$(PythonDir)python" -c "import sys,os,zipfile;z=zipfile.ZipFile(sys.argv[1],'w');[z.write(a) for a in sys.argv[2:]];[z.write(r+'/'+f) for a in sys.argv[2:] for r,d,fs in os.walk(a) for f in fs]" "$(TargetDir)ASSETS.ZIP" $(DataAssets) 2&gt;nul:

@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2025 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -281,7 +281,11 @@ struct ZL_Polygon
 #define ZL_GLES_PRECISION_HIGH   "highp"   //16-bit, floating point range: -2^62 to 2^62, integer range: -2^16 to 2^16
 #define ZL_GLES_PRECISION_MEDIUM "mediump" //10 bit, floating point range: -2^14 to 2^14, integer range: -2^10 to 2^10
 #define ZL_GLES_PRECISION_LOW    "lowp"    // 8 bit, floating point range: -2 to 2, integer range: -2^8 to 2^8
-#define ZL_SHADER_SOURCE_HEADER(GLES_PRECISION) "#ifdef GL_ES\nprecision " GLES_PRECISION " float;\n#endif\n"
+#ifdef ZL_VIDEO_OPENGL_ES2
+#define ZL_SHADER_SOURCE_HEADER(GLES_PRECISION) "precision " GLES_PRECISION " float;"
+#else
+#define ZL_SHADER_SOURCE_HEADER(GLES_PRECISION)
+#endif
 #if (!defined(_MSC_VER) || (_MSC_VER >= 1400))
 #define ZL_SHADER_SOURCE_QUOTE(GLES_PRECISION,...) ZL_SHADER_SOURCE_HEADER(GLES_PRECISION) #__VA_ARGS__
 #endif

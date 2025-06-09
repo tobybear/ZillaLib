@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2020 Bernhard Schelling
+  Copyright (C) 2010-2025 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -336,9 +336,6 @@ void ZL_SettingsSynchronize() { }
 #error The WebGL wrapper for memory buffers to GPU buffers only works with float preciscion
 #endif
 
-static GLuint ATTR_vbo[ZLGLSL::_ATTR_MAX];
-static GLuint ATTR_ibo;
-
 // WINDOW
 bool ZL_CreateWindow(const char*, int w, int h, int displayflags)
 {
@@ -346,8 +343,6 @@ bool ZL_CreateWindow(const char*, int w, int h, int displayflags)
 	ZL_TPF_Limit = 0;
 	ZLJS_CreateWindow(w, h, tpf_limit);
 
-	glGenBuffers(1, &ATTR_ibo);
-	glGenBuffers(ZLGLSL::_ATTR_MAX, ATTR_vbo);
 	glClearColor(0, 0, 0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -370,71 +365,6 @@ void ZL_SetFullscreen(bool toFullscreen)
 void ZL_SetPointerLock(bool doLockPointer)
 {
 	ZLJS_SetPointerLock((int)doLockPointer);
-}
-
-bool ZLEM_EnabledVertexAttrib[ZLGLSL::_ATTR_MAX];
-static       GLsizei   ATTR_bufsz[ZLGLSL::_ATTR_MAX];
-static const GLvoid*   ATTR_ptr[ZLGLSL::_ATTR_MAX];
-static       GLint     ATTR_size[ZLGLSL::_ATTR_MAX];
-static       GLsizei   ATTR_sizebyte[ZLGLSL::_ATTR_MAX];
-static       GLsizei   ATTR_stride[ZLGLSL::_ATTR_MAX];
-static       GLenum    ATTR_type[ZLGLSL::_ATTR_MAX];
-static       GLboolean ATTR_normalized[ZLGLSL::_ATTR_MAX];
-static GLsizei INDEX_BUFFER_APPLIED = 0;
-
-void glVertexAttribPointerUnbuffered(GLuint indx, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* ptr)
-{
-	INDEX_BUFFER_APPLIED = 0;
-	ATTR_ptr[indx] = ptr;
-	ATTR_size[indx] = size;
-	ATTR_sizebyte[indx] = size * (type == GL_UNSIGNED_BYTE ? 1 : 4);
-	ATTR_stride[indx] = (stride ? stride : ATTR_sizebyte[indx]);
-	ATTR_type[indx] = type;
-	ATTR_normalized[indx] = normalized;
-}
-
-static void glDrawArrayPrepare(GLint first, GLsizei count)
-{
-	for (int i = 0; i < ZLGLSL::_ATTR_MAX; i++)
-	{
-		if (!ZLEM_EnabledVertexAttrib[i]) continue;
-		GLsizei total = ATTR_stride[i] * count - (ATTR_stride[i] - ATTR_sizebyte[i]);
-		GLvoid* datastart = (char*)ATTR_ptr[i] + (ATTR_stride[i] * (GLsizei)first);
-		glBindBuffer(GL_ARRAY_BUFFER, ATTR_vbo[i]);
-		if (total > ATTR_bufsz[i]) glBufferData(GL_ARRAY_BUFFER, (ATTR_bufsz[i] = total), datastart, GL_DYNAMIC_DRAW);
-		else glBufferSubData(GL_ARRAY_BUFFER, 0, total, datastart);
-		glVertexAttribPointer(i, ATTR_size[i], ATTR_type[i], ATTR_normalized[i], ATTR_stride[i], 0);
-	}
-}
-
-void glDrawArraysUnbuffered(GLenum mode, GLint first, GLsizei count)
-{
-	glDrawArrayPrepare(first, count);
-	glDrawArrays(mode, 0, count);
-}
-
-void glDrawElementsUnbuffered(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices)
-{
-	assert(type == GL_UNSIGNED_SHORT);
-
-	GLsizei max = 0, countdown = count;
-	for (GLushort* p = (GLushort*)indices; countdown--; p++) if (*p > max) max = *p;
-	if (max+1 > INDEX_BUFFER_APPLIED)
-	{
-		INDEX_BUFFER_APPLIED = max+1;
-		glDrawArrayPrepare(0, max+1);
-	}
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ATTR_ibo);
-	static GLsizei IndexBufferSize = 0;
-	if (count > IndexBufferSize)
-	{
-		IndexBufferSize = count;
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, count*sizeof(GLushort), indices, GL_DYNAMIC_DRAW);
-	}
-	else glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, count*sizeof(GLushort), indices);
-
-	glDrawElements(mode, count, type, NULL);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////

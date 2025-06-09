@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2025 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -29,12 +29,18 @@
 
 #ifdef ZL_VIDEO_OPENGL_ES2
 #define ZLGLSL_LIST_HIGH_PRECISION_HEADER "precision highp float;",
-#define ZLGLSL_LIST_MEDIUM_PRECISION_HEADER "precision mediump float;",
 #define ZLGLSL_LIST_LOW_PRECISION_HEADER "precision lowp float;",
 #else
 #define ZLGLSL_LIST_HIGH_PRECISION_HEADER
-#define ZLGLSL_LIST_MEDIUM_PRECISION_HEADER
 #define ZLGLSL_LIST_LOW_PRECISION_HEADER
+#endif
+
+#ifdef ZL_VIDEO_OPENGL_CORE
+#define ZLGLSL_LIST_VS_HEADER "#version 140\n#define attribute in\n#define varying out\n",
+#define ZLGLSL_LIST_FS_HEADER "#version 140\n#define varying in\n#define texture2D texture\n#define gl_FragColor fragColor\nout vec4 fragColor;\n",
+#else
+#define ZLGLSL_LIST_VS_HEADER
+#define ZLGLSL_LIST_FS_HEADER
 #endif
 
 namespace ZLGLSL
@@ -47,7 +53,6 @@ namespace ZLGLSL
 	enum eAttributes { ATTR_POSITION, ATTR_COLOR, ATTR_TEXCOORD, _ATTR_MAX };
 
 	extern GLuint UNI_MVP;
-	extern GLuint UNI_TEXTURE;
 
 	void _COLOR_PROGRAM_ACTIVATE();
 	void _TEXTURE_PROGRAM_ACTIVATE();

@@ -1,6 +1,6 @@
 /*
   ZillaLib
-  Copyright (C) 2010-2019 Bernhard Schelling
+  Copyright (C) 2010-2025 Bernhard Schelling
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -29,10 +29,10 @@
 
 namespace ZLGLSL
 {
-	std::vector<GLSLscalar> mvp_matrix_store(16);
-	GLSLscalar *mvp_matrix_start = &mvp_matrix_store[0];
-	GLSLscalar *mvp_matrix_last = mvp_matrix_start;
-	GLSLscalar *mvp_matrix_ = mvp_matrix_start;
+	static std::vector<GLSLscalar> mvp_matrix_store(16);
+	static GLSLscalar *mvp_matrix_start = &mvp_matrix_store[0];
+	static GLSLscalar *mvp_matrix_last = mvp_matrix_start;
+	static GLSLscalar *mvp_matrix_ = mvp_matrix_start;
 	eActiveProgram ActiveProgram = NONE;
 
 	void MatrixApply();
@@ -192,7 +192,7 @@ namespace ZLGLSL
 #include <ZL_Display.h>
 #include "ZL_Impl.h"
 
-static const char* baseattribs_vertex_shader_src = //"#ifdef GL_ES\nprecision lowp float;\n#endif\n" //lowp vec4
+static const char* baseattribs_vertex_shader_src =
 	"uniform mat4 u_mvpMatrix;"
 	"attribute vec4 a_position;"
 	"attribute vec4 a_color;"
@@ -234,18 +234,28 @@ static const char* texture_fragment_shader_src =
 		"gl_FragColor = v_color * texture2D(u_texture, v_texcoord);"
 	"}";
 
-static const char *srcs_texture_vertex[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER baseattribs_vertex_shader_src, texture_vertex_shader_src };
-static const char *srcs_texture_fragment[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER baseattribs_fragment_shader_src, texture_fragment_shader_src };
+static const char *srcs_texture_vertex[]   = { ZLGLSL_LIST_LOW_PRECISION_HEADER ZLGLSL_LIST_VS_HEADER baseattribs_vertex_shader_src, texture_vertex_shader_src };
+static const char *srcs_texture_fragment[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER ZLGLSL_LIST_FS_HEADER baseattribs_fragment_shader_src, texture_fragment_shader_src };
 
 namespace ZLGLSL
 {
 	GLuint UNI_MVP = 0;
 
-	GLuint _COLOR_PROGRAM = 0;
-	GLuint COLOR_UNI_MVP;
+	static GLuint _COLOR_PROGRAM = 0;
+	static GLuint COLOR_UNI_MVP;
 
-	GLuint _TEXTURE_PROGRAM = 0;
-	GLuint TEXTURE_UNI_MVP;
+	static GLuint _TEXTURE_PROGRAM = 0;
+	static GLuint TEXTURE_UNI_MVP;
+
+	#ifdef ZL_VIDEO_GL_USE_VBO
+	bool EnabledVertexAttrib[_ATTR_MAX];
+	static GLuint VBOs[_ATTR_MAX];
+	static GLuint IBO;
+	#endif
+
+	#ifdef ZL_VIDEO_GL_USE_VAO
+	static GLuint VAO;
+	#endif
 
 	GLuint CreateShaderOfType(GLenum type, GLsizei count, const char*const* shader_src)
 	{
@@ -362,8 +372,8 @@ namespace ZLGLSL
 	bool CreateShaders()
 	{
 		// Load the shaders and get a linked program object
-		const char * srcs_color_vertex[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER baseattribs_vertex_shader_src, color_vertex_shader_src };
-		const char * srcs_color_fragment[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER baseattribs_fragment_shader_src, color_fragment_shader_src };
+		const char * srcs_color_vertex[]   = { ZLGLSL_LIST_LOW_PRECISION_HEADER ZLGLSL_LIST_VS_HEADER baseattribs_vertex_shader_src, color_vertex_shader_src };
+		const char * srcs_color_fragment[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER ZLGLSL_LIST_FS_HEADER baseattribs_fragment_shader_src, color_fragment_shader_src };
 		const char * const attr_color[] = { "a_position", "a_color" };
 		if (!(_COLOR_PROGRAM = CreateProgramFromVertexAndFragmentShaders(COUNT_OF(srcs_color_vertex), srcs_color_vertex, COUNT_OF(srcs_color_fragment), srcs_color_fragment, COUNT_OF(attr_color), attr_color))) return false;
 		COLOR_UNI_MVP       = (GLuint)glGetUniformLocation(_COLOR_PROGRAM, "u_mvpMatrix");
@@ -373,14 +383,24 @@ namespace ZLGLSL
 		if (!(_TEXTURE_PROGRAM = CreateProgramFromVertexAndFragmentShaders(COUNT_OF(srcs_texture_vertex), srcs_texture_vertex, COUNT_OF(srcs_texture_fragment), srcs_texture_fragment, COUNT_OF(attr_texture), attr_texture))) return false;
 		TEXTURE_UNI_MVP       = (GLuint)glGetUniformLocation(_TEXTURE_PROGRAM, "u_mvpMatrix");
 
-		glEnableVertexAttribArrayUnbuffered(0); //0 = POSITION = always required
+		#ifdef ZL_VIDEO_GL_USE_VBO
+		glGenBuffers(1, &IBO);
+		glGenBuffers(_ATTR_MAX, VBOs);
+		#endif
+
+		#ifdef ZL_VIDEO_GL_USE_VAO
+		glGenVertexArrays(1, &VAO);
+		glBindVertexArray(VAO); // so we can enable ATTR_POSITION right away
+		#endif
+
+		glEnableVertexAttribArrayUnbuffered(ATTR_POSITION); //0 = POSITION = always required
 
 		return true;
 	}
 
 	void MatrixApply()
 	{
-		if (ActiveProgram != NONE) glUniformMatrix4v(ZLGLSL::UNI_MVP, 1, GL_FALSE, mvp_matrix_);
+		if (ActiveProgram != NONE) glUniformMatrix4v(UNI_MVP, 1, GL_FALSE, mvp_matrix_);
 	}
 
 	void _COLOR_PROGRAM_ACTIVATE()
@@ -419,9 +439,12 @@ struct ZL_Shader_Impl : ZL_Impl
 
 	ZL_Shader_Impl(const char* code_fragment, const char *code_vertex)
 	{
-		const char **srcs_vertex, **srcs_fragment; GLsizei srcs_vertex_count, srcs_fragment_count;
-		if (code_vertex) srcs_vertex = &code_vertex, srcs_vertex_count = 1; else srcs_vertex = srcs_texture_vertex, srcs_vertex_count = COUNT_OF(srcs_texture_vertex);
-		if (code_fragment) srcs_fragment = &code_fragment, srcs_fragment_count = 1; else srcs_fragment = srcs_texture_fragment, srcs_fragment_count = COUNT_OF(srcs_texture_fragment);
+		const char * list_vertex[]   = { ZLGLSL_LIST_LOW_PRECISION_HEADER ZLGLSL_LIST_VS_HEADER code_vertex };
+		const char * list_fragment[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER ZLGLSL_LIST_FS_HEADER code_fragment };
+		const char **srcs_vertex           = (code_vertex   ?          list_vertex    : srcs_texture_vertex            );
+		GLsizei      srcs_vertex_count     = (code_vertex   ? COUNT_OF(list_vertex)   : COUNT_OF(srcs_texture_vertex)  );
+		const char **srcs_fragment         = (code_fragment ?          list_fragment  : srcs_texture_fragment          );
+		GLsizei      srcs_fragment_count   = (code_fragment ? COUNT_OF(list_fragment) : COUNT_OF(srcs_texture_fragment));
 		const char *attr[] = { "a_position", "a_color", "a_texcoord" };
 		if (!(PROGRAM = ZLGLSL::CreateProgramFromVertexAndFragmentShaders(srcs_vertex_count, srcs_vertex, srcs_fragment_count, srcs_fragment, COUNT_OF(attr), attr))) return;
 		UNI_MVP       = (GLuint)glGetUniformLocation(PROGRAM, "u_mvpMatrix");
@@ -486,7 +509,7 @@ void ZL_Shader::Deactivate()
 	ZLGLSL::ActiveProgram = ZLGLSL::NONE;
 }
 
-static const char *postprocess_vertex_shader_srcs[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER "attribute vec4 a_position;attribute vec2 a_texcoord;varying vec2 v_texcoord; void main(){v_texcoord=a_texcoord;gl_Position=a_position;}" };
+static const char *postprocess_vertex_shader_srcs[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER ZLGLSL_LIST_VS_HEADER "attribute vec4 a_position;attribute vec2 a_texcoord;varying vec2 v_texcoord; void main(){v_texcoord=a_texcoord;gl_Position=a_position;}" };
 
 struct ZL_PostProcess_Impl : ZL_Impl
 {
@@ -499,8 +522,9 @@ struct ZL_PostProcess_Impl : ZL_Impl
 
 	ZL_PostProcess_Impl(const char* code_fragment, bool use_alpha) : tex(NULL)
 	{
+		const char * list_fragment[] = { ZLGLSL_LIST_LOW_PRECISION_HEADER ZLGLSL_LIST_FS_HEADER code_fragment };
 		const char *attr[] = { "a_position", "a_texcoord" };
-		if (!(PROGRAM = ZLGLSL::CreateProgramFromVertexAndFragmentShaders(COUNT_OF(postprocess_vertex_shader_srcs), postprocess_vertex_shader_srcs, 1, &code_fragment, COUNT_OF(attr), attr))) return;
+		if (!(PROGRAM = ZLGLSL::CreateProgramFromVertexAndFragmentShaders(COUNT_OF(postprocess_vertex_shader_srcs), postprocess_vertex_shader_srcs, COUNT_OF(list_fragment), list_fragment, COUNT_OF(attr), attr))) return;
 		tex = ZL_Texture_Impl::GenerateTexture(window_viewport[2], window_viewport[3], use_alpha);
 		if (!tex->gltexid) { tex->DelRef(); tex = NULL; return; }
 		#ifdef ZL_VIDEO_WEAKCONTEXT
@@ -562,6 +586,79 @@ void ZL_PostProcess::Apply(scalar uni1, double uni2, ...)
 	glDisableVertexAttribArrayUnbuffered(1);
 	ZLGLSL::ActiveProgram = ZLGLSL::NONE;
 }
+
+#ifdef ZL_VIDEO_GL_USE_VBO
+static       GLsizei   ATTR_bufsz[ZLGLSL::_ATTR_MAX];
+static const GLvoid*   ATTR_ptr[ZLGLSL::_ATTR_MAX];
+static       GLint     ATTR_size[ZLGLSL::_ATTR_MAX];
+static       GLsizei   ATTR_sizebyte[ZLGLSL::_ATTR_MAX];
+static       GLsizei   ATTR_stride[ZLGLSL::_ATTR_MAX];
+static       GLenum    ATTR_type[ZLGLSL::_ATTR_MAX];
+static       GLboolean ATTR_normalized[ZLGLSL::_ATTR_MAX];
+static GLsizei INDEX_BUFFER_APPLIED = 0;
+
+void glVertexAttribPointerUnbuffered(GLuint indx, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid* ptr)
+{
+	INDEX_BUFFER_APPLIED = 0;
+	ATTR_ptr[indx] = ptr;
+	ATTR_size[indx] = size;
+	ATTR_sizebyte[indx] = size * (type == GL_UNSIGNED_BYTE ? 1 : 4);
+	ATTR_stride[indx] = (stride ? stride : ATTR_sizebyte[indx]);
+	ATTR_type[indx] = type;
+	ATTR_normalized[indx] = normalized;
+}
+
+static void glDrawArrayPrepare(GLint first, GLsizei count)
+{
+	for (int i = 0; i < ZLGLSL::_ATTR_MAX; i++)
+	{
+		if (!ZLGLSL::EnabledVertexAttrib[i]) continue;
+		GLsizei total = ATTR_stride[i] * count - (ATTR_stride[i] - ATTR_sizebyte[i]);
+		GLvoid* datastart = (char*)ATTR_ptr[i] + (ATTR_stride[i] * (GLsizei)first);
+		glBindBuffer(GL_ARRAY_BUFFER, ZLGLSL::VBOs[i]);
+		if (total > ATTR_bufsz[i]) glBufferData(GL_ARRAY_BUFFER, (ATTR_bufsz[i] = total), datastart, GL_DYNAMIC_DRAW);
+		else glBufferSubData(GL_ARRAY_BUFFER, 0, total, datastart);
+		glVertexAttribPointer(i, ATTR_size[i], ATTR_type[i], ATTR_normalized[i], ATTR_stride[i], 0);
+	}
+}
+
+void glDrawArraysUnbuffered(GLenum mode, GLint first, GLsizei count)
+{
+	#ifdef ZL_VIDEO_GL_USE_VAO
+	glBindVertexArray(ZLGLSL::VAO);
+	#endif
+	glDrawArrayPrepare(first, count);
+	glDrawArrays(mode, 0, count);
+}
+
+void glDrawElementsUnbuffered(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices)
+{
+	ZL_ASSERT(type == GL_UNSIGNED_SHORT);
+
+	#ifdef ZL_VIDEO_GL_USE_VAO
+	glBindVertexArray(ZLGLSL::VAO);
+	#endif
+
+	GLsizei max = 0, countdown = count;
+	for (GLushort* p = (GLushort*)indices; countdown--; p++) if (*p > max) max = *p;
+	if (max+1 > INDEX_BUFFER_APPLIED)
+	{
+		INDEX_BUFFER_APPLIED = max+1;
+		glDrawArrayPrepare(0, max+1);
+	}
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ZLGLSL::IBO);
+	static GLsizei IndexBufferSize = 0;
+	if (count > IndexBufferSize)
+	{
+		IndexBufferSize = count;
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, count*sizeof(GLushort), indices, GL_DYNAMIC_DRAW);
+	}
+	else glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, count*sizeof(GLushort), indices);
+
+	glDrawElements(mode, count, type, NULL);
+}
+#endif
 
 #ifdef ZL_VIDEO_WEAKCONTEXT
 bool CheckProgramsIfContextLost()
