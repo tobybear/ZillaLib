@@ -20,8 +20,7 @@
 */
 #include "../SDL_internal.h"
 
-#if defined(__GNUC__)
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#if (defined(__clang__) && __clang_major__ >= 13) || (defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 4)
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #endif
 

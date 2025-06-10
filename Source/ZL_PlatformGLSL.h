@@ -43,6 +43,12 @@
 #define ZLGLSL_LIST_FS_HEADER
 #endif
 
+#if !defined(ZL_VIDEO_OPENGL_ES2) && !defined(ZL_VIDEO_OPENGL_CORE)
+#define ZLGLSL_LIST_NULL_HEADER NULL,
+#else
+#define ZLGLSL_LIST_NULL_HEADER
+#endif
+
 namespace ZLGLSL
 {
 	typedef float GLSLscalar;

@@ -96,8 +96,8 @@ namespace ZL_Display3D_Shaders
 
 	enum { EXTERN_Varying_ShadowMap, EXTERN_VS_ShadowMap_Defs, EXTERN_FS_ShadowMap_Defs, EXTERN_VS_ShadowMap_Calc, EXTERN_FS_ShadowMap_Calc, _EXTERN_NUM };
 	static const char* ExternalSource[_EXTERN_NUM];
-	static const char* SharedVSHeader[1] { ZLGLSL_LIST_HIGH_PRECISION_HEADER ZLGLSL_LIST_VS_HEADER };
-	static const char* SharedFSHeader[1] { ZLGLSL_LIST_HIGH_PRECISION_HEADER ZLGLSL_LIST_FS_HEADER };
+	static const char* SharedVSHeader[1] = { ZLGLSL_LIST_HIGH_PRECISION_HEADER ZLGLSL_LIST_VS_HEADER ZLGLSL_LIST_NULL_HEADER };
+	static const char* SharedFSHeader[1] = { ZLGLSL_LIST_HIGH_PRECISION_HEADER ZLGLSL_LIST_FS_HEADER ZLGLSL_LIST_NULL_HEADER };
 	static char Const_NumLights[] = "const int " Z3S_NUMLIGHTS "=   ", *Const_NumLightsNumberPtr = Const_NumLights+COUNT_OF(Const_NumLights)-4;
 
 	static const struct SourceRule { int MMUseIf, MMLimit; const char *Source; }

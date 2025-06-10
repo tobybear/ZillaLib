@@ -129,7 +129,7 @@ static void ZL_SDL_ShowError(const char* msg)
 	#ifdef __WIN32__
 	MessageBoxA(NULL, msg, "Error", MB_ICONSTOP);
 	#else
-	fprintf(stderr, "%s", msg);
+	fprintf(stderr, "%s\n", msg);
 	#endif
 }
 
@@ -300,7 +300,7 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	#ifdef ZL_VIDEO_OPENGL_CORE
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 	#endif
 
 	#if defined(__WIN32__) && defined(ZILLALIB_TRANSPARENTONWINDOWSDESKTOP)

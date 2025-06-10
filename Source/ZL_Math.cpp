@@ -23,7 +23,10 @@
 #include "ZL_Math3D.h"
 #include <stdlib.h>
 #include <ZL_Display.h>
+
+#if defined(_MSC_VER) && _MSC_VER < 1943
 #undef _MSC_EXTENSIONS
+#endif
 
 //fast floating point functions
 //turns out system provided functions are faster than these (at least on WIN32)

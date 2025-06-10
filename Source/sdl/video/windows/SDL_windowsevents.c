@@ -548,7 +548,7 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             UINT32 utf32 = 0;
 
             GetKeyboardState(keyboardState);
-            if (ToUnicode(wParam, (lParam >> 16) & 0xff, keyboardState, (LPWSTR)&utf32, 1, 0) > 0) {
+            if (ToUnicode((UINT)wParam, (lParam >> 16) & 0xff, keyboardState, (LPWSTR)&utf32, 1, 0) > 0) {
                 WORD repetition;
                 for (repetition = lParam & 0xffff; repetition > 0; repetition--) {
                     WIN_ConvertUTF32toUTF8(utf32, text);

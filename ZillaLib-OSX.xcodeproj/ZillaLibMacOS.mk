@@ -99,6 +99,11 @@ CPUTYPE  := $(if $(if $(M32),,$(or $(M64),$(findstring 64,$(shell uname -m)))),x
 OBJEXT   := $(if $(filter $(CPUTYPE),x86_32),_32.o,_64.o)
 GCCMFLAG := $(if $(filter $(CPUTYPE),x86_32),-m32,-m64)
 
+# Set minimum deployment target version
+export MACOSX_DEPLOYMENT_TARGET := 10.10
+#alternative1 GCCMFLAG += -mmacosx-version-min=10.7
+#alternative2 GCCMFLAG += -mmacos-version-min=10.7
+
 #------------------------------------------------------------------------------------------------------
 ifdef ZillaApp
 #------------------------------------------------------------------------------------------------------

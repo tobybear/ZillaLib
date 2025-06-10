@@ -3,8 +3,7 @@
 #define STB_IMAGE_NO_FLIP_VERTICALLY_ON_LOAD
 #define STB_IMAGE_IMPLEMENTATION
 
-#if defined(__GNUC__)
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#if (defined(__GNUC__) && __GNUC__ >= 6)
 #pragma GCC diagnostic ignored "-Wmisleading-indentation"
 #endif
 
