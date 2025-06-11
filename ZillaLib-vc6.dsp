@@ -220,6 +220,12 @@ SOURCE=.\Source\sdl\include\SDL_config.h
 SOURCE=.\Source\sdl\include\SDL_config_zillalib.h
 # End Source File
 # Begin Source File
+SOURCE=.\Source\sdl\audio\xaudio2\SDL_xaudio2.c
+!IF  "$(CFG)" == "ZillaLib - Win32 Release"
+# ADD CPP /O1 /Ob1
+!ENDIF 
+# End Source File
+# Begin Source File
 SOURCE=.\Source\sdl\audio\directsound\SDL_directsound.c
 !IF  "$(CFG)" == "ZillaLib - Win32 Release"
 # ADD CPP /O1 /Ob1

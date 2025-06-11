@@ -62,6 +62,9 @@
     <ClCompile Include="Source\sdl\audio\directsound\SDL_directsound.c">
       <Filter>Dependencies\SDL</Filter>
     </ClCompile>
+    <ClCompile Include="Source\sdl\audio\xaudio2\SDL_xaudio2.c">
+      <Filter>Dependencies\SDL</Filter>
+    </ClCompile>
     <ClCompile Include="Source\sdl\events\SDL_dropevents.c">
       <Filter>Dependencies\SDL</Filter>
     </ClCompile>

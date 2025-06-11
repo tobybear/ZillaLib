@@ -624,11 +624,10 @@ static bool SLESInit()
 	SLDataSink audioSnk = { &loc_outmix, NULL };
 	const SLInterfaceID ids[1] = { SL_IID_BUFFERQUEUE };
 	const SLboolean req[1] = { SL_BOOLEAN_TRUE };
+	const unsigned int minbuf = (unsigned int)jniEnv->CallIntMethod(JavaZillaActivity, jniEnv->GetMethodID(jniEnv->GetObjectClass(JavaZillaActivity), "getAudioFramesPerBuffer", "()I"))*2*2; //16 bit, stereo
 
-	SLESBufferSize = (unsigned int)jniEnv->CallIntMethod(JavaZillaActivity, jniEnv->GetMethodID(jniEnv->GetObjectClass(JavaZillaActivity), "getAudioFramesPerBuffer", "()I"))*2*2; //16 bit, stereo
-	if (SLESBufferSize < 4400) SLESBufferSize = SLESBufferSize * ((4399 + SLESBufferSize) / SLESBufferSize); //at least 25ms (4400 bytes) in steps of native bytes per buffer
-
-	SLESBuffer[0] = (char*)malloc(SLESBufferSize * 2);
+	if (SLESBufferSize < minbuf) SLESBufferSize = minbuf;
+	SLESBuffer[0] = (char*)malloc(SLESBufferSize * 2); // 2 buffers
 	SLESBuffer[1] = SLESBuffer[0] + SLESBufferSize;
 	memset(SLESBuffer[0], 0, SLESBufferSize * 2);
 	SLESBufferNum = 0;
@@ -658,9 +657,11 @@ static void SLESShutdown()
 	if (SLESBuffer[0]) { free(SLESBuffer[0]); SLESBuffer[0] = NULL; }
 }
 
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(unsigned int buffer_length)
 {
 	//__ANDROID_LOG_PRINT_INFO("ZillaActivityNative", "ZL_AudioOpen");
+	if (SLESBufferSize) SLESShutdown();
+	SLESBufferSize = buffer_length * 4;  //16 bit, stereo
 	return SLESInit();
 }
 

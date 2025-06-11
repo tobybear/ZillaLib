@@ -649,14 +649,15 @@ static void ZL_SdlAudioMix(void *udata, Uint8 *stream, int len)
 	ZL_PlatformAudioMix((short*)stream, (unsigned int)len);
 }
 
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(unsigned int buffer_length)
 {
+	if (SDL_GetAudioStatus() != SDL_AUDIO_STOPPED) SDL_AudioQuit();
 	if (SDL_AudioInit(NULL) < 0) return false;
 	SDL_AudioSpec desired;
 	desired.freq = 44100;
 	desired.format = AUDIO_S16LSB;
 	desired.channels = 2;
-	desired.samples = 2048; //Used to be 4096, PCs are faster now
+	desired.samples = (Uint16)buffer_length; //Used to be 4096, PCs are faster now
 	desired.callback = ZL_SdlAudioMix;
 	desired.userdata = NULL;
 	if (SDL_OpenAudio(&desired, NULL) < 0) return false;

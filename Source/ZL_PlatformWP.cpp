@@ -1035,8 +1035,9 @@ void ZL_JoystickHandleClose(ZL_JoystickData* joystick)
 }
 
 //Audio
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(unsigned int /*buffer_length*/)
 {
+	static bool done; if (done) return true; done = true; // cannot restart on wp
 	auto workItemDelegate = [](IAsyncAction^ workItem)
 	{
 		struct : public IXAudio2VoiceCallback

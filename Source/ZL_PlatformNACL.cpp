@@ -699,13 +699,14 @@ void nacl_audio_callback(void* sample_buffer, uint32_t buffer_size_in_bytes, PP_
 void nacl_audio_callback(void* sample_buffer, uint32_t buffer_size_in_bytes, void*) { ZL_PlatformAudioMix((short*)sample_buffer, buffer_size_in_bytes); }
 #endif
 
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(unsigned int buffer_length)
 {
+	static bool done; if (done) return true; done = true; // cannot restart on nacl
 	ZL_LOG0("NACL AUDIO", "Starting audio");
 	#ifdef PPB_AUDIO_CONFIG_INTERFACE_1_1
-	uint32_t count = ppb_audioconfig_interface->RecommendSampleFrameCount(instance_, PP_AUDIOSAMPLERATE_44100, 1024);
+	uint32_t count = ppb_audioconfig_interface->RecommendSampleFrameCount(instance_, PP_AUDIOSAMPLERATE_44100, buffer_length);
 	#else
-	uint32_t count = ppb_audioconfig_interface->RecommendSampleFrameCount(PP_AUDIOSAMPLERATE_44100, 1024);
+	uint32_t count = ppb_audioconfig_interface->RecommendSampleFrameCount(PP_AUDIOSAMPLERATE_44100, buffer_length);
 	#endif
 	//ZL_LOG1("NACL AUDIO", "Sample buffe count: %d", count);
 	PP_Resource pp_audio_config = ppb_audioconfig_interface->CreateStereo16Bit(instance_, PP_AUDIOSAMPLERATE_44100, count);

@@ -287,8 +287,9 @@ extern "C" bool ZLFNAudio(float* sample_buffer, unsigned int samples)
 	return true;
 }
 
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(unsigned int /*buffer_length*/)
 {
+	static bool done; if (done) return true; done = true; // cannot restart on web
 	ZL_LOG0("AUDIO", "Starting audio");
 	ZLJS_StartAudio();
 	return true;

@@ -223,6 +223,7 @@
     <ClCompile Include="Source\sdl\audio\SDL_audio.c" />
     <ClCompile Include="Source\sdl\events\SDL_clipboardevents.c" />
     <ClCompile Include="Source\sdl\audio\directsound\SDL_directsound.c" />
+    <ClCompile Include="Source\sdl\audio\xaudio2\SDL_xaudio2.c" />
     <ClCompile Include="Source\sdl\events\SDL_dropevents.c" />
     <ClCompile Include="Source\sdl\joystick\windows\SDL_dxjoystick.c" />
     <ClCompile Include="Source\sdl\events\SDL_events.c" />

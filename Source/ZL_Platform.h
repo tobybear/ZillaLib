@@ -72,7 +72,7 @@ ZL_JoystickData* ZL_JoystickHandleOpen(int index);
 void ZL_JoystickHandleClose(ZL_JoystickData* joystick);
 
 //Audio
-bool ZL_AudioOpen();
+bool ZL_AudioOpen(unsigned int buffer_length);
 
 //web network interfaces some platforms without sockets have to implement
 #ifndef ZL_HTTPCONNECTION_PLATFORM

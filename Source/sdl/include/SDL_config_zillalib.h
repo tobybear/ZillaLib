@@ -19,7 +19,8 @@
 #define SDL_QuitSubSystem(s) NULL //no stopping of subsystems in ZL
 
 #define HAVE_ITOA 1
-#undef SDL_AUDIO_DRIVER_XAUDIO2
+//#undef SDL_AUDIO_DRIVER_XAUDIO2 /* use */
+//#undef SDL_AUDIO_DRIVER_DSOUND /* fallback */
 #undef SDL_AUDIO_DRIVER_WINMM
 #undef SDL_AUDIO_DRIVER_DUMMY
 #undef SDL_AUDIO_DRIVER_DISK

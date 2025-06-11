@@ -59,12 +59,12 @@ static std::vector<bool(*)(short*, unsigned int, bool)> *ZL_AudioMixFuncs = NULL
 static ZL_MutexHandle ZL_AudioActiveMutex;
 static float audio_global_factor = 1.0f;
 
-bool ZL_Audio::Init()
+bool ZL_Audio::Init(unsigned int buffer_length)
 {
-	if (ZL_AudioActive) return false;
+	if (ZL_AudioActive) { return ZL_AudioOpen(buffer_length); } // restart audio (maybe with new buffer length)
 	ZL_AudioActive = new std::vector<ZL_AudioPlayingHandle>();
 	ZL_MutexInit(ZL_AudioActiveMutex);
-	if (!ZL_AudioOpen()) { ZL_MutexDestroy(ZL_AudioActiveMutex); delete ZL_AudioActive; ZL_AudioActive = NULL; return false; }
+	if (!ZL_AudioOpen(buffer_length)) { ZL_MutexDestroy(ZL_AudioActiveMutex); delete ZL_AudioActive; ZL_AudioActive = NULL; return false; }
 	return true;
 }
 

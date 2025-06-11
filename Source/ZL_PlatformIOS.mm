@@ -631,8 +631,9 @@ static OSStatus ZL_AudioOutputCallback(void *inRefCon, AudioUnitRenderActionFlag
 	return noErr;
 }
 
-bool ZL_AudioOpen()
+bool ZL_AudioOpen(unsigned int /*buffer_length*/)
 {
+	if (ZL_IOS_AudioUnit) return true; // cannot restart on IOS
 	AudioComponentDescription desc;
 	memset(&desc, 0, sizeof(AudioComponentDescription));
 	desc.componentType = kAudioUnitType_Output;
