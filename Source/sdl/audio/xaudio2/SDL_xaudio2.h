@@ -274,9 +274,27 @@ typedef struct IXAudio2_Generic IXAudio2_Generic;
 static HRESULT SDL_XAudio2Create(IXAudio2_Generic **ppXAudio2, UINT32 flags, XAUDIO2_PROCESSOR proc, SDL_bool* is29)
 {
     static HMODULE xa29instance, xa27reference;
-    HRESULT hr;
-    SDL_bool had29 = (xa29instance != NULL);
-    if (had29 || (!xa27reference && (xa29instance = LoadLibraryA("xaudio2_9.dll")) != NULL))
+    HRESULT hr = -1;
+    if (!xa29instance)
+    {
+        if (!xa27reference) { hr = WIN_CoInitialize(); if (FAILED(hr)) return hr; }
+        hr = CoCreateInstance(&CLSID_XAudio2, NULL, CLSCTX_INPROC_SERVER, &IID_IXAudio2, (void**)ppXAudio2);
+        if (SUCCEEDED(hr))
+        {
+            hr = IXAudio2_27_Initialize(*ppXAudio2, flags, proc);
+            if (SUCCEEDED(hr))
+            {
+                /* Create an explicit reference to the DLL and hold on to it. */
+                /* See: https://walbourn.github.io/known-issues-xaudio-2-7/ */
+                if (!xa27reference) xa27reference = LoadLibraryA("XAudio2_7.dll");
+                *is29 = SDL_FALSE;
+                return hr;
+            }
+            IXAudio2_27_Release(*ppXAudio2);
+        }
+        WIN_CoUninitialize();
+    }
+    if (xa29instance || (xa29instance = LoadLibraryA("xaudio2_9.dll")) != NULL)
     {
         /* When compiled for RS5 or later, try to invoke XAudio2CreateWithVersionInfo.
          * Need to use LoadLibrary in case the app is running on an older OS. */
@@ -288,30 +306,12 @@ static HRESULT SDL_XAudio2Create(IXAudio2_Generic **ppXAudio2, UINT32 flags, XAU
         *is29 = SDL_TRUE;
 
         if (!pfnAudio2CreateWithVersion) pfnAudio2CreateWithVersion = (XAudio2CreateWithVersionInfoFunc)(void*)GetProcAddress(xa29instance, "XAudio2CreateWithVersionInfo");
-        hr = (*pfnAudio2CreateWithVersion)((IXAudio2_29**)ppXAudio2, flags, proc, NTDDI_VERSION);
+        hr = (pfnAudio2CreateWithVersion ? (*pfnAudio2CreateWithVersion)((IXAudio2_29**)ppXAudio2, flags, proc, NTDDI_VERSION) : -1);
         if (SUCCEEDED(hr)) return hr;
 
         if (!pfnAudio2Create) pfnAudio2Create = (XAudio2CreateInfoFunc)(void*)GetProcAddress(xa29instance, "XAudio2Create");
-        hr = (*pfnAudio2Create)((IXAudio2_29**)ppXAudio2, flags, proc);
-        if (SUCCEEDED(hr)) return hr;
+        hr = (pfnAudio2Create ? (*pfnAudio2Create)((IXAudio2_29**)ppXAudio2, flags, proc) : -1);
     }
-
-    if (!xa27reference) { hr = WIN_CoInitialize(); if (FAILED(hr)) return hr; }
-    hr = CoCreateInstance(&CLSID_XAudio2, NULL, CLSCTX_INPROC_SERVER, &IID_IXAudio2, (void**)ppXAudio2);
-    if (SUCCEEDED(hr))
-    {
-        hr = IXAudio2_27_Initialize(*ppXAudio2, flags, proc);
-        if (SUCCEEDED(hr))
-        {
-            /* Create an explicit reference to the DLL and hold on to it. */
-            /* See: https://walbourn.github.io/known-issues-xaudio-2-7/ */
-            if (!xa27reference) xa27reference = LoadLibraryA("XAudio2_7.dll");
-            *is29 = SDL_FALSE;
-            return hr;
-        }
-        IXAudio2_27_Release(*ppXAudio2);
-    }
-    WIN_CoUninitialize();
     return hr;
 }
 
