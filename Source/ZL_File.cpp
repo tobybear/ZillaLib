@@ -34,14 +34,14 @@ extern "C" unsigned short* WIN_UTF8ToString(const char* s);
 FILE* ZL_FOpenUTF8(const char* path, const char* mode)
 {
 	#ifdef WIN32
-	for (const char* p = path; *p; p++) { if ((unsigned char)*p > 0x7F) goto needw; }
+	for (const char* pp = path; *pp; pp++) { if ((unsigned char)*pp > 0x7F) goto needw; }
 	#endif
 	return fopen(path, mode);
 	#ifdef WIN32
 	needw:
 	wchar_t *wpath = (wchar_t*)WIN_UTF8ToString(path), wmode[20], *pwmode = wmode;
 	if (!wpath) return NULL;
-	for (const char* p = mode, *pEnd = p + 19; *p && p != pEnd; p++) *(pwmode++) = *p;
+	for (const char* pm = mode, *pEnd = pm + 19; *pm && pm != pEnd; pm++) *(pwmode++) = *pm;
 	*pwmode = '\0';
 	FILE* f = _wfopen(wpath, wmode);
 	free(wpath);
