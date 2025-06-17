@@ -27,13 +27,35 @@
 #include <map>
 #include <string.h>
 
+#ifdef WIN32
+extern "C" unsigned short* WIN_UTF8ToString(const char* s);
+#endif
+
+FILE* ZL_FOpenUTF8(const char* path, const char* mode)
+{
+	#ifdef WIN32
+	for (const char* p = path; *p; p++) { if ((unsigned char)*p > 0x7F) goto needw; }
+	#endif
+	return fopen(path, mode);
+	#ifdef WIN32
+	needw:
+	wchar_t *wpath = (wchar_t*)WIN_UTF8ToString(path), wmode[20], *pwmode = wmode;
+	if (!wpath) return NULL;
+	for (const char* p = mode, *pEnd = p + 19; *p && p != pEnd; p++) *(pwmode++) = *p;
+	*pwmode = '\0';
+	FILE* f = _wfopen(wpath, wmode);
+	free(wpath);
+	return f;
+	#endif
+}
+
 struct ZL_RWopsFile : public ZL_RWops
 {
 	FILE *fp;
 	static ZL_RWops* Open(const char *file, const char *mode)
 	{
 		if (!file[0]) return NULL;
-		FILE *f = fopen(file, mode);
+		FILE *f = ZL_FOpenUTF8(file, mode);
 		if (!f) return NULL;
 		ZL_RWopsFile *rw = new ZL_RWopsFile();
 		rw->fp = f;
@@ -226,7 +248,7 @@ const ZL_String& ZL_File::GetFileName() const
 bool ZL_File::Exists(const char *file, const ZL_FileContainer& archive)
 {
 	if (archive.impl && archive.impl != DefaultReadFileContainer.impl && archive.Open(file)) return true;
-	FILE* f = fopen(file, "rb");
+	FILE* f = ZL_FOpenUTF8(file, "rb");
 	if (!f) return false;
 	fclose(f);
 	return true;
