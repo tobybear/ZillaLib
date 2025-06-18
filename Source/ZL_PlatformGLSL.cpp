@@ -254,7 +254,7 @@ namespace ZLGLSL
 	#endif
 
 	#ifdef ZL_VIDEO_GL_USE_VAO
-	static GLuint VAO;
+	GLuint VAO;
 	#endif
 
 	GLuint CreateShaderOfType(GLenum type, GLsizei count, const char*const* shader_src)
@@ -390,9 +390,9 @@ namespace ZLGLSL
 
 		#ifdef ZL_VIDEO_GL_USE_VAO
 		glGenVertexArrays(1, &VAO);
-		glBindVertexArray(VAO); // so we can enable ATTR_POSITION right away
 		#endif
 
+		ZLGL_ENABLE_VERTEXARRAYOBJECT();
 		glEnableVertexAttribArrayUnbuffered(ATTR_POSITION); //0 = POSITION = always required
 
 		return true;
@@ -406,6 +406,7 @@ namespace ZLGLSL
 	void _COLOR_PROGRAM_ACTIVATE()
 	{
 		ActiveProgram = COLOR;
+		ZLGL_ENABLE_VERTEXARRAYOBJECT();
 		glDisableVertexAttribArrayUnbuffered(ATTR_TEXCOORD);
 		glUseProgram(_COLOR_PROGRAM);
 		UNI_MVP = COLOR_UNI_MVP;
@@ -417,6 +418,7 @@ namespace ZLGLSL
 		ActiveProgram = TEXTURE;
 		glUseProgram(_TEXTURE_PROGRAM);
 		UNI_MVP = TEXTURE_UNI_MVP;
+		ZLGL_ENABLE_VERTEXARRAYOBJECT();
 		glEnableVertexAttribArrayUnbuffered(ATTR_TEXCOORD); //always required
 		MatrixApply();
 	}
@@ -484,6 +486,7 @@ void ZL_Shader::Activate()
 	ZLGLSL::ActiveProgram = ZLGLSL::CUSTOM;
 	glUseProgram(impl->PROGRAM);
 	ZLGLSL::UNI_MVP = impl->UNI_MVP;
+	ZLGL_ENABLE_VERTEXARRAYOBJECT();
 	glEnableVertexAttribArrayUnbuffered(ZLGLSL::ATTR_POSITION);
 	glEnableVertexAttribArrayUnbuffered(ZLGLSL::ATTR_TEXCOORD);
 	ZLGLSL::MatrixApply();
@@ -569,8 +572,9 @@ void ZL_PostProcess::Apply(scalar uni1, double uni2, ...)
 	impl->tex->FrameBufferEnd();
 	const GLscalar vec_fullbox[8] = { -1,1 , 1,1 , -1,-1 , 1,-1 };
 	const GLscalar tex_fullbox[8] = {  0,1 , 1,1 ,  0, 0 , 1, 0 };
-	glDisableVertexAttribArrayUnbuffered(2);
 	glUseProgram(impl->PROGRAM);
+	ZLGL_ENABLE_VERTEXARRAYOBJECT();
+	glDisableVertexAttribArrayUnbuffered(2);
 	glEnableVertexAttribArrayUnbuffered(1);
 	glBindTexture(GL_TEXTURE_2D, impl->tex->gltexid);
 	glVertexAttribPointerUnbuffered(0, 2, GL_SCALAR, GL_FALSE, 0, vec_fullbox);
@@ -624,9 +628,7 @@ static void glDrawArrayPrepare(GLint first, GLsizei count)
 
 void glDrawArraysUnbuffered(GLenum mode, GLint first, GLsizei count)
 {
-	#ifdef ZL_VIDEO_GL_USE_VAO
-	glBindVertexArray(ZLGLSL::VAO);
-	#endif
+	ZLGL_ENABLE_VERTEXARRAYOBJECT();
 	glDrawArrayPrepare(first, count);
 	glDrawArrays(mode, 0, count);
 }
@@ -634,10 +636,7 @@ void glDrawArraysUnbuffered(GLenum mode, GLint first, GLsizei count)
 void glDrawElementsUnbuffered(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices)
 {
 	ZL_ASSERT(type == GL_UNSIGNED_SHORT);
-
-	#ifdef ZL_VIDEO_GL_USE_VAO
-	glBindVertexArray(ZLGLSL::VAO);
-	#endif
+	ZLGL_ENABLE_VERTEXARRAYOBJECT();
 
 	GLsizei max = 0, countdown = count;
 	for (GLushort* p = (GLushort*)indices; countdown--; p++) if (*p > max) max = *p;

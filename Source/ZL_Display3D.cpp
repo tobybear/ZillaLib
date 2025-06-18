@@ -2504,6 +2504,7 @@ bool ZL_Display3D::InitShadowMapping()
 
 void ZL_Display3D::BeginRendering()
 {
+	ZLGL_ENABLE_VERTEXARRAYOBJECT();
 	if (ZLGLSL::ActiveProgram == ZLGLSL::TEXTURE) glDisableVertexAttribArrayUnbuffered(ZLGLSL::ATTR_TEXCOORD);
 	ZLGLSL::ActiveProgram = ZLGLSL::DISPLAY3D;
 

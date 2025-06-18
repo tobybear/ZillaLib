@@ -159,6 +159,10 @@
 	#define GL_LUMINANCE GL_RED
 	#undef GL_LUMINANCE_ALPHA
 	#define GL_LUMINANCE_ALPHA GL_RG
+	#define ZLGL_ENABLE_VERTEXARRAYOBJECT() glBindVertexArray(ZLGLSL::VAO)
+	namespace ZLGLSL { extern GLuint VAO; };
+#else
+	#define ZLGL_ENABLE_VERTEXARRAYOBJECT()
 #endif
 
 #ifdef __cplusplus
