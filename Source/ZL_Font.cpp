@@ -830,6 +830,7 @@ struct ZL_TextBuffer_Impl : ZL_Impl
 		if (!newlen || !fnt)
 		{
 			if (vecTTFTexLastIndex) { delete vecTTFTexLastIndex; vecTTFTexLastIndex = NULL; }
+			width = height = 0;
 		}
 		else
 		{
