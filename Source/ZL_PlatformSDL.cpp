@@ -665,6 +665,11 @@ bool ZL_AudioOpen(unsigned int buffer_length)
 	return true;
 }
 
+void ZL_SdlSetTitle(const char* newtitle)
+{
+	SDL_SetWindowTitle(ZL_SDL_Window, newtitle);
+}
+
 //thread
 ZL_ThreadHandle ZL_CreateThread(void *(*start_routine) (void *p), void *arg)
 {
