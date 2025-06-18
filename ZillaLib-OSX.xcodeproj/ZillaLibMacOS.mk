@@ -29,15 +29,18 @@ ZILLALIB_DIR = $(subst |,/,$(subst <,,$(subst <.|,,<$(subst /,|,$(dir $(subst $(
 # Build toolchain
 CXX:=g++
 CC:=gcc
-AR:=ar
-STRIP:=strip
 
 # Build global settings
 APPFLAGS    := -I$(ZILLALIB_DIR)Include
 ZLFLAGS     := -I$(ZILLALIB_DIR)Include -I$(ZILLALIB_DIR)Source/zlib
 WARNINGS    := -pedantic -Wall -Wno-long-long -Wno-error=unused-parameter -Wno-pedantic -Wno-unused-local-typedefs -Wno-unused-function -Wno-strict-aliasing -Wno-unknown-warning-option -Wno-deprecated-declarations
 DEPWARNINGS := -Wno-main -Wno-empty-body -Wno-char-subscripts -Wno-sign-compare -Wno-unused-value -Wno-unused-variable -Wno-unused-but-set-variable -Wno-nonnull -Wno-stringop-truncation
-CFLAGS      := $(WARNINGS) -pthread -msse -mfpmath=sse -ffast-math -fomit-frame-pointer -fvisibility=hidden -fno-exceptions -fno-non-call-exceptions -ffunction-sections -fdata-sections
+CFLAGS      := $(WARNINGS) -pthread -ffast-math -fomit-frame-pointer -fvisibility=hidden -fno-exceptions -fno-non-call-exceptions -ffunction-sections -fdata-sections
+ifneq ($(shell uname -m),arm64)
+  CFLAGS    += -msse -mfpmath=sse
+else
+  CFLAGS    += -flto
+endif
 LDFLAGS     := -framework Foundation -framework Cocoa -framework OpenGL -framework Carbon -framework AudioUnit -framework IOKit -framework ForceFeedback -framework CoreAudio
 CXXFLAGS    := -std=c++11 -fno-rtti
 CCFLAGS     := -std=gnu99 -D_DEFAULT_SOURCE
@@ -46,7 +49,7 @@ ifeq ($(BUILD),RELEASE)
   ZLOUTDIR  := $(ZILLALIB_DIR)ZillaLib-OSX.xcodeproj/macos-build-release
   APPOUTDIR := Release-macos
   CFLAGS    += -DNDEBUG -O2
-  LDFLAGS   += -O2 -Wl,-dead_strip
+  LDFLAGS   += -O2 -Wl,-dead_strip -Wl,-s
 else ifeq ($(BUILD),RELEASEDBG)
   ZLOUTDIR  := $(ZILLALIB_DIR)ZillaLib-OSX.xcodeproj/macos-build-releasedbg
   APPOUTDIR := ReleaseDbg-macos
@@ -158,7 +161,7 @@ $(ASSET_ZIP) : $(if $(ASSET_ALL_STARS),assets.mk $(subst *,\ ,$(ASSET_ALL_STARS)
 $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE) : $(APPOBJS) $(ZLOUTDIR)/ZillaLib_$(CPUTYPE).a
 	$(info Linking $@ ...)
 	$(CXX) -o $@ $^ $(GCCMFLAG) $(LDFLAGS)
-	@-$(if $(filter RELEASE,$(BUILD)),$(if $(STRIP),$(STRIP) -R .comment $@))
+	@-$(if $(filter RELEASE,$(BUILD)),strip $@)
 
 $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE)_WithData : $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE) $(ASSET_ZIP)
 	$(info packing data assets into $@ ...)
@@ -225,7 +228,7 @@ $(CPP_ZLOBJS)  : $(ZLOUTDIR)/%$(OBJEXT) : $(ZILLALIB_DIR)%.cpp ; $(call COMPILE,
 
 $(ZLOUTDIR)/ZillaLib_$(CPUTYPE).a : $(CPP_ZLOBJS) $(CPP_DEPOBJS) $(CC_DEPOBJS) $(M_DEPOBJS)
 	$(info Creating static library $@ ...)
-	@$(AR) rcs $@ $^
+	@libtool -no_warning_for_no_symbols -static -o $@ $^
 
 #------------------------------------------------------------------------------------------------------
 
