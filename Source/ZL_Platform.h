@@ -48,7 +48,7 @@
 //Settings
 void ZL_SettingsInit(const char* FallbackConfigFilePrefix);
 const ZL_String ZL_SettingsGet(const char* Key);
-void ZL_SettingsSet(const char* Key, const ZL_String& Value);
+void ZL_SettingsSet(const char* Key, const char* Value);
 void ZL_SettingsDel(const char* Key);
 bool ZL_SettingsHas(const char* Key);
 void ZL_SettingsSynchronize();

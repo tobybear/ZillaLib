@@ -173,6 +173,7 @@ struct ZL_Application
 	static void SettingsInit(const char* FallbackConfigFilePrefix);
 	static ZL_String SettingsGet(const char* Key);
 	static void SettingsSet(const char* Key, const ZL_String& Value);
+	static void SettingsSet(const char* Key, const char* Value);
 	static void SettingsDel(const char* Key);
 	static bool SettingsHas(const char* Key);
 	static void SettingsSynchronize();

@@ -95,7 +95,7 @@ const ZL_String ZL_SettingsGet(const char* Key)
 	return (!field ? ZL_String() : ZL_String(field.GetString()));
 }
 
-void ZL_SettingsSet(const char* Key, const ZL_String& Value)
+void ZL_SettingsSet(const char* Key, const char* Value)
 {
 	jsonConfig[Key].SetString(Value);
 }

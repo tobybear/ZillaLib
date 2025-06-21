@@ -189,6 +189,10 @@ void ZL_Application::SettingsSet(const char* Key, const ZL_String& Value)
 {
 	ZL_SettingsSet(Key, Value);
 }
+void ZL_Application::SettingsSet(const char* Key, const char*  Value)
+{
+	ZL_SettingsSet(Key, Value);
+}
 void ZL_Application::SettingsDel(const char* Key)
 {
 	ZL_SettingsDel(Key);

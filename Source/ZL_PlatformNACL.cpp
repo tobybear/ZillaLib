@@ -735,7 +735,7 @@ const ZL_String ZL_SettingsGet(const char* Key)
 	return settings[Key];
 }
 
-void ZL_SettingsSet(const char* Key, const ZL_String& Value)
+void ZL_SettingsSet(const char* Key, const char* Value)
 {
 	ZL_String strKey(Key);
 	if (ppb_messaging_interface) ppb_messaging_interface->PostMessage(instance_, ZLStrToVar(ZL_String("SET") << strKey.length() << ' ' << strKey << Value));

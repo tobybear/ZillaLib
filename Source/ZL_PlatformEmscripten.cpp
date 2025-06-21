@@ -316,9 +316,9 @@ const ZL_String ZL_SettingsGet(const char* Key)
 	return ret;
 }
 
-void ZL_SettingsSet(const char* Key, const ZL_String& Value)
+void ZL_SettingsSet(const char* Key, const char* Value)
 {
-	ZLJS_SettingsSet(Key, Value.c_str());
+	ZLJS_SettingsSet(Key, Value);
 }
 
 void ZL_SettingsDel(const char* Key)

@@ -521,9 +521,9 @@ const ZL_String ZL_SettingsGet(const char* Key)
 	jniEnv->ReleaseStringUTFChars(jvalue, pcValue);
 	return Value;
 }
-void ZL_SettingsSet(const char* Key, const ZL_String& Value)
+void ZL_SettingsSet(const char* Key, const char* Value)
 {
-	jniEnv->CallVoidMethod(JavaZillaActivity, JavaSettingsSet, jniEnv->NewStringUTF(Key), jniEnv->NewStringUTF(Value.c_str()));
+	jniEnv->CallVoidMethod(JavaZillaActivity, JavaSettingsSet, jniEnv->NewStringUTF(Key), jniEnv->NewStringUTF(Value));
 }
 void ZL_SettingsDel(const char* Key)
 {

@@ -560,9 +560,9 @@ const ZL_String ZL_SettingsGet(const char* Key)
 	if ([standardUserDefaults objectForKey:nskey]) nsval = [standardUserDefaults objectForKey:nskey];
 	return ZL_String([nsval cStringUsingEncoding:NSUTF8StringEncoding]);
 }
-void ZL_SettingsSet(const char* Key, const ZL_String& Value)
+void ZL_SettingsSet(const char* Key, const char* Value)
 {
-	[standardUserDefaults setObject:[NSString stringWithUTF8String:Value.c_str()] forKey:[NSString stringWithUTF8String:Key]];
+	[standardUserDefaults setObject:[NSString stringWithUTF8String:Value] forKey:[NSString stringWithUTF8String:Key]];
 }
 void ZL_SettingsDel(const char* Key)
 {
