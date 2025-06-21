@@ -286,7 +286,8 @@ WIN_CheckAsyncMouseRelease( SDL_WindowData *data )
     WIN_CheckAsyncMouseReleaseButton( VK_MBUTTON, ( mouseFlags & SDL_BUTTON_MMASK ), data, SDL_BUTTON_MIDDLE );
     WIN_CheckAsyncMouseReleaseButton( VK_XBUTTON1, ( mouseFlags & SDL_BUTTON_X1MASK ), data, SDL_BUTTON_X1 );
     WIN_CheckAsyncMouseReleaseButton( VK_XBUTTON2, ( mouseFlags & SDL_BUTTON_X2MASK ), data, SDL_BUTTON_X2 );
-    data->mouse_button_flags = 0;
+    /* ZL FIX: Force check on next button event (-1) instead of assuming nothing is pressed (0) */
+    data->mouse_button_flags = (WPARAM)-1;
 }
 
 SDL_FORCE_INLINE BOOL
@@ -423,6 +424,10 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             SDL_Mouse *mouse = SDL_GetMouse();
             if (!mouse->relative_mode || mouse->relative_mode_warp) {
                 SDL_SendMouseMotion(data->window, 0, 0, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+            }
+            /* ZL FIX: Ignore left click while clicking in title area */
+            if (data->in_title_click) {
+                wParam &= ~MK_LBUTTON;
             }
         }
         /* don't break here, fall through to check the wParam like the button presses */
@@ -603,6 +608,8 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 #endif /* WM_INPUTLANGCHANGE */
 
     case WM_NCLBUTTONDOWN:
+    /* ZL FIX: Also detect double click to maximize/minimize */
+    case WM_NCLBUTTONDBLCLK:
         {
             data->in_title_click = SDL_TRUE;
             WIN_UpdateClipCursor(data->window);
