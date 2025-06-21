@@ -370,11 +370,12 @@ struct ZL_WindowResizeEvent
 {
 	scalar old_width;  // Old width
 	scalar old_height; // Old height
+	bool window_fullscreen, window_maximized; // Desktop platforms only
 };
 
 struct ZL_WindowActivateEvent
 {
-	bool key_focus, mouse_focus, minimized;
+	bool key_focus, mouse_focus, minimized, maximized;
 };
 
 struct ZL_JoyAxisEvent

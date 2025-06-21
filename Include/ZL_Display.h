@@ -218,6 +218,7 @@ enum ZL_DisplayInitFlags
 {
 	ZL_DISPLAY_DEFAULT                    = 0x000, //no special flag
 	ZL_DISPLAY_FULLSCREEN                 = 0x001, //window will be fullscreen (only related to desktop platforms)
+	ZL_DISPLAY_MAXIMIZED                  = 0x400, //window will be maximized (only related to desktop platforms)
 	ZL_DISPLAY_RESIZABLE                  = 0x006, //freely resizable viewport, application must accompany for variable width & height, incompatible with following two settings
 	ZL_DISPLAY_ALLOWRESIZEHORIZONTAL      = 0x002, //allow widening of viewport to accompany various native screen aspect ratio and scale vertical to native aspect ratio
 	ZL_DISPLAY_ALLOWRESIZEVERTICAL        = 0x004, //allow vertical resize of viewport to accompany various native screen aspect ratio and scale horizontal to native aspect ratio
@@ -444,6 +445,7 @@ struct ZL_Display
 	//Query the current window state
 	static bool IsFullscreen();
 	static bool IsMinimized();
+	static bool IsMaximized();
 	static bool HasInputFocus();
 	static bool HasMouseFocus();
 

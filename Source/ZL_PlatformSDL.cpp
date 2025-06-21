@@ -272,6 +272,7 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 
 	Uint32 windowflags = SDL_WINDOW_OPENGL;
 	if (displayflags & ZL_DISPLAY_FULLSCREEN) windowflags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+	if (displayflags & ZL_DISPLAY_MAXIMIZED) windowflags |= SDL_WINDOW_MAXIMIZED;
 	if (displayflags & ZL_DISPLAY_RESIZABLE) windowflags |= SDL_WINDOW_RESIZABLE;
 
 	if (SDL_VideoInit(NULL) < 0) { ZL_SDL_ShowError("Could not initialize video display"); return false; }
@@ -541,6 +542,7 @@ static void ProcessSDLEvents()
 				if (in.window.event == SDL_WINDOWEVENT_MOVED)          out.window.event = ZL_WINDOWEVENT_MOVED;
 				else if (in.window.event == SDL_WINDOWEVENT_CLOSE)     out.window.event = ZL_WINDOWEVENT_CLOSE;
 				else if (in.window.event == SDL_WINDOWEVENT_MINIMIZED) out.window.event = ZL_WINDOWEVENT_MINIMIZED;
+				else if (in.window.event == SDL_WINDOWEVENT_MAXIMIZED) out.window.event = ZL_WINDOWEVENT_MAXIMIZED;
 				else if (in.window.event == SDL_WINDOWEVENT_RESTORED)  out.window.event = ZL_WINDOWEVENT_RESTORED;
 				else if (in.window.event == SDL_WINDOWEVENT_MOVED)     out.window.event = ZL_WINDOWEVENT_MOVED;
 				else if (in.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)

@@ -25,6 +25,7 @@
 #undef KMOD_META
 
 static bool use_aa = false, use_inputscale;
+static unsigned char lastwinmaxfull;
 static scalar thickness = s(1.0), thicknessmaxhalf = 63.0f;
 static scalar inputscale_x, inputscale_y;
 scalar ZL_Display::Width = 0, ZL_Display::Height = 0;
@@ -102,25 +103,33 @@ void ZL_Display_Process_Event(ZL_Event& event)
 			ZL_Application::Quit();
 			break;
 		case ZL_EVENT_WINDOW:
-			if (event.window.event == ZL_WINDOWEVENT_MOVED) { }
-			else if (event.window.event == ZL_WINDOWEVENT_CLOSE) ZL_Application::Quit();
-			else if (event.window.event == ZL_WINDOWEVENT_RESIZED)
-			{
-				if (native_width == event.window.data1 && native_height == event.window.data2) break;
-				native_width = event.window.data1;
-				native_height = event.window.data2;
-				ZL_WindowResizeEvent resizeEvent = { ZL_Display::Width, ZL_Display::Height };
-				InitGL(event.window.data1, event.window.data2);
-				ZL_LOG4("DISPLAY", "Resized to: %d x %d [%d x %d]", (int)ZL_Display::Width, (int)ZL_Display::Height, native_width, native_height);
-				ZL_Display::sigResized.call(resizeEvent);
-			}
-			else
+			if (event.window.event == ZL_WINDOWEVENT_MOVED) break; // ignored
+			if (event.window.event == ZL_WINDOWEVENT_CLOSE) { ZL_Application::Quit(); break; }
+			if (event.window.event != ZL_WINDOWEVENT_RESIZED)
 			{
 				ZL_WindowActivateEvent WindowActivateEvent;
 				WindowActivateEvent.key_focus = (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS)>0);
 				WindowActivateEvent.mouse_focus = (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_MOUSE_FOCUS)>0);
 				WindowActivateEvent.minimized = (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_MINIMIZED)>0);
+				WindowActivateEvent.maximized = (ZL_WINDOWFLAGS_HAS(ZL_WINDOW_MAXIMIZED)>0);
 				ZL_Display::sigActivated.call(WindowActivateEvent);
+			}
+			else if (native_width != event.window.data1 || native_height != event.window.data2)
+			{
+				native_width = event.window.data1;
+				native_height = event.window.data2;
+				lastwinmaxfull = ZL_WINDOWFLAGS_HAS(ZL_WINDOW_FULLSCREEN | ZL_WINDOW_MAXIMIZED);
+				ZL_WindowResizeEvent resizeEvent = { ZL_Display::Width, ZL_Display::Height, !!(lastwinmaxfull&ZL_WINDOW_FULLSCREEN), !!(lastwinmaxfull&ZL_WINDOW_MAXIMIZED) };
+				InitGL(event.window.data1, event.window.data2);
+				ZL_LOG4("DISPLAY", "Resized to: %d x %d [%d x %d]", (int)ZL_Display::Width, (int)ZL_Display::Height, native_width, native_height);
+				ZL_Display::sigResized.call(resizeEvent);
+				break;
+			}
+			if (lastwinmaxfull != ZL_WINDOWFLAGS_HAS(ZL_WINDOW_FULLSCREEN | ZL_WINDOW_MAXIMIZED))
+			{
+				lastwinmaxfull = ZL_WINDOWFLAGS_HAS(ZL_WINDOW_FULLSCREEN | ZL_WINDOW_MAXIMIZED);
+				ZL_WindowResizeEvent resizeEvent = { ZL_Display::Width, ZL_Display::Height, !!(lastwinmaxfull&ZL_WINDOW_FULLSCREEN), !!(lastwinmaxfull&ZL_WINDOW_MAXIMIZED) };
+				ZL_Display::sigResized.call(resizeEvent);
 			}
 			break;
 		default:
@@ -165,6 +174,7 @@ bool ZL_Display::Init(const char* title, int width, int height, int displayflags
 	if (displayflags & ZL_DISPLAY_PREVENTALTENTER) *pZL_WindowFlags |= ZL_WINDOW_PREVENTALTENTER;
 	if (displayflags & ZL_DISPLAY_PREVENTALTF4) *pZL_WindowFlags |= ZL_WINDOW_PREVENTALTF4;
 	if (displayflags & ZL_DISPLAY_MINIMIZEDAUDIO) *pZL_WindowFlags |= ZL_WINDOW_MINIMIZEDAUDIO;
+	lastwinmaxfull = ZL_WINDOWFLAGS_HAS(ZL_WINDOW_FULLSCREEN | ZL_WINDOW_MAXIMIZED);
 
 	ZL_LOG2("DISPLAY", "Actually got width: %d - height: %d", native_width, native_height);
 
@@ -686,6 +696,7 @@ ZL_String ZL_Display::KeyScancodeName(ZL_Key key)
 
 bool ZL_Display::IsFullscreen() { return ZL_WINDOWFLAGS_HAS(ZL_WINDOW_FULLSCREEN)!=0; }
 bool ZL_Display::IsMinimized() { return ZL_WINDOWFLAGS_HAS(ZL_WINDOW_MINIMIZED)!=0; }
+bool ZL_Display::IsMaximized() { return ZL_WINDOWFLAGS_HAS(ZL_WINDOW_MAXIMIZED)!=0; }
 bool ZL_Display::HasInputFocus() { return ZL_WINDOWFLAGS_HAS(ZL_WINDOW_INPUT_FOCUS)!=0; }
 bool ZL_Display::HasMouseFocus() { return ZL_WINDOWFLAGS_HAS(ZL_WINDOW_MOUSE_FOCUS)!=0; }
 
