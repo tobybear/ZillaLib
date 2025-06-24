@@ -34,7 +34,7 @@ struct ZL_Surface
 	ZL_Surface();
 	ZL_Surface(const ZL_FileLink& file);
 	ZL_Surface(int width, int height, bool use_alpha = false); //can fail when framebuffers not supported by gpu
-	ZL_Surface(const unsigned char* pixels, int width, int height, int BytesPerPixel = 4);
+	ZL_Surface(unsigned char* pixels, int width, int height, int BytesPerPixel = 4);
 	~ZL_Surface();
 	ZL_Surface(const ZL_Surface &source);
 	ZL_Surface &operator =(const ZL_Surface &source);
@@ -42,6 +42,10 @@ struct ZL_Surface
 	bool operator==(const ZL_Surface &b) const { return (impl==b.impl); }
 	bool operator!=(const ZL_Surface &b) const { return (impl!=b.impl); }
 	ZL_Surface Clone() const;
+
+	void Clear();
+	int LoadImg(const char* file, unsigned char** pixels, int& width, int& height, int& BytesPerPixel);
+	void Update(unsigned char* pixels, int width, int height, int BytesPerPixel = 4) const;
 
 	int GetWidth() const;
 	int GetHeight() const;
@@ -137,7 +141,8 @@ struct ZL_Surface
 	//Returns bitmap data which needs to be free()'d after use
 	static unsigned char* GetPixelsFromFile(const ZL_FileLink& ImgFile, int* pOutWidth = NULL, int* pOutHeight = NULL, int* pOutBytesPerPixel = NULL, int RequestBytesPerPixel = 0);
 
-	private: struct ZL_Surface_Impl* impl;
+//	private: 
+		struct ZL_Surface_Impl* impl;
 };
 
 #endif //__ZL_SURFACE__

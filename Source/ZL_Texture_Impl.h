@@ -56,7 +56,7 @@ struct ZL_Texture_Impl : ZL_Impl
 	GLint wraps, wrapt, filtermin, filtermag;
 	ZL_TextureFrameBuffer *pFrameBuffer;
 
-	static ZL_Texture_Impl* CreateFromBitmap(const unsigned char* pixels, int width, int height, int BytesPerPixel);
+	static ZL_Texture_Impl* CreateFromBitmap(unsigned char* pixels, int width, int height, int BytesPerPixel);
 	static ZL_Texture_Impl* LoadTextureRef(const ZL_FileLink& file, ZL_BitmapSurface* out_surface = NULL);
 	static ZL_Texture_Impl* GenerateTexture(int width, int height, bool use_alpha);
 
@@ -67,8 +67,9 @@ struct ZL_Texture_Impl : ZL_Impl
 	void FrameBufferEnd();
 
 	static ZL_BitmapSurface LoadBitmapSurface(const ZL_File& file, int RequestBytesPerPixel = 0);
+	void UpdateFromBitmap(unsigned char* pixels, int width, int height, int BytesPerPixel = 4);
 
-private:
+// private:
 	ZL_Texture_Impl();
 	~ZL_Texture_Impl();
 };

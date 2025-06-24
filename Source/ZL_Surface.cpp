@@ -248,9 +248,36 @@ ZL_Surface::ZL_Surface(int width, int height, bool use_alpha) : impl(new ZL_Surf
 	if (!impl->tex) { delete impl; impl = NULL; }
 }
 
-ZL_Surface::ZL_Surface(const unsigned char* pixels, int width, int height, int BytesPerPixel) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::CreateFromBitmap(pixels, width, height, BytesPerPixel)))
+ZL_Surface::ZL_Surface(unsigned char* pixels, int width, int height, int BytesPerPixel) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::CreateFromBitmap(pixels, width, height, BytesPerPixel)))
 {
 	if (!impl->tex) { delete impl; impl = NULL; }
+}
+
+int ZL_Surface::LoadImg(const char* file, unsigned char** pixels, int& width, int& height, int& BytesPerPixel)
+{
+	ZL_BitmapSurface srf = impl->tex->LoadBitmapSurface(file);
+	if (srf.w > 0 && srf.h > 0 && srf.pixels) {
+		width = srf.w;
+		height = srf.h;
+		BytesPerPixel = srf.BytesPerPixel;
+		*pixels = srf.pixels;
+		return 0;
+	}
+	return -1;
+}
+
+void ZL_Surface::Update(unsigned char* pixels, int width, int height, int BytesPerPixel) const
+{
+	impl->tex->UpdateFromBitmap(pixels, width, height, BytesPerPixel);
+}
+
+void ZL_Surface::Clear()
+{
+	if (impl->tex) {
+		delete impl->tex;
+	}
+	delete impl;
+	impl = NULL;
 }
 
 ZL_Surface ZL_Surface::Clone() const
@@ -259,6 +286,7 @@ ZL_Surface ZL_Surface::Clone() const
 	if (impl) ret.impl = new ZL_Surface_Impl(impl);
 	return ret;
 }
+
 
 int ZL_Surface::GetWidth() const { return impl ? impl->tex->wRep : 0; }
 int ZL_Surface::GetHeight() const { return impl ? impl->tex->hRep : 0; }
@@ -580,7 +608,6 @@ void ZL_Surface::SetPixels(const unsigned char* pixels, int sub_x, int sub_y, in
 	glBindTexture(GL_TEXTURE_2D, impl->tex->gltexid);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, sub_x, sub_y, sub_width, sub_height, (BytesPerPixel < 5 ? fmts[BytesPerPixel] : GL_RGBA), GL_UNSIGNED_BYTE, pixels);
 }
-
 unsigned char* ZL_Surface::GetPixelsFromFile(const ZL_FileLink& ImgFile, int* pOutWidth, int* pOutHeight, int* pOutBytesPerPixel, int RequestBytesPerPixel)
 {
 	ZL_BitmapSurface bmp = ZL_Texture_Impl::LoadBitmapSurface(ImgFile.Open(), RequestBytesPerPixel);

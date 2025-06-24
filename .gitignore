@@ -17,6 +17,8 @@ Debug-vs2015/
 Debug-vs2015x64/
 Debug-vs2019/
 Debug-vs2019x64/
+Debug-vs2022/
+Debug-vs2022x64/
 Release-vc6/
 Release-vs2008/
 Release-vs2012/
@@ -27,3 +29,6 @@ Release-vs2015/
 Release-vs2015x64/
 Release-vs2019/
 Release-vs2019x64/
+Release-vs2022/
+Release-vs2022x64/
+

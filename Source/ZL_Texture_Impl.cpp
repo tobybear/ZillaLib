@@ -11,24 +11,34 @@
   freely, subject to the following restrictions:
 
   1. The origin of this software must not be misrepresented; you must not
-     claim that you wrote the original software. If you use this software
-     in a product, an acknowledgment in the product documentation would be
-     appreciated but is not required.
+	 claim that you wrote the original software. If you use this software
+	 in a product, an acknowledgment in the product documentation would be
+	 appreciated but is not required.
   2. Altered source versions must be plainly marked as such, and must not be
-     misrepresented as being the original software.
+	 misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
 
 #include "ZL_Texture_Impl.h"
 #include <map>
 #include <assert.h>
+#ifdef ZL_USE_STBIMAGE
+#define STBI_NO_STDIO
 #include "stb/stb_image.h"
+#endif
+#ifdef ZL_USE_QOI
+#define QOI_NO_STDIO
+#define QOI_NO_ENCODER
+#define QOI_IMPLEMENTATION
+#include "qoi/qoi.h"
+#endif
 
 static int  zlrwops_read(void *user, char *data, int size) { return (int)ZL_RWread((ZL_RWops*)user, data, 1, size); }
 static void zlrwops_skip(void *user, int n) { ZL_RWseektell((ZL_RWops*)user, n, RW_SEEK_CUR); }
 static int  zlrwops_eof(void *user) { return ZL_RWeof((ZL_RWops*)user); }
+#ifdef ZL_USE_STBIMAGE
 static const stbi_io_callbacks stbi_zlrwops_callbacks = { zlrwops_read, zlrwops_skip, zlrwops_eof };
-
+#endif
 static std::map<ZL_FileLink, ZL_Texture_Impl*>* pLoadedTextures = NULL;
 static ZL_TextureFrameBuffer *pActiveFrameBuffer = NULL;
 
@@ -68,10 +78,32 @@ static bool OGL_ProbeTexture(GLint w, GLint h, GLint maxSize, GLint, GLenum)
 
 static bool LoadBitmapData(ZL_BitmapSurface* surface, ZL_File_Impl* fileimpl, int RequestBytesPerPixel = 0)
 {
+#ifdef ZL_USE_QOI
+	int sz = (int)fileimpl->src->size();
+	uint8_t* data = new uint8_t[sz];
+	fileimpl->src->read(data, 1, 2);
+	fileimpl->src->seektell(0, RW_SEEK_SET);
+	if (data[0] = 'q' && data[1] == 'o') {
+		fileimpl->src->read(data, 1, sz);
+		qoi_desc desc;
+		if (RequestBytesPerPixel != 0 && RequestBytesPerPixel != 3 && RequestBytesPerPixel != 4) RequestBytesPerPixel = 0;
+		surface->pixels = (unsigned char *)qoi_decode(data, sz, &desc, RequestBytesPerPixel);
+		surface->w = desc.width;
+		surface->h = desc.height;
+		surface->BytesPerPixel = desc.channels;
+		delete[] data;
+		return true;
+	}
+	delete[] data;
+#endif
+
+#ifdef ZL_USE_STBIMAGE
 	surface->pixels = stbi_load_from_callbacks(&stbi_zlrwops_callbacks, fileimpl->src, &surface->w, &surface->h, &surface->BytesPerPixel, RequestBytesPerPixel);
 	if (!surface->pixels || !surface->w || !surface->h) { ZL_LOG2("TEXTURE", "Cannot load image file: %s (err: %s)", fileimpl->filename.c_str(), stbi_failure_reason()); return false; }
 	//ZL_LOG4("SURFACE", "Loaded bitmap: %s - x: %d - y: %d - bpp: %d", fileimpl->filename.c_str(), surface->w, surface->h, surface->BytesPerPixel);
 	return true;
+#endif
+	return false;
 }
 
 static bool PrepareSurfaceData(ZL_Texture_Impl* t, ZL_BitmapSurface* surface, const char* filename)
@@ -189,9 +221,9 @@ static bool LoadSurfaceDataFromFile(ZL_Texture_Impl* t, const ZL_File& file, ZL_
 	return true;
 }
 
-static void LoadBitmapIntoTexture(ZL_Texture_Impl* t, ZL_BitmapSurface* surface)
+static void LoadBitmapIntoTexture(ZL_Texture_Impl* t, ZL_BitmapSurface* surface, bool newId = true)
 {
-	glGenTextures(1, &t->gltexid);
+	if (newId) glGenTextures(1, &t->gltexid);
 	glBindTexture(GL_TEXTURE_2D, t->gltexid);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, t->filtermin);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, t->filtermag);
@@ -241,16 +273,26 @@ static void SetupFrameBuffer(ZL_Texture_Impl* t, int width, int height)
 	glBindFramebuffer(GL_FRAMEBUFFER, active_framebuffer);
 }
 
-ZL_Texture_Impl* ZL_Texture_Impl::CreateFromBitmap(const unsigned char* pixels, int width, int height, int BytesPerPixel)
+ZL_Texture_Impl* ZL_Texture_Impl::CreateFromBitmap(unsigned char* pixels, int width, int height, int BytesPerPixel)
 {
 	ZL_Texture_Impl* t = new ZL_Texture_Impl();
 	if (!pixels || !width || !height || !BytesPerPixel) return t;
 	ZL_BitmapSurface tmp = { BytesPerPixel, width, height };
-	tmp.pixels = (unsigned char*)malloc(tmp.w*tmp.h*tmp.BytesPerPixel);
-	memcpy(tmp.pixels, pixels, tmp.w*tmp.h*tmp.BytesPerPixel);
+	tmp.pixels = pixels;
+	// tmp.pixels = (unsigned char*)malloc(tmp.w*tmp.h*tmp.BytesPerPixel);
+	// memcpy(tmp.pixels, pixels, tmp.w*tmp.h*tmp.BytesPerPixel);
 	if (PrepareSurfaceData(t, &tmp, "memory")) LoadBitmapIntoTexture(t, &tmp);
-	free(tmp.pixels);
+	// free(tmp.pixels);
 	return t;
+}
+
+void ZL_Texture_Impl::UpdateFromBitmap(unsigned char* pixels, int width, int height, int BytesPerPixel)
+{
+	if (!pixels || !width || !height || !BytesPerPixel) return;
+	ZL_BitmapSurface tmp = { BytesPerPixel, width, height };
+	tmp.pixels = pixels;
+	//if (PrepareSurfaceData(this, &tmp, "memory")) 
+	LoadBitmapIntoTexture(this, &tmp, false);
 }
 
 ZL_Texture_Impl* ZL_Texture_Impl::LoadTextureRef(const ZL_FileLink& file, ZL_BitmapSurface* out_surface)
