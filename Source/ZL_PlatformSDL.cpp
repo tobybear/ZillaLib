@@ -80,7 +80,7 @@ static SDL_Window* ZL_SDL_Window = NULL;
 static ZL_String jsonConfigFile;
 static ZL_Json jsonConfig;
 static SDL_FingerID ZL_SDL_FingerIDs[32];
-static char ZL_SDL_FingerCount, ZL_SDL_Mouse_IgnoreMotion, ZL_SDL_Mouse_IgnoreButton;
+static signed char ZL_SDL_FingerCount, ZL_SDL_Mouse_IgnoreMotion, ZL_SDL_Mouse_IgnoreButton;
 
 void ZL_SettingsInit(const char* FallbackConfigFilePrefix)
 {
@@ -302,6 +302,8 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+	#elif defined(ZL_VIDEO_OPENGL_ES1) || defined(ZL_VIDEO_OPENGL_ES2)
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	#endif
 
 	#if defined(__WIN32__) && defined(ZILLALIB_TRANSPARENTONWINDOWSDESKTOP)
@@ -398,7 +400,9 @@ void ZL_UpdateTPFLimit()
 	if (!DisplayMode.refresh_rate) DisplayMode.refresh_rate = 60; // at least matches on VMWare running Linux
 	float TPFRate = (ZL_TPF_Limit ? (1000.0f / ZL_TPF_Limit) : 0);
 	bool UseVSync = (TPFRate && TPFRate >= DisplayMode.refresh_rate*0.99f && TPFRate <= DisplayMode.refresh_rate*1.01f);
-	SDL_GL_SetSwapInterval(UseVSync ? 1 : 0);
+	bool setSwapSucceeded = (SDL_GL_SetSwapInterval(UseVSync ? 1 : 0) == 0);
+	//ZL_LOG4("VSYNC", "Refresh Rate: %d - Want VSync: %d - Setting VSync Succeeded: %d - Actual Swap Interval: %d", DisplayMode.refresh_rate, (int)UseVSync, (int)setSwapSucceeded, (int)SDL_GL_GetSwapInterval());
+	UseVSync = (setSwapSucceeded && UseVSync);
 	ZL_MainApplicationFlags = (UseVSync ? ZL_MainApplicationFlags | ZL_APPLICATION_HASVSYNC : ZL_MainApplicationFlags & ~ZL_APPLICATION_HASVSYNC);
 	if (UseVSync) ZL_Requested_FPS = (float)DisplayMode.refresh_rate;
 }

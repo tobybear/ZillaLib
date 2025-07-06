@@ -822,8 +822,8 @@ struct ZL_TextBuffer_Impl : ZL_Impl
 		if (!fnt || newlen > lenmax)
 		{
 			ZL_ASSERTMSG(fnt || !text || !text[0], "The font needs to be loaded before rendering to a text buffer with it");
-			if (vertices) { delete vertices; vertices = NULL; }
-			if (texcoords) { delete texcoords; texcoords = NULL; }
+			if (vertices) { delete [] vertices; vertices = NULL; }
+			if (texcoords) { delete [] texcoords; texcoords = NULL; }
 		}
 		len = newlen;
 		if (newlen > lenmax) lenmax = newlen;
@@ -899,8 +899,8 @@ struct ZL_TextBuffer_Impl : ZL_Impl
 		if (fntSettings != fnt) delete fntSettings;
 		if (fnt) fnt->DelRef();
 		if (vecTTFTexLastIndex) delete vecTTFTexLastIndex;
-		if (vertices) delete vertices;
-		if (texcoords) delete texcoords;
+		if (vertices) delete [] vertices;
+		if (texcoords) delete [] texcoords;
 	}
 
 	inline void Draw(const scalar &x, const scalar &y, const scalar &scalew, const scalar &scaleh, const ZL_Color &color, ZL_Origin::Type draw_at_origin)

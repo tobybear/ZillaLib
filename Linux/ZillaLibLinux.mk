@@ -35,9 +35,9 @@ STRIP:=strip
 # Build global settings
 APPFLAGS    := -I$(ZILLALIB_DIR)Include
 ZLFLAGS     := -I$(ZILLALIB_DIR)Include -I$(ZILLALIB_DIR)Source/zlib
-WARNINGS    := -pedantic -Wall -Wno-long-long -Wno-error=unused-parameter -Wno-pedantic -Wno-unused-local-typedefs -Wno-unused-function -Wno-strict-aliasing
+WARNINGS    := -pedantic -Wall -Wno-long-long -Wno-error=unused-parameter -Wno-pedantic -Wno-unused-local-typedefs -Wno-unused-function -Wno-strict-aliasing -Wno-psabi
 DEPWARNINGS := -Wno-main -Wno-empty-body -Wno-char-subscripts -Wno-sign-compare -Wno-unused-value -Wno-unused-variable -Wno-unused-but-set-variable -Wno-nonnull -Wno-stringop-truncation -Werror
-CFLAGS      := $(WARNINGS) -pthread -msse -mfpmath=sse -ffast-math -fomit-frame-pointer -fvisibility=hidden -fno-exceptions -fno-non-call-exceptions -ffunction-sections -fdata-sections
+CFLAGS      := $(WARNINGS) -pthread -ffast-math -fomit-frame-pointer -fvisibility=hidden -fno-exceptions -fno-non-call-exceptions -ffunction-sections -fdata-sections
 LDFLAGS     := -lGL -lpthread -ldl -Wl,--gc-sections
 CXXFLAGS    := -std=c++11 -fno-rtti
 CCFLAGS     := -std=gnu99 -D_DEFAULT_SOURCE
@@ -52,6 +52,11 @@ else ifeq ($(BUILD),RELEASEDBG)
   APPOUTDIR := ReleaseDbg-linux
   CFLAGS    += -DNDEBUG -ggdb -O2
   LDFLAGS   += -ggdb -O2
+else ifeq ($(BUILD),ASAN)
+  ZLOUTDIR  := $(ZILLALIB_DIR)Linux/build-asan
+  APPOUTDIR := ASAN-linux
+  CFLAGS    += -DDEBUG -D_DEBUG -DZILLALOG -g -O0 -fsanitize=address -fno-omit-frame-pointer
+  LDFLAGS   += -g -O0 -fsanitize=address -latomic
 else
   ZLOUTDIR  := $(ZILLALIB_DIR)Linux/build-debug
   APPOUTDIR := Debug-linux
@@ -95,9 +100,15 @@ CMD_DEL_FILES := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.remove(a)
 CYGWIN ?= nodosfilewarning
 export CYGWIN
 
-CPUTYPE  := $(if $(if $(M32),,$(or $(M64),$(findstring 64,$(shell uname -m)))),x86_64,x86_32)
-OBJEXT   := $(if $(filter $(CPUTYPE),x86_32),_32.o,_64.o)
-GCCMFLAG := $(if $(filter $(CPUTYPE),x86_32),-m32,-m64)
+UNAME    := $(shell uname -m)
+CPUTYPE  := $(if $(or $(findstring arm,$(UNAME)),$(findstring aarch,$(UNAME))),arm_$(or $(findstring 64,$(UNAME)),32),x86_$(if $(if $(M32),,$(or $(M64),$(findstring 64,$(UNAME)))),64,32))
+OBJEXT   := $(if $(findstring 32,$(CPUTYPE)),_32.o,_64.o)
+GCCMFLAG :=
+
+ifeq ($(findstring x86,$(CPUTYPE)),x86)
+  GCCMFLAG := $(if $(findstring 32,$(CPUTYPE)),-m32,-m64)
+  CFLAGS += -msse -mfpmath=sse
+endif
 
 #------------------------------------------------------------------------------------------------------
 ifdef ZillaApp
@@ -156,7 +167,7 @@ $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE) : $(APPOBJS) $(ZLOUTDIR)/ZillaLib_$(CPUTYPE)
 	@-$(if $(filter RELEASE,$(BUILD)),$(if $(STRIP),$(STRIP) -R .comment $@))
 
 $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE)_WithData : $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE) $(ASSET_ZIP)
-	$(info packing data assets into $@ ...)
+	$(info Packing data assets into $@ ...)
 	@cat $(APPOUTDIR)/$(ZillaApp)_$(CPUTYPE) >$@
 	@cat $(ASSET_ZIP) >>$@
 	@chmod 755 $@
@@ -198,8 +209,7 @@ DEPSOURCES += \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/thread/SDL_thread.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/thread/pthread/*.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/timer/unix/SDL_systimer.c) \
-	$(wildcard $(ZILLALIB_DIR)Source/sdl/video/SDL_rect.c) \
-	$(wildcard $(ZILLALIB_DIR)Source/sdl/video/SDL_video.c) \
+	$(wildcard $(ZILLALIB_DIR)Source/sdl/video/*.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/video/x11/*.c)
 endif
 

@@ -28,6 +28,13 @@
 #undef SDL_VIDEO_RENDER_OGL_ES2
 #undef SDL_VIDEO_OPENGL_ES2
 #undef SDL_VIDEO_OPENGL_EGL
+#if defined(__LINUX__) && (defined(__arm__) || defined(__aarch64__)) // use GLES on linux arm
+#undef SDL_VIDEO_RENDER_OGL
+#define SDL_VIDEO_RENDER_OGL_ES2 1
+#undef SDL_VIDEO_OPENGL
+#define SDL_VIDEO_OPENGL_ES2 1
+#define SDL_VIDEO_OPENGL_EGL 1
+#endif
 #undef SDL_FILESYSTEM_WINDOWS
 #undef SDL_FILESYSTEM_COCOA
 #undef SDL_FILESYSTEM_DUMMY
@@ -53,7 +60,9 @@
 #else
 #define SDL_SetError(errstr,...) -1
 #endif
-//#define SDL_SetError printf
+//#include <stdarg.h>
+//#include <stdio.h>
+//static int SDL_SetError(const char *fmt, ...) { va_list va; va_start(va, fmt); vprintf(fmt, va); va_end(va); printf("\n"); return -1; }
 #define SDL_assert(a)
 #define SDL_Error(e)
 #define SDL_ASSERT_LEVEL 0

@@ -29,7 +29,7 @@
 struct ZL_JSON_Impl : public ZL_Impl
 {
 	enum { TYPE_PROXY = 14, PARSE_ERROR = 15, FLAG_KEYNEEDFREE = 1, FLAG_STRINGNEEDFREE = 2, FLAG_ISROOT = 4 };
-	union { struct { char Type, Flags; unsigned short ObjectKeyLen; }; unsigned int TypeAndFlags; };
+	union { struct { unsigned char Type, Flags; unsigned short ObjectKeyLen; }; unsigned int TypeAndFlags; };
 	char* ObjectKey;
 	union { char* DataString; std::vector<ZL_JSON_Impl*>* DataChildren; scalar DataNumber; ZL_JSON_Impl* DataProxy; };
 
@@ -183,7 +183,7 @@ private:
 			Type = PARSE_ERROR;
 			return p;
 		}
-		const char ListEndChar = (*p == '[' ? ']' : (*p == '{' ?  '}' : 0));
+		const char ListEndChar = (*p == '[' ? ']' : (*p == '{' ?  '}' : '\0'));
 		if (!ListEndChar) { Type = PARSE_ERROR; return p; }
 
 		p = EndOfWhitespace(p+1);

@@ -156,9 +156,11 @@ bool ZL_Display::Init(const char* title, int width, int height, int displayflags
 {
 	if (width == height) displayflags |= ZL_DISPLAY_ALLOWANYORIENTATION;
 	if (!ZL_CreateWindow(title, width, height, displayflags)) return false;
+	ZL_ASSERT(!glGetError());
 
 	#if defined(ZL_VIDEO_USE_GLSL) && !defined(ZL_VIDEO_DIRECT3D)
 	ZLGLSL::CreateShaders();
+	ZL_ASSERT(!glGetError());
 	#endif
 
 	//for (char* pcGlVersion = ((char*)glGetString(GL_VERSION)); *pcGlVersion; pcGlVersion++)
@@ -181,6 +183,7 @@ bool ZL_Display::Init(const char* title, int width, int height, int displayflags
 	ZL_Display::Width = s(width);
 	ZL_Display::Height = s(height);
 	InitGL(native_width, native_height);
+	ZL_ASSERT(!glGetError());
 
 	memset(KeyDown, 0, sizeof(KeyDown));
 	memset(MouseDown, 0, sizeof(MouseDown));
@@ -334,9 +337,10 @@ void InitGL(int width, int height)
 void ZL_Display::SetAA(bool aa)
 {
 	use_aa = aa;
-	#if defined(GL_MULTISAMPLE) && !defined(__wasm__) && !defined(__EMSCRIPTEN__)
+	#if defined(GL_MULTISAMPLE) && !defined(ZL_VIDEO_OPENGL_ES1) && !defined(ZL_VIDEO_OPENGL_ES2)
 	if (use_aa) glEnable(GL_MULTISAMPLE); else glDisable(GL_MULTISAMPLE);
 	#endif
+	ZL_ASSERT(!glGetError());
 }
 
 void ZL_Display::SetThickness(scalar newthickness)
@@ -354,6 +358,7 @@ void ZL_Display::ClearFill(ZL_Color col)
 {
 	glClearColor(col.r, col.g, col.b, col.a);
 	glClear(GL_COLOR_BUFFER_BIT);
+	ZL_ASSERT(!glGetError());
 }
 
 void ZL_Display::SetBlendFunc(BlendFunc mode_src, BlendFunc mode_dest)

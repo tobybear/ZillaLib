@@ -192,7 +192,13 @@
 
 /* Enable various audio drivers */
 #define SDL_AUDIO_DRIVER_ALSA 1
-#if defined(__LP64__) || defined(_LP64) || defined(__LLP64__) || defined(__x86_64__)
+#if defined(__aarch64__) || defined(__ARM_ARCH_ISA_A64)
+#define SDL_AUDIO_DRIVER_ALSA_DYNAMIC "/usr/lib/aarch64-linux-gnu/libasound.so.2"
+#elif defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7EM__) || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7S__)
+#define SDL_AUDIO_DRIVER_ALSA_DYNAMIC "/usr/lib/arm-linux-gnueabihf/libasound.so.2"
+#elif defined(__arm__)
+#define SDL_AUDIO_DRIVER_ALSA_DYNAMIC "/usr/lib/arm-linux-gnueabi/libasound.so.2"
+#elif defined(__LP64__) || defined(_LP64) || defined(__LLP64__) || defined(__x86_64__)
 #define SDL_AUDIO_DRIVER_ALSA_DYNAMIC "/usr/lib/x86_64-linux-gnu/libasound.so.2"
 #else
 #define SDL_AUDIO_DRIVER_ALSA_DYNAMIC "/usr/lib/i386-linux-gnu/libasound.so.2"
