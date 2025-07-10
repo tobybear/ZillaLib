@@ -238,17 +238,17 @@ void ZL_Surface_Impl::DrawTo(const scalar x1, const scalar y1, const scalar x2, 
 
 ZL_IMPL_OWNER_DEFAULT_IMPLEMENTATIONS(ZL_Surface)
 
-ZL_Surface::ZL_Surface(const ZL_FileLink& file) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::LoadTextureRef(file))) //impl(new ZL_Surface_Impl(file))
+ZL_Surface::ZL_Surface(const ZL_FileLink& file) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::LoadTextureRef(file), false)) //impl(new ZL_Surface_Impl(file))
 {
 	if (!impl->tex) { delete impl; impl = NULL; }
 }
 
-ZL_Surface::ZL_Surface(int width, int height, bool use_alpha) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::GenerateTexture(width, height, use_alpha))) //impl(new ZL_Surface_Impl(width, height, use_alpha))
+ZL_Surface::ZL_Surface(int width, int height, bool use_alpha) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::GenerateTexture(width, height, use_alpha), false)) //impl(new ZL_Surface_Impl(width, height, use_alpha))
 {
 	if (!impl->tex) { delete impl; impl = NULL; }
 }
 
-ZL_Surface::ZL_Surface(unsigned char* pixels, int width, int height, int BytesPerPixel) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::CreateFromBitmap(pixels, width, height, BytesPerPixel)))
+ZL_Surface::ZL_Surface(unsigned char* pixels, int width, int height, int BytesPerPixel) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::CreateFromBitmap(pixels, width, height, BytesPerPixel), false))
 {
 	if (!impl->tex) { delete impl; impl = NULL; }
 }
@@ -286,7 +286,6 @@ ZL_Surface ZL_Surface::Clone() const
 	if (impl) ret.impl = new ZL_Surface_Impl(impl);
 	return ret;
 }
-
 
 int ZL_Surface::GetWidth() const { return impl ? impl->tex->wRep : 0; }
 int ZL_Surface::GetHeight() const { return impl ? impl->tex->hRep : 0; }
@@ -608,6 +607,7 @@ void ZL_Surface::SetPixels(const unsigned char* pixels, int sub_x, int sub_y, in
 	glBindTexture(GL_TEXTURE_2D, impl->tex->gltexid);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, sub_x, sub_y, sub_width, sub_height, (BytesPerPixel < 5 ? fmts[BytesPerPixel] : GL_RGBA), GL_UNSIGNED_BYTE, pixels);
 }
+
 unsigned char* ZL_Surface::GetPixelsFromFile(const ZL_FileLink& ImgFile, int* pOutWidth, int* pOutHeight, int* pOutBytesPerPixel, int RequestBytesPerPixel)
 {
 	ZL_BitmapSurface bmp = ZL_Texture_Impl::LoadBitmapSurface(ImgFile.Open(), RequestBytesPerPixel);

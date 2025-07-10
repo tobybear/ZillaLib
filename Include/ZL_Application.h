@@ -67,13 +67,16 @@
  #endif
 #endif
 #define ZL_VIDEO_USE_GLSL
-#if (defined(__ANDROID__) || defined(__IPHONEOS__) || defined(__WEBAPP__)) && !defined(ZL_VIDEO_OPENGL_ES1) && !defined(ZL_VIDEO_OPENGL_ES2)
+#if (defined(__ANDROID__) || defined(__IPHONEOS__) || defined(__WEBAPP__) || ((defined(linux) || defined(__linux) || defined(__linux__)) && (defined(__arm__) || defined(__aarch64__)))) && !defined(ZL_VIDEO_OPENGL_ES1) && !defined(ZL_VIDEO_OPENGL_ES2)
 //#define ZL_VIDEO_OPENGL_ES1
 #define ZL_VIDEO_OPENGL_ES2
 #elif !defined(__WINDOWSPHONE__) && !defined(ZL_VIDEO_OPENGL1) && !defined(ZL_VIDEO_OPENGL2) && !defined(ZL_VIDEO_OPENGL_CORE)
 //#define ZL_VIDEO_OPENGL1
 #define ZL_VIDEO_OPENGL2
 //#define ZL_VIDEO_OPENGL_CORE
+#endif
+#if (defined(ZL_VIDEO_OPENGL2) || defined(ZL_VIDEO_OPENGL_CORE)) && (defined(ZL_VIDEO_OPENGL_ES1) || defined(ZL_VIDEO_OPENGL_ES2))
+#error Mixed GL and GLES defines
 #endif
 #if defined(__LP64__) || defined(_LP64) || defined(__LLP64__) || defined(__x86_64__) || defined(__ia64__) || defined(_WIN64) || defined(_M_X64)
 #define ZL_IS_64_BIT
