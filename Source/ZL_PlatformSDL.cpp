@@ -189,9 +189,9 @@ int main(int argc, char *argv[])
 	#endif
 	SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);
 	ZillaLibInit(argc, argv);
+	ZL_Application::sigKeepAlive.connect(&ProcessSDLEvents); // called in frame loop after _ZL_ApplicationUpdateTimingFps
 	while (!(ZL_MainApplicationFlags & ZL_APPLICATION_DONE))
 	{
-		ProcessSDLEvents();
 		ZL_MainApplication->Frame();
 		SDL_GL_SwapWindow(ZL_SDL_Window);
 		//#ifdef __WIN32__
