@@ -79,7 +79,8 @@ enum { MULTI_TOUCH_POINTERID_BASE = 100, MAX_SIMULTANEOUS_TOUCHES = 10 };
 enum ANDROIDTOUCH_ACTION { ANDROIDTOUCH_DOWN = 0, ANDROIDTOUCH_UP = 1, ANDROIDTOUCH_MOVE = 2 };
 struct ZL_AndroidTouch { int lastx, lasty, touchid; };
 static ZL_AndroidTouch ZL_ANDROID_touch[MAX_SIMULTANEOUS_TOUCHES];
-static ZL_JoystickData *ZL_ANDROID_joysticks[2] = { NULL, NULL };
+static ZL_JoystickData *ZL_ANDROID_joysticks[2];
+static int ZL_ANDROID_joystickRefs[2];
 static unsigned short ZL_Android_KeyModState = ZLKMOD_NONE;
 static bool bJNI_InitActivity = false;
 
@@ -576,6 +577,7 @@ int ZL_NumJoysticks()
 ZL_JoystickData* ZL_JoystickHandleOpen(int index)
 {
 	if (index < 0 || index >= 2) return NULL;
+	ZL_ANDROID_joystickRefs[index]++;
 	if (ZL_ANDROID_joysticks[index]) return ZL_ANDROID_joysticks[index];
 	ZL_ANDROID_joysticks[index] = new ZL_JoystickData();
 	ZL_ANDROID_joysticks[index]->device_index = index;
@@ -593,11 +595,11 @@ ZL_JoystickData* ZL_JoystickHandleOpen(int index)
 void ZL_JoystickHandleClose(ZL_JoystickData* joystick)
 {
 	int index = (joystick ? joystick->device_index : -1);
-	if (index < 0 || index >= 2 || !ZL_ANDROID_joysticks[index]) return;
-	//if (ZL_ANDROID_joysticks[index]->hats) delete ZL_ANDROID_joysticks[index]->hats;
-	//if (ZL_ANDROID_joysticks[index]->balls) delete ZL_ANDROID_joysticks[index]->balls;
-	//if (ZL_ANDROID_joysticks[index]->buttons) delete ZL_ANDROID_joysticks[index]->buttons;
-	if (ZL_ANDROID_joysticks[index]->axes) delete ZL_ANDROID_joysticks[index]->axes;
+	if (index < 0 || index >= 2 || !ZL_ANDROID_joysticks[index] || --ZL_ANDROID_joystickRefs[index]) return;
+	//if (ZL_ANDROID_joysticks[index]->hats) delete [] ZL_ANDROID_joysticks[index]->hats;
+	//if (ZL_ANDROID_joysticks[index]->balls) delete [] ZL_ANDROID_joysticks[index]->balls;
+	//if (ZL_ANDROID_joysticks[index]->buttons) delete [] ZL_ANDROID_joysticks[index]->buttons;
+	if (ZL_ANDROID_joysticks[index]->axes) delete [] ZL_ANDROID_joysticks[index]->axes;
 	jniEnv->CallVoidMethod(JavaZillaActivity, jniEnv->GetMethodID(jniEnv->GetObjectClass(JavaZillaActivity), "joystickStatus", "(IZ)V"), (jint)index, (jboolean)0);
 	delete ZL_ANDROID_joysticks[index];
 	ZL_ANDROID_joysticks[index] = NULL;
