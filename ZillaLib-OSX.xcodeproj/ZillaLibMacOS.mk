@@ -36,7 +36,8 @@ ZLFLAGS     := -I$(ZILLALIB_DIR)Include -I$(ZILLALIB_DIR)Source/zlib
 WARNINGS    := -pedantic -Wall -Wno-long-long -Wno-error=unused-parameter -Wno-pedantic -Wno-unused-local-typedefs -Wno-unused-function -Wno-strict-aliasing -Wno-unknown-warning-option -Wno-deprecated-declarations
 DEPWARNINGS := -Wno-main -Wno-empty-body -Wno-char-subscripts -Wno-sign-compare -Wno-unused-value -Wno-unused-variable -Wno-unused-but-set-variable -Wno-nonnull -Wno-stringop-truncation
 CFLAGS      := $(WARNINGS) -pthread -ffast-math -fomit-frame-pointer -fvisibility=hidden -fno-exceptions -fno-non-call-exceptions -ffunction-sections -fdata-sections
-ifneq ($(shell uname -m),arm64)
+UNAME       := $(shell uname -m)
+ifneq ($(UNAME),arm64)
   CFLAGS    += -msse -mfpmath=sse
 else
   CFLAGS    += -flto
@@ -98,9 +99,14 @@ CMD_DEL_FILES := $(PYTHON) -c "import sys,os;[os.path.exists(a) and os.remove(a)
 CYGWIN ?= nodosfilewarning
 export CYGWIN
 
-CPUTYPE  := $(if $(if $(M32),,$(or $(M64),$(findstring 64,$(shell uname -m)))),x86_64,x86_32)
-OBJEXT   := $(if $(filter $(CPUTYPE),x86_32),_32.o,_64.o)
-GCCMFLAG := $(if $(filter $(CPUTYPE),x86_32),-m32,-m64)
+CPUTYPE  := $(if $(or $(findstring arm,$(UNAME)),$(findstring aarch,$(UNAME))),arm_$(or $(findstring 64,$(UNAME)),32),x86_$(if $(if $(M32),,$(or $(M64),$(findstring 64,$(UNAME)))),64,32))
+OBJEXT   := $(if $(findstring 32,$(CPUTYPE)),_32.o,_64.o)
+GCCMFLAG :=
+
+ifeq ($(findstring x86,$(CPUTYPE)),x86)
+  GCCMFLAG := $(if $(findstring 32,$(CPUTYPE)),-m32,-m64)
+  CFLAGS += -msse -mfpmath=sse
+endif
 
 # Set minimum deployment target version
 export MACOSX_DEPLOYMENT_TARGET := 10.10
