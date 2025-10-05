@@ -81,7 +81,7 @@
 #if defined(__LP64__) || defined(_LP64) || defined(__LLP64__) || defined(__x86_64__) || defined(__ia64__) || defined(_WIN64) || defined(_M_X64)
 #define ZL_IS_64_BIT
 #endif
-#if (defined(__cplusplus) && (__cplusplus > 199711 || _MSC_VER >= 1800))
+#if (defined(__cplusplus) && (__cplusplus > 199711 || _MSC_VER >= 1800) && (!defined(__GNUC__) || defined(__clang__) || __GNUC__ > 4))
 #define ZL_HAVE_TYPE_TRAITS
 #endif
 
