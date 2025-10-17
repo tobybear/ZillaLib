@@ -65,8 +65,10 @@ static void
 XAUDIO2_DetectDevices(int iscapture, SDL_AddAudioDevice addfn)
 {
     IXAudio2_Generic *ixa2 = NULL;
+#if 0 /* only 2.7 can do this, so it is disabled */
     UINT32 devcount = 0;
     UINT32 i = 0;
+#endif
     SDL_bool is29;
 
     if (iscapture) {

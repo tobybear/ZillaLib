@@ -61,7 +61,7 @@ struct ZL_SynthImcTrack_Impl : ZL_Impl
 	void DoNoteOn(unsigned char channel, unsigned char note);
 	void TickHit();
 
-	ZL_SynthImcTrack_Impl(TImcSongData *songdata, bool repeat)
+	ZL_SynthImcTrack_Impl(TImcSongData *songdata, bool repeat) : data(NULL)
 	{
 		ImcSongRepeat = repeat;
 		LoadSong(songdata);
@@ -109,7 +109,7 @@ struct ZL_SynthImcTrack_Impl : ZL_Impl
 		*/
 	}
 
-	ZL_SynthImcTrack_Impl(TImcSongData *songdata)
+	ZL_SynthImcTrack_Impl(TImcSongData *songdata) : data(NULL)
 	{
 		LoadSong(songdata);
 		if (!songdata) return;

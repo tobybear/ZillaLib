@@ -162,7 +162,7 @@ bool ZL_LoadReleaseDesktopDataBundle(const char* DataBundleFileName)
 #endif
 
 #if defined(__WIN32__)
-extern "C" { extern LPTSTR SDL_Appname; extern HINSTANCE SDL_Instance; }
+extern "C" { extern LPCWSTR SDL_Appname; extern HINSTANCE SDL_Instance; }
 #endif
 
 int main(int argc, char *argv[])
@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
 	#endif
 	#if defined(__WIN32__)
 		//set this for icon resource identifier
-		SDL_Appname = (LPTSTR)"Z\0L\0\0";
+		SDL_Appname = L"ZL";
 		SDL_Instance = GetModuleHandle(NULL);
 	#endif
 	SDL_EventState(SDL_SYSWMEVENT, SDL_DISABLE);

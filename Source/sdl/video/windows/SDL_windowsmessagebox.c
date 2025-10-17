@@ -73,7 +73,7 @@ typedef struct
 } WIN_DialogData;
 
 
-static INT_PTR MessageBoxDialogProc(HWND hDlg, UINT iMessage, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK MessageBoxDialogProc(HWND hDlg, UINT iMessage, WPARAM wParam, LPARAM lParam)
 {
     switch ( iMessage ) {
     case WM_COMMAND:

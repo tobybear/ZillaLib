@@ -26,9 +26,9 @@ ZILLALIB_PATH := $(or $(ZILLALIB_PATH),$(subst / *,,$(dir $(subst \,/,$(lastword
 .PHONY: all help helpheader linux-help macos-help wasm-help emscripten-help nacl-help android-help osx-help ios-help help-all
 all: help
 help-all: help helpheader linux-help macos-help wasm-help emscripten-help nacl-help android-help osx-help ios-help
-ISWIN = $(findstring :,$(firstword $(subst \, ,$(subst /, ,$(abspath .)))))
-ISMAC = $(wildcard /Applications)
-ISLIN = $(wildcard /proc)
+ISWIN = $(or $(MSYSTEM),$(findstring :,$(firstword $(subst \, ,$(subst /, ,$(abspath .))))))
+ISMAC = $(if $(ISWIN),,$(wildcard /Applications))
+ISLIN = $(if $(ISWIN),,$(wildcard /proc))
 helpheader:
 	@:    $(info )$(eval #: don't print "Nothing to be done for" message)
 	$(info $( ) ZillaLib Makefile Help)
@@ -230,6 +230,21 @@ macos-debug macos-release macos-releasedbg:; $(ZLMACOS_CMD) $(ZLPARAMS_MAKE)
 macos-debug-clean macos-release-clean macos-releasedbg-clean:; $(ZLMACOS_CMD) clean
 macos-debug-run macos-release-run macos-releasedbg-run:; $(ZLMACOS_CMD) run
 macos-debug-gdb macos-release-gdb macos-releasedbg-gdb:; $(ZLMACOS_CMD) gdb
+
+#------------------------------------------------------------------------------------------------------
+
+.PHONY: msys msys-clean msys-run msys-gdb msys-debug msys-release msys-releasedbg msys-debug-clean msys-release-clean msys-releasedbg-clean msys-debug-run msys-release-run msys-releasedbg-run msys-debug-gdb msys-release-gdb msys-releasedbg-gdb
+msys: msys-debug
+msys-clean: msys-debug-clean
+msys-run: msys-debug-run
+msys-gdb: msys-debug-gdb
+msys-release msys-release-clean msys-release-run msys-release-gdb: ZLMSYS_BUILD = BUILD=RELEASE
+msys-releasedbg msys-releasedbg-clean msys-releasedbg-run msys-releasedbg-gdb: ZLMSYS_BUILD = BUILD=RELEASEDBG
+ZLMSYS_CMD = "$(MAKE)" --no-print-directory -f "$(ZILLALIB_PATH)/Linux/ZillaLibMSYS.mk" $(ZLMSYS_BUILD) "ZillaApp=$(ZillaApp)"
+msys-debug msys-release msys-releasedbg:; @+$(ZLMSYS_CMD) $(ZLPARAMS_MAKE)
+msys-debug-clean msys-release-clean msys-releasedbg-clean:; @+$(ZLMSYS_CMD) clean
+msys-debug-run msys-release-run msys-releasedbg-run:; @+$(ZLMSYS_CMD) run
+msys-debug-gdb msys-release-gdb msys-releasedbg-gdb:; @+$(ZLMSYS_CMD) gdb
 
 #------------------------------------------------------------------------------------------------------
 
