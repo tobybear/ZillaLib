@@ -82,7 +82,28 @@
 #define SDL_GestureAddTouch(t) NULL
 #define SDL_GestureProcessEvent(e) NULL
 
-#define SDL_GetHint(n) NULL
+#ifdef __MACOSX__
+#define SDL_HINT_MOUSE_RELATIVE_MODE_WARP           "1"
+#else
+#define SDL_HINT_MOUSE_RELATIVE_MODE_WARP           NULL
+#endif
+#define SDL_HINT_GAMECONTROLLERCONFIG               NULL
+#define SDL_HINT_XINPUT_ENABLED                     NULL
+#define SDL_HINT_VIDEO_WIN_D3DCOMPILER              NULL
+#define SDL_HINT_RENDER_DRIVER                      NULL
+#define SDL_HINT_FRAMEBUFFER_ACCELERATION           NULL
+#define SDL_HINT_VIDEO_ALLOW_SCREENSAVER            NULL
+#define SDL_HINT_VIDEO_HIGHDPI_DISABLED             NULL
+#define SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS       NULL
+#define SDL_HINT_ALLOW_TOPMOST                      NULL
+#define SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES        NULL
+#define SDL_HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK NULL
+#define SDL_HINT_VIDEO_WINDOW_SHARE_PIXEL_FORMAT    NULL
+#define SDL_HINT_VIDEO_X11_XINERAMA                 NULL
+#define SDL_HINT_VIDEO_X11_XRANDR                   NULL
+#define SDL_HINT_VIDEO_X11_XVIDMODE                 NULL
+#define SDL_HINT_GRAB_KEYBOARD                      NULL
+#define SDL_GetHint(n) n
 #define SDL_AddHintCallback(n, f, x) NULL
 #define SDL_DelHintCallback(n, f, x) NULL
 #undef HAVE_M_PI

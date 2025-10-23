@@ -157,6 +157,28 @@ VideoBootStrap WINDOWS_bootstrap = {
 int
 WIN_VideoInit(_THIS)
 {
+    /* ZL FIX: Need to call both SetProcessDpiAwareness and SetThreadDpiAwarenessContext to get clean OpenGL rendering on high dpi modes in Windows 10 and up */
+    HMODULE instanceshcore, instanceuser32;
+    if ((instanceshcore = LoadLibraryA("Shcore.dll")) != NULL)
+    {
+        typedef enum _PROCESS_DPI_AWARENESS { PROCESS_DPI_UNAWARE = 0, PROCESS_SYSTEM_DPI_AWARE = 1, PROCESS_PER_MONITOR_DPI_AWARE = 2 } PROCESS_DPI_AWARENESS;
+        typedef HRESULT(__stdcall *ShcoreSetProcessDpiAwareness)(PROCESS_DPI_AWARENESS);
+        static ShcoreSetProcessDpiAwareness pfnShcoreSetProcessDpiAwareness;
+        if ((pfnShcoreSetProcessDpiAwareness = (ShcoreSetProcessDpiAwareness)(void*)GetProcAddress(instanceshcore, "SetProcessDpiAwareness")) != NULL)
+            pfnShcoreSetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+        FreeLibrary(instanceshcore);
+    }
+    if ((instanceuser32 = LoadLibraryA("User32.dll")) != NULL)
+    {
+        DECLARE_HANDLE(DPI_AWARENESS_CONTEXT);
+        #define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE ((DPI_AWARENESS_CONTEXT)-3)
+        typedef DPI_AWARENESS_CONTEXT(__stdcall *User32SetThreadDpiAwarenessContext)(DPI_AWARENESS_CONTEXT);
+        static User32SetThreadDpiAwarenessContext pfnUser32SetThreadDpiAwarenessContext;
+        if ((pfnUser32SetThreadDpiAwarenessContext = (User32SetThreadDpiAwarenessContext)(void*)GetProcAddress(instanceuser32, "SetThreadDpiAwarenessContext")) != NULL)
+            pfnUser32SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
+        FreeLibrary(instanceuser32);
+    }
+
     if (WIN_InitModes(_this) < 0) {
         return -1;
     }

@@ -218,6 +218,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 }
 #endif
 
+#if defined(__MACOSX__)
+static scalar ZL_SDL_DPIScale;
+static void ZL_SDL_CalcDPIScale()
+{
+	int ww, wh, glw, glh;
+	SDL_GL_GetDrawableSize(ZL_SDL_Window, &glw, &glh); 
+	SDL_GetWindowSize(ZL_SDL_Window, &ww, &wh);
+	ZL_SDL_DPIScale = s(glw) / ww;
+}
+
+#define ZLDPISCALE(f) ((f)*ZL_SDL_DPIScale)
+#define ZLDPISCALEINT(i) ((int)((i)*ZL_SDL_DPIScale+.4999))
+#else
+#define ZL_SDL_CalcDPIScale()
+#define ZLDPISCALE(f) (f)
+#define ZLDPISCALEINT(i) (i)
+#endif
+
 //application
 ticks_t ZL_GetTicks()
 {
@@ -310,6 +328,10 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	windowflags |= SDL_WINDOW_BORDERLESS;
 	#endif
 
+	#if defined(__MACOSX__) // see SDL_cocoawindow.m
+	windowflags |= SDL_WINDOW_ALLOW_HIGHDPI;
+	#endif
+
 	ZL_SDL_Window = SDL_CreateWindow(windowtitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, windowflags);
 	if (!ZL_SDL_Window)
 	{
@@ -339,6 +361,8 @@ bool ZL_CreateWindow(const char* windowtitle, int width, int height, int display
 	#endif
 
 	if (!SDL_GL_CreateContext(ZL_SDL_Window)) { ZL_SDL_ShowError("Could not initialize OpenGL context"); return false; }
+
+	ZL_SDL_CalcDPIScale();
 
 	glClear(GL_COLOR_BUFFER_BIT);
 	SDL_GL_SwapWindow(ZL_SDL_Window);
@@ -427,10 +451,10 @@ static void ProcessSDLEvents()
 				out.type = ZL_EVENT_MOUSEMOTION;
 				out.motion.which = 0;
 				out.motion.state = in.motion.state;
-				out.motion.x = (scalar)in.motion.x;
-				out.motion.y = (scalar)in.motion.y;
-				out.motion.xrel = (scalar)in.motion.xrel;
-				out.motion.yrel = (scalar)in.motion.yrel;
+				out.motion.x = ZLDPISCALE((scalar)in.motion.x);
+				out.motion.y = ZLDPISCALE((scalar)in.motion.y);
+				out.motion.xrel = ZLDPISCALE((scalar)in.motion.xrel);
+				out.motion.yrel = ZLDPISCALE((scalar)in.motion.yrel);
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 			case SDL_MOUSEBUTTONUP:
@@ -439,8 +463,8 @@ static void ProcessSDLEvents()
 				out.button.which = 0;
 				out.button.button = in.button.button;
 				out.button.is_down = (in.button.state == SDL_PRESSED);
-				out.button.x = (scalar)in.button.x;
-				out.button.y = (scalar)in.button.y;
+				out.button.x = ZLDPISCALE((scalar)in.button.x);
+				out.button.y = ZLDPISCALE((scalar)in.button.y);
 				break;
 			case SDL_MOUSEWHEEL:
 				out.type = ZL_EVENT_MOUSEWHEEL;
@@ -453,10 +477,10 @@ static void ProcessSDLEvents()
 				if (out.motion.which == 0) ZL_SDL_Mouse_IgnoreMotion = 1;
 				out.type = ZL_EVENT_MOUSEMOTION;
 				out.motion.state = 1;
-				out.motion.x = (scalar)in.tfinger.x * (scalar)ZL_SDL_Window->w;
-				out.motion.y = (scalar)in.tfinger.y * (scalar)ZL_SDL_Window->h;
-				out.motion.xrel = (scalar)in.tfinger.dx * (scalar)ZL_SDL_Window->w;
-				out.motion.yrel = (scalar)in.tfinger.dy * (scalar)ZL_SDL_Window->h;
+				out.motion.x = ZLDPISCALE((scalar)in.tfinger.x * (scalar)ZL_SDL_Window->w);
+				out.motion.y = ZLDPISCALE((scalar)in.tfinger.y * (scalar)ZL_SDL_Window->h);
+				out.motion.xrel = ZLDPISCALE((scalar)in.tfinger.dx * (scalar)ZL_SDL_Window->w);
+				out.motion.yrel = ZLDPISCALE((scalar)in.tfinger.dy * (scalar)ZL_SDL_Window->h);
 				break;
 			case SDL_FINGERDOWN:
 			case SDL_FINGERUP:
@@ -481,8 +505,8 @@ static void ProcessSDLEvents()
 					out.type = ZL_EVENT_MOUSEBUTTONUP;
 				}
 				out.button.button = ZL_BUTTON_LEFT;
-				out.button.x = (scalar)in.tfinger.x * (scalar)ZL_SDL_Window->w;
-				out.button.y = (scalar)in.tfinger.y * (scalar)ZL_SDL_Window->h;
+				out.button.x = ZLDPISCALE((scalar)in.tfinger.x * (scalar)ZL_SDL_Window->w);
+				out.button.y = ZLDPISCALE((scalar)in.tfinger.y * (scalar)ZL_SDL_Window->h);
 				break;
 			case SDL_KEYDOWN:
 			case SDL_KEYUP:
@@ -551,9 +575,10 @@ static void ProcessSDLEvents()
 				else if (in.window.event == SDL_WINDOWEVENT_MOVED)     out.window.event = ZL_WINDOWEVENT_MOVED;
 				else if (in.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
 				{
+					ZL_SDL_CalcDPIScale();
 					out.window.event = ZL_WINDOWEVENT_RESIZED;
-					out.window.data1 = in.window.data1;
-					out.window.data2 = in.window.data2;
+					out.window.data1 = ZLDPISCALEINT(in.window.data1);
+					out.window.data2 = ZLDPISCALEINT(in.window.data2);
 				}
 				else
 				{
@@ -647,7 +672,7 @@ void ZL_SetPointerLock(bool doLockPointer)
 
 void ZL_GetWindowSize(int *w, int *h)
 {
-	SDL_GetWindowSize(ZL_SDL_Window, w, h);
+	SDL_GL_GetDrawableSize(ZL_SDL_Window, w, h);
 }
 
 static void ZL_SdlAudioMix(void *udata, Uint8 *stream, int len)
@@ -674,6 +699,14 @@ bool ZL_AudioOpen(unsigned int buffer_length)
 void ZL_SdlSetTitle(const char* newtitle)
 {
 	SDL_SetWindowTitle(ZL_SDL_Window, newtitle);
+}
+
+ZL_Vector ZL_SdlQueryMousePos()
+{
+	// This likely gives the same result as ZL_Display::PointerPos when called on the main thread so it is only really useful on a thread
+	int x, y; 
+	SDL_GetMouseState(&x, &y);
+	return ZLV(ZLDPISCALE((scalar)x), ZL_Display::Height - 1 - ZLDPISCALE((scalar)y));
 }
 
 //thread
