@@ -190,23 +190,41 @@
 /* #undef SDL_POWER_DISABLED */
 /* #undef SDL_FILESYSTEM_DISABLED */
 
+#if defined(__x86_64__)
+#define SDL_LINUX_LIB_PATH "/usr/lib/x86_64-linux-gnu/"
+#elif defined(__i386__) || defined(__i486__) || defined(__i586__) || defined(__i686__)
+#define SDL_LINUX_LIB_PATH "/usr/lib/i386-linux-gnu/"
+#elif defined(__aarch64__) || defined(__ARM_ARCH_ISA_A64)
+#define SDL_LINUX_LIB_PATH "/usr/lib/aarch64-linux-gnu/"
+#elif defined(__arm__) && defined(__ARM_PCS_VFP)
+#define SDL_LINUX_LIB_PATH "/usr/lib/arm-linux-gnueabihf/"
+#elif defined(__arm__)
+#define SDL_LINUX_LIB_PATH "/usr/lib/arm-linux-gnueabi/"
+#elif defined(__powerpc64__) && defined(__LITTLE_ENDIAN__)
+#define SDL_LINUX_LIB_PATH "/usr/lib/powerpc64le-linux-gnu/"
+#elif defined(__powerpc64__)
+#define SDL_LINUX_LIB_PATH "/usr/lib/powerpc64-linux-gnu/"
+#elif defined(__mips64) && defined(__MIPSEL__)
+#define SDL_LINUX_LIB_PATH "/usr/lib/mips64el-linux-gnu/"
+#elif defined(__mips__) && defined(__MIPSEL__)
+#define SDL_LINUX_LIB_PATH "/usr/lib/mipsel-linux-gnu/"
+#elif defined(__mips__)
+#define SDL_LINUX_LIB_PATH "/usr/lib/mips-linux-gnu/"
+#elif defined(__riscv) && (__riscv_xlen == 64)
+#define SDL_LINUX_LIB_PATH "/usr/lib/riscv64-linux-gnu/"
+#elif defined(__s390x__)
+#define SDL_LINUX_LIB_PATH "/usr/lib/s390x-linux-gnu/"
+#else
+#error Unable to determine library path
+#endif
+
 /* Enable various audio drivers */
 #define SDL_AUDIO_DRIVER_ALSA 1
-#if defined(__aarch64__) || defined(__ARM_ARCH_ISA_A64)
-#define SDL_AUDIO_DRIVER_ALSA_DYNAMIC "/usr/lib/aarch64-linux-gnu/libasound.so.2"
-#elif defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7EM__) || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7S__)
-#define SDL_AUDIO_DRIVER_ALSA_DYNAMIC "/usr/lib/arm-linux-gnueabihf/libasound.so.2"
-#elif defined(__arm__)
-#define SDL_AUDIO_DRIVER_ALSA_DYNAMIC "/usr/lib/arm-linux-gnueabi/libasound.so.2"
-#elif defined(__LP64__) || defined(_LP64) || defined(__LLP64__) || defined(__x86_64__)
-#define SDL_AUDIO_DRIVER_ALSA_DYNAMIC "/usr/lib/x86_64-linux-gnu/libasound.so.2"
-#else
-#define SDL_AUDIO_DRIVER_ALSA_DYNAMIC "/usr/lib/i386-linux-gnu/libasound.so.2"
-#endif
+#define SDL_AUDIO_DRIVER_ALSA_DYNAMIC SDL_LINUX_LIB_PATH "libasound.so.2"
 /* #undef SDL_AUDIO_DRIVER_ARTS */
 /* #undef SDL_AUDIO_DRIVER_ARTS_DYNAMIC */
-/* #undef SDL_AUDIO_DRIVER_PULSEAUDIO */
-/* #undef SDL_AUDIO_DRIVER_PULSEAUDIO_DYNAMIC */
+#define SDL_AUDIO_DRIVER_PULSEAUDIO 1
+#define SDL_AUDIO_DRIVER_PULSEAUDIO_DYNAMIC SDL_LINUX_LIB_PATH "libpulse-simple.so"
 /* #undef SDL_AUDIO_DRIVER_HAIKU */
 /* #undef SDL_AUDIO_DRIVER_BSD */
 /* #undef SDL_AUDIO_DRIVER_COREAUDIO */

@@ -50,7 +50,7 @@ help:helpheader
 linux-help:helpheader
 	$(info Linux Requirements:)
 	$(info $( )    Building for linux requires an installed and running linux operating system (either 32 or 64-bit) and the following packages installed:)
-	$(info $( )        gcc, make, g++, libgl1-mesa-dev, libasound2-dev)
+	$(info $( )        gcc, make, g++, libgl1-mesa-dev, libasound2-dev, libpulse-dev, libxxf86vm-dev, libxrandr-dev)
 	$(info $( )    By default, it will use the system machine (32 or 64-bit) for building)
 	$(info $( )    If you have a cross compile environment set up, you can specify to build a specific machine target by supplying M32=1 or M64=1 as make parameter)
 	$(info )

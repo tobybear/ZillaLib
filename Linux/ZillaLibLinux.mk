@@ -202,6 +202,7 @@ DEPSOURCES += \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/audio/SDL_audiodev.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/audio/alsa/SDL_alsa_audio.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/audio/dsp/SDL_dspaudio.c) \
+	$(wildcard $(ZILLALIB_DIR)Source/sdl/audio/pulseaudio/SDL_pulseaudio.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/events/*.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/joystick/SDL_joystick.c) \
 	$(wildcard $(ZILLALIB_DIR)Source/sdl/joystick/linux/SDL_sysjoystick.c) \

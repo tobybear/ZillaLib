@@ -14,6 +14,7 @@ Building for linux requires an installed and running linux operating system (eit
   - g++
   - libgl1-mesa-dev
   - libasound2-dev
+  - libpulse-dev
   - libxxf86vm-dev
   - libxrandr-dev
 
