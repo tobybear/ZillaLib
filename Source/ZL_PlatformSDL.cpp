@@ -684,6 +684,7 @@ bool ZL_AudioOpen(unsigned int buffer_length)
 {
 	if (SDL_GetAudioStatus() != SDL_AUDIO_STOPPED) SDL_AudioQuit();
 	if (SDL_AudioInit(NULL) < 0) return false;
+	ZL_LOG1("AUDIO", "Initialized audio driver: %s", SDL_GetCurrentAudioDriver());
 	SDL_AudioSpec desired;
 	desired.freq = 44100;
 	desired.format = AUDIO_S16LSB;
