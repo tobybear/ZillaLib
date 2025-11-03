@@ -24,7 +24,9 @@
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wunused-variable"
+#if !defined(__clang__) && __GNUC__ > 6
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 #endif
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
