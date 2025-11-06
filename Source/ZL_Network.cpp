@@ -19,6 +19,8 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
+#ifdef ZL_USE_NETWORK
+
 #include "ZL_Network.h"
 #include "ZL_Application.h"
 #include "ZL_Impl.h"
@@ -1241,3 +1243,5 @@ ZL_HttpConnection& ZL_HttpConnection::SetDoStreamData(bool DoStreamData)        
 void ZL_HttpConnection::Connect(const char *url) { if (!url) return; if (!impl) impl = new ZL_HttpConnection_Impl(); impl->Connect(url); }
 ZL_Signal_v2<int, const ZL_String&>&    ZL_HttpConnection::sigReceivedString() { if (!impl) impl = new ZL_HttpConnection_Impl(); return impl->sigReceivedString; }
 ZL_Signal_v3<int, const char*, size_t>& ZL_HttpConnection::sigReceivedData()   { if (!impl) impl = new ZL_HttpConnection_Impl(); return impl->sigReceivedData;   }
+
+#endif

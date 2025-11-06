@@ -248,9 +248,36 @@ ZL_Surface::ZL_Surface(int width, int height, bool use_alpha) : impl(new ZL_Surf
 	if (!impl->tex) { delete impl; impl = NULL; }
 }
 
-ZL_Surface::ZL_Surface(const unsigned char* pixels, int width, int height, int BytesPerPixel) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::CreateFromBitmap(pixels, width, height, BytesPerPixel), false))
+ZL_Surface::ZL_Surface(unsigned char* pixels, int width, int height, int BytesPerPixel) : impl(new ZL_Surface_Impl(ZL_Texture_Impl::CreateFromBitmap(pixels, width, height, BytesPerPixel), false))
 {
 	if (!impl->tex) { delete impl; impl = NULL; }
+}
+
+int ZL_Surface::LoadImg(const char* file, unsigned char** pixels, int& width, int& height, int& BytesPerPixel)
+{
+	ZL_BitmapSurface srf = impl->tex->LoadBitmapSurface(file);
+	if (srf.w > 0 && srf.h > 0 && srf.pixels) {
+		width = srf.w;
+		height = srf.h;
+		BytesPerPixel = srf.BytesPerPixel;
+		*pixels = srf.pixels;
+		return 0;
+	}
+	return -1;
+}
+
+void ZL_Surface::Update(unsigned char* pixels, int width, int height, int BytesPerPixel) const
+{
+	impl->tex->UpdateFromBitmap(pixels, width, height, BytesPerPixel);
+}
+
+void ZL_Surface::Clear()
+{
+	if (impl->tex) {
+		delete impl->tex;
+	}
+	delete impl;
+	impl = NULL;
 }
 
 ZL_Surface ZL_Surface::Clone() const

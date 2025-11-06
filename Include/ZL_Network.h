@@ -25,6 +25,8 @@
 #include "ZL_Signal.h"
 #include "ZL_String.h"
 
+#ifdef ZL_USE_NETWORK
+
 #if defined(__wasm__) || defined(__EMSCRIPTEN__) || defined(__native_client__)
 #define ZL_NO_SOCKETS
 #endif
@@ -277,5 +279,7 @@ struct ZL_HttpConnection
 
 	private: struct ZL_HttpConnection_Impl* impl;
 };
+
+#endif
 
 #endif //__ZL_NETWORK__

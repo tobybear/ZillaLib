@@ -77,42 +77,58 @@ static void InitExtensionEntries();
 static void ProcessSDLEvents();
 
 static SDL_Window* ZL_SDL_Window = NULL;
+#ifdef ZL_USE_DATA
 static ZL_String jsonConfigFile;
 static ZL_Json jsonConfig;
+#endif
 static SDL_FingerID ZL_SDL_FingerIDs[32];
 static signed char ZL_SDL_FingerCount, ZL_SDL_Mouse_IgnoreMotion, ZL_SDL_Mouse_IgnoreButton;
 
 void ZL_SettingsInit(const char* FallbackConfigFilePrefix)
 {
+#ifdef ZL_USE_DATA
 	jsonConfigFile.erase();
 	jsonConfigFile << FallbackConfigFilePrefix << ".cfg";
 	if (ZL_File::Exists(jsonConfigFile)) jsonConfig = ZL_Json(ZL_File(jsonConfigFile));
+#endif
 }
 
 const ZL_String ZL_SettingsGet(const char* Key)
 {
+#ifdef ZL_USE_DATA
 	ZL_Json field = jsonConfig.GetByKey(Key);
 	return (!field ? ZL_String() : ZL_String(field.GetString()));
+#endif
+	return "";
 }
 
 void ZL_SettingsSet(const char* Key, const char* Value)
 {
+#ifdef ZL_USE_DATA
 	jsonConfig[Key].SetString(Value);
+#endif
 }
 
 void ZL_SettingsDel(const char* Key)
 {
+#ifdef ZL_USE_DATA
 	jsonConfig.Erase(Key);
+#endif
 }
 
 bool ZL_SettingsHas(const char* Key)
 {
+#ifdef ZL_USE_DATA
 	return jsonConfig.HasKey(Key);
+#endif
+	return false;
 }
 
 void ZL_SettingsSynchronize()
 {
+#ifdef ZL_USE_DATA
 	ZL_File(jsonConfigFile, "w").SetContents(jsonConfig);
+#endif
 }
 
 void ZL_OpenExternalUrl(const char* url)
@@ -683,7 +699,6 @@ bool ZL_AudioOpen(unsigned int buffer_length)
 {
 	if (SDL_GetAudioStatus() != SDL_AUDIO_STOPPED) SDL_AudioQuit();
 	if (SDL_AudioInit(NULL) < 0) return false;
-	ZL_LOG1("AUDIO", "Initialized audio driver: %s", SDL_GetCurrentAudioDriver());
 	SDL_AudioSpec desired;
 	desired.freq = 44100;
 	desired.format = AUDIO_S16LSB;

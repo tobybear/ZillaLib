@@ -25,7 +25,9 @@
 #include "ZL_Data.h"
 #include "ZL_Application.h"
 #include "ZL_Impl.h"
+#include "ZL_PlatformConfig.h"
 
+#ifdef ZL_USE_DATA
 struct ZL_JSON_Impl : public ZL_Impl
 {
 	enum { TYPE_PROXY = 14, PARSE_ERROR = 15, FLAG_KEYNEEDFREE = 1, FLAG_STRINGNEEDFREE = 2, FLAG_ISROOT = 4 };
@@ -1095,3 +1097,5 @@ void ZL_Checksum::SHA1(const void* Data, size_t DataSize, unsigned char OutResul
 	SHA1_CTX::SHA1Process(&ctx, finalcount, 8);
 	for (unsigned j = 0; j < 20; j++) OutResult[j] = (unsigned char)((ctx.state[j>>2] >> ((3-(j & 3)) * 8) ) & 255);
 }
+
+#endif

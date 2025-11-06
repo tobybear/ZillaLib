@@ -79,8 +79,8 @@ enum { MULTI_TOUCH_POINTERID_BASE = 100, MAX_SIMULTANEOUS_TOUCHES = 10 };
 enum ANDROIDTOUCH_ACTION { ANDROIDTOUCH_DOWN = 0, ANDROIDTOUCH_UP = 1, ANDROIDTOUCH_MOVE = 2 };
 struct ZL_AndroidTouch { int lastx, lasty, touchid; };
 static ZL_AndroidTouch ZL_ANDROID_touch[MAX_SIMULTANEOUS_TOUCHES];
-static ZL_JoystickData *ZL_ANDROID_joysticks[2];
-static int ZL_ANDROID_joystickRefs[2];
+static ZL_JoystickData *ZL_ANDROID_joysticks[2] = { NULL, NULL };
+static int ZL_ANDROID_joystickRefs[2] = { 0, 0 };
 static unsigned short ZL_Android_KeyModState = ZLKMOD_NONE;
 static bool bJNI_InitActivity = false;
 
