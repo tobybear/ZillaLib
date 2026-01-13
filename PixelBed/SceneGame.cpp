@@ -45,16 +45,16 @@ static struct sSceneGame : public ZL_Scene
 
 	void Draw()
 	{
-		/*
-		unsigned char* p = pixels;
+		
+		unsigned char* p = img.pixels;
 		int t = rand() % 255;
-		for (int y = 0; y < h; y++)
-			for (int x = 0; x < w; x++) {
+		for (int y = 0; y < img.h; y++)
+			for (int x = 0; x < img.w / 2; x++) {
 				*p++ = (x * y + t) % 255;
 				*p++ = (x + y * t) % 255;
 				*p++ = (x * x + t * y * y) % 255;
 			}
-		*/
+		
 		unsigned char r, g, b;
 		for (int y = 0; y < img.h; y++) {
 			for (int x = 0; x < img.w; x++) {
@@ -66,12 +66,12 @@ static struct sSceneGame : public ZL_Scene
 		srfBuffer.Update(frame.pixels, frame.w, frame.h, frame.bpp);
 		srfBuffer.Draw(0, 0);
 //		srfBuffer.Clear();
-
+		/*
 		scalar rotation = s(ZLTICKS) / s(1000);
 		scalar scale = 1 + (s(0.2) * ssin(rotation * 3));
 		srfLogo.SetRotate(rotation);
 		srfLogo.SetScale(scale);
-		srfLogo.Draw(ZLHALFW, ZLHALFH);
+		srfLogo.Draw(ZLHALFW, ZLHALFH);*/
 	}
 
 	void StartGame()

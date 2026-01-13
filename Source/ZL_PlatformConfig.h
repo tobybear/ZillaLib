@@ -31,28 +31,28 @@
 // #define ZL_USE_ENET
 
 // set this define to enable tesselation (used for 2D polygons and 3D meshes)
-#define ZL_USE_TESSELATE
+// #define ZL_USE_TESSELATE
 
 // set this define to enable the SynthIMC synthesizer
-#define ZL_USE_SYNTHIMC
+// #define ZL_USE_SYNTHIMC
 
 // set this define to enable support for OGG Vorbis files
-#define ZL_USE_VORBIS
+// #define ZL_USE_VORBIS
 
 // set this define to enable support for TTF fonts
-#define ZL_USE_TTF
+// #define ZL_USE_TTF
 
 // set this define to include support for stbimage loader
 #define ZL_USE_STBIMAGE
 
 // set this define to include support for JSON, XML, Checksum, Base64, Compression
-#define ZL_USE_DATA
+// #define ZL_USE_DATA
 
 // set this define to include support for QOI image files
 // #define ZL_USE_QOI
 
 // set this to include support for 3D scene rendering
-#define ZL_USE_DISPLAY3D
+// #define ZL_USE_DISPLAY3D
 
 #ifndef ZL_USE_DISPLAY3D
 #define ZL_DISABLE_DISPLAY3D
